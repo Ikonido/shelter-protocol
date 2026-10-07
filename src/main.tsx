@@ -4,6 +4,9 @@ import './index.css';
 import App from './App';
 import { StoreProvider } from './store';
 import { ErrorBoundary } from './ui/ErrorBoundary';
+import { initPwa } from './lib/pwa';
+
+initPwa();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

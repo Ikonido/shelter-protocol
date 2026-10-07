@@ -1,10 +1,11 @@
 import { useEffect, useReducer, useState } from 'react';
-import { ArrowLeft, Copy, Gavel, Lock, LogIn, Unlock, UserX, Users, Wifi, WifiOff, Zap } from 'lucide-react';
+import { ArrowLeft, Copy, Gavel, Lock, LogIn, RefreshCw, Unlock, UserX, Users, Wifi, WifiOff, Zap } from 'lucide-react';
 import { useStore, type OnlineDraft } from '../store';
 import { OnlineClient, OnlineHost, type C2H, type Conn, type H2C } from '../lib/online';
-import { createRoom, isValidCode, joinRoom, normalizeCode, probeLan, type NetMode } from '../lib/net';
+import { createRoom, isValidCode, isValidTicket, joinRoom, normalizeCode, probeLan, shareOrigin, type NetMode } from '../lib/net';
 import { randomToken } from '../lib/rng';
 import { copyText } from '../ui/clipboard';
+import { QR } from '../ui/QR';
 import { alive, quotaThisRound, revealOptions } from '../lib/game';
 import { CATEGORIES, CATEGORY_LABEL, type Category, type GameState } from '../types';
 import { CardFace, Stepper } from '../ui/bits';
@@ -45,7 +46,16 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
   const [name, setName] = useState(readLS('shelter:name') ?? 'Хост');
   const [slots, setSlots] = useState(draft.slots);
   const [net, setNet] = useState<NetMode | null>(null);
+  const [origin, setOrigin] = useState(location.origin);
+  const [now, setNow] = useState(Date.now());
   useLive(host);
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  useEffect(() => {
+    if (net) void shareOrigin(net).then(setOrigin);
+  }, [net]);
 
   useEffect(() => {
     let room: { destroy(): void } | null = null;
@@ -71,7 +81,11 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
   }, [draft]);
 
   if (!host) return null;
-  const link = code ? `${location.origin}${location.pathname}#join=${code}` : '';
+  // currentTicket() сам выпускает новый билет по истечении срока — QR «живой», старый перестаёт работать.
+  const ticket = code ? host.currentTicket() : null;
+  const left = ticket ? Math.max(0, Math.ceil((ticket.expiresAt - now) / 1000)) : 0;
+  const link = code && ticket ? `${origin}${location.pathname}#join=${code}.${ticket.value}` : '';
+  const localhostOnly = net === 'lan' && origin === location.origin && ['localhost', '127.0.0.1'].includes(location.hostname);
   const copy = async (text: string) => notify((await copyText(text)) ? 'Скопировано' : 'Не удалось скопировать');
 
   if (host.game) {
@@ -104,7 +118,22 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
               <button className="btn btn-sm" onClick={() => copy(code)}><Copy size={14} /> Код</button>
               <button className="btn btn-sm" onClick={() => copy(link)}><Copy size={14} /> Ссылка-приглашение</button>
             </div>
-            <div className="mt-2"><NetBadge mode={net} /></div>
+            {link && (
+              <div className="mt-4">
+                <QR value={link} size={208} label={`QR-код для входа в комнату ${code}`} />
+                <p className="mt-2 text-xs text-dim">
+                  Временный QR · действует <b className="text-amber">{Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}</b>, затем обновится сам
+                </p>
+                <div className="mt-2 flex flex-wrap justify-center gap-2">
+                  <button className="btn btn-sm" onClick={() => host.rotateTicket()}><RefreshCw size={14} /> Обновить QR</button>
+                  <label className="btn btn-sm cursor-pointer">
+                    <input type="checkbox" className="size-4 accent-amber" checked={host.requireTicket} onChange={(e) => host.setRequireTicket(e.target.checked)} /> Вход только по QR
+                  </label>
+                </div>
+                {localhostOnly && <p className="mt-2 text-xs text-danger">Не удалось определить адрес вашего устройства в сети — телефоны могут не открыть QR. Откройте приложение по LAN-адресу из консоли сервера.</p>}
+              </div>
+            )}
+            <div className="mt-3"><NetBadge mode={net} /></div>
           </>
         ) : (
           <p className="text-sm text-dim">Создаём комнату…</p>
@@ -143,7 +172,7 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
 
 /* ---------- Гость: вход ---------- */
 
-export function Join({ initialCode }: { initialCode?: string }) {
+export function Join({ initialCode, initialTicket }: { initialCode?: string; initialTicket?: string }) {
   const { go } = useStore();
   const [code, setCode] = useState(initialCode ?? '');
   const [name, setName] = useState(readLS('shelter:name') ?? '');
@@ -169,7 +198,8 @@ export function Join({ initialCode }: { initialCode?: string }) {
     setError(null);
     try {
       const { conn, destroy } = await joinRoom(c, net ?? 'internet');
-      const cl = new OnlineClient(conn as Conn<C2H>, n, token);
+      const ticket = initialTicket && isValidTicket(initialTicket) && c === initialCode ? initialTicket : undefined;
+      const cl = new OnlineClient(conn as Conn<C2H>, n, token, ticket);
       const orig = cl.destroy.bind(cl);
       cl.destroy = () => (orig(), destroy());
       setClient(cl);

@@ -20,7 +20,8 @@ export type Screen =
   | { name: 'editor'; packId: string }
   | { name: 'rules' }
   | { name: 'lobby'; draft: OnlineDraft }
-  | { name: 'join'; code?: string };
+  | { name: 'join'; code?: string; ticket?: string }
+  | { name: 'install' };
 
 interface Store {
   screen: Screen;
@@ -60,10 +61,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Ссылка-шеринг: #pack=... → предложение добавить пак.
   useEffect(() => {
     const check = () => {
-      const join = /^#join=([A-Za-z0-9]{5})$/.exec(window.location.hash);
+      const join = /^#join=([A-Za-z0-9]{5})(?:\.([A-Za-z0-9]{6}))?$/.exec(window.location.hash);
       if (join) {
         history.replaceState(null, '', window.location.pathname + window.location.search);
-        go({ name: 'join', code: join[1].toUpperCase() });
+        go({ name: 'join', code: join[1].toUpperCase(), ticket: join[2]?.toUpperCase() });
         return;
       }
       if (!window.location.hash.startsWith('#pack=')) return;

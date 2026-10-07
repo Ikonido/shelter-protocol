@@ -37,6 +37,13 @@ app.use((_req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache');
   next();
 });
+const lanIps = () =>
+  Object.values(os.networkInterfaces())
+    .flat()
+    .filter((i) => i && i.family === 'IPv4' && !i.internal)
+    .map((i) => i.address);
+// Приложение берёт отсюда адрес для QR-кода, когда хост открыл страницу как localhost.
+app.get('/lan-info.json', (_req, res) => res.json({ ips: lanIps(), port: PORT }));
 app.use(express.static(dist, { dotfiles: 'ignore', index: 'index.html' }));
 
 const server = http.createServer(app);
@@ -50,10 +57,7 @@ app.use('/peerjs', ExpressPeerServer(server, { path: '/', allow_discovery: false
 
 server.listen(PORT, HOST, () => {
   console.log('\nShelter Protocol — сервер локальной сети запущен\n');
-  const ips = Object.values(os.networkInterfaces())
-    .flat()
-    .filter((i) => i && i.family === 'IPv4' && !i.internal)
-    .map((i) => i.address);
+  const ips = lanIps();
   console.log(`  Хост открывает:     http://localhost:${PORT}`);
   for (const ip of ips) console.log(`  Остальные открывают: http://${ip}:${PORT}`);
   if (!ips.length) console.log('  (не найдено сетевых интерфейсов — подключитесь к Wi-Fi/раздайте точку доступа)');

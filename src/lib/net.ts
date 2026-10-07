@@ -1,5 +1,6 @@
 import type { DataConnection, Peer as PeerT, PeerOptions } from 'peerjs';
 import type { Conn } from './online';
+import { randomCode } from './rng';
 
 /**
  * WebRTC через PeerJS: публичный брокер нужен только для рукопожатия (SDP/ICE),
@@ -12,12 +13,7 @@ const env = import.meta.env as Record<string, string | undefined>;
 
 export const normalizeCode = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
 export const isValidCode = (s: string) => new RegExp(`^[${ALPHABET}]{5}$`).test(s);
-
-function randomCode(): string {
-  const buf = new Uint8Array(5);
-  crypto.getRandomValues(buf);
-  return Array.from(buf, (b) => ALPHABET[b % ALPHABET.length]).join('');
-}
+export const isValidTicket = (s: string) => new RegExp(`^[${ALPHABET}]{6}$`).test(s);
 
 export type NetMode = 'internet' | 'lan';
 
@@ -98,7 +94,7 @@ export interface Room {
 /** Хост: занимает случайный код комнаты и отдаёт каждое входящее соединение в `onConn`. */
 export async function createRoom(onConn: (c: Conn<unknown>) => void, mode: NetMode = 'internet'): Promise<Room> {
   for (let attempt = 0; attempt < 5; attempt++) {
-    const code = randomCode();
+    const code = randomCode(5);
     const peer = await newPeer(mode, ROOM_PREFIX + code);
     try {
       await waitOpen(peer, 12000);
@@ -136,4 +132,21 @@ export async function joinRoom(code: string, mode: NetMode = 'internet'): Promis
     );
     dc.on('open', () => (clearTimeout(t), resolve({ conn: wrap(dc), destroy: () => peer.destroy() })));
   });
+}
+
+/**
+ * Адрес, который надо отдать телефонам. Если хост открыл `localhost`, телефоны по нему не зайдут —
+ * берём LAN-адрес, который сообщает сервер (`/lan-info.json`).
+ */
+export async function shareOrigin(mode: NetMode): Promise<string> {
+  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+  if (mode !== 'lan' || !loopback) return location.origin;
+  try {
+    const info = (await (await fetch('lan-info.json', { cache: 'no-store' })).json()) as { ips?: string[]; port?: number };
+    const ip = info.ips?.find((x) => /^\d+\.\d+\.\d+\.\d+$/.test(x));
+    if (ip) return `http://${ip}:${Number(info.port) || location.port}`;
+  } catch {
+    /* оставим как есть */
+  }
+  return location.origin;
 }

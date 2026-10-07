@@ -37,3 +37,12 @@ export function randomToken(): string {
   crypto.getRandomValues(buf);
   return Array.from(buf, (b) => b.toString(16).padStart(2, '0')).join('');
 }
+
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // без 0/O/1/I; 32 символа → без смещения при % 32
+
+/** Короткий случайный код (код комнаты, билет QR). */
+export function randomCode(len: number): string {
+  const buf = new Uint8Array(len);
+  crypto.getRandomValues(buf);
+  return Array.from(buf, (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join('');
+}

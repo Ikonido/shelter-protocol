@@ -21,14 +21,14 @@ import {
   revealOptions,
   startVote,
 } from './game';
-import { newSeed } from './rng';
+import { newSeed, randomCode } from './rng';
 import { LIMITS as L, clip } from './limits';
 import { sanitizeScenario } from './packs';
 
 /* ---------- Протокол ---------- */
 
 export type C2H =
-  | { t: 'hello'; name: string; token: string }
+  | { t: 'hello'; name: string; token: string; ticket?: string }
   | { t: 'reveal'; category: Category }
   | { t: 'action' }
   | { t: 'vote'; target: string };
@@ -54,6 +54,9 @@ export const MAX_ONLINE_PLAYERS = 20;
 const MAX_PENDING = 40;
 const HANDSHAKE_MS = 10_000;
 const MAX_MSGS_PER_SEC = 30;
+/** Билет QR-кода живёт столько, потом хост выпускает новый; ещё GRACE_MS после смены старый принимается — вдруг кто-то уже навёл камеру. */
+export const TICKET_TTL_MS = 5 * 60_000;
+const TICKET_GRACE_MS = 20_000;
 
 /* ---------- Маскирование состояния ---------- */
 
@@ -103,6 +106,9 @@ export class OnlineHost {
   game: GameState | null = null;
   /** Закрытая комната не принимает новых игроков (вернуться по токену можно). */
   locked = false;
+  /** «Только по QR»: без действующего билета новые игроки не принимаются (код комнаты один не работает). */
+  requireTicket = false;
+  private tickets: { value: string; expires: number }[] = [];
   private listeners = new Set<() => void>();
   private pending = new Set<Conn<H2C>>();
   private rate = new Map<Conn<H2C>, { t: number; n: number }>();
@@ -154,6 +160,35 @@ export class OnlineHost {
     }
   }
 
+  /** Действующий билет для QR; по истечении TTL автоматически выпускается новый. */
+  currentTicket(): { value: string; expiresAt: number } {
+    const now = Date.now();
+    this.tickets = this.tickets.filter((t) => now < t.expires + TICKET_GRACE_MS);
+    let cur = this.tickets[this.tickets.length - 1];
+    if (!cur || now >= cur.expires) {
+      cur = { value: randomCode(6), expires: now + TICKET_TTL_MS };
+      this.tickets.push(cur);
+    }
+    return { value: cur.value, expiresAt: cur.expires };
+  }
+
+  /** Немедленно аннулировать все билеты и выпустить новый (кнопка «Обновить QR»). */
+  rotateTicket() {
+    this.tickets = [];
+    this.currentTicket();
+    this.changed();
+  }
+
+  private ticketValid(t: unknown): boolean {
+    this.currentTicket();
+    return typeof t === 'string' && this.tickets.some((x) => x.value === t.toUpperCase());
+  }
+
+  setRequireTicket(v: boolean) {
+    this.requireTicket = v;
+    this.changed();
+  }
+
   setLocked(v: boolean) {
     this.locked = v;
     this.changed();
@@ -196,6 +231,10 @@ export class OnlineHost {
         return conn.send({ t: 'reject', reason: 'Партия уже началась' });
       } else if (this.locked) {
         return conn.send({ t: 'reject', reason: 'Комната закрыта хостом' });
+      } else if (msg.ticket !== undefined && !this.ticketValid(msg.ticket)) {
+        return conn.send({ t: 'reject', reason: 'QR-код устарел — отсканируйте актуальный у хоста' });
+      } else if (this.requireTicket && msg.ticket === undefined) {
+        return conn.send({ t: 'reject', reason: 'Вход только по QR-коду хоста' });
       } else if (this.members.length >= MAX_ONLINE_PLAYERS) {
         return conn.send({ t: 'reject', reason: 'Комната заполнена' });
       } else {
@@ -351,12 +390,13 @@ export class OnlineClient {
     private conn: Conn<C2H>,
     name: string,
     token: string,
+    ticket?: string,
   ) {
     conn.onMessage((raw) => this.onRaw(raw));
     conn.onClose(() => {
       if (this.state.status !== 'rejected') this.set({ status: 'closed' });
     });
-    conn.send({ t: 'hello', name, token });
+    conn.send({ t: 'hello', name, token, ...(ticket ? { ticket } : {}) });
   }
 
   subscribe(cb: () => void) {

@@ -15,6 +15,8 @@ function csp(env: Record<string, string>): Plugin {
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline'", // inline-атрибуты style у React (ширины индикаторов)
     "img-src 'self' data:",
+    "manifest-src 'self'",
+    "worker-src 'self'",
     `connect-src 'self' https://${broker} wss://${broker} ${env.VITE_PEER_SECURE === 'false' ? `http://${broker}:* ws://${broker}:*` : ''}`.trim(),
     "base-uri 'none'",
     "object-src 'none'",

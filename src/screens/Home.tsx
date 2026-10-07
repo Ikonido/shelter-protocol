@@ -1,4 +1,5 @@
-import { BookOpen, Globe, Library, Play, RotateCcw, ShieldAlert } from 'lucide-react';
+import { BookOpen, Globe, Library, Play, RotateCcw, ShieldAlert, Smartphone } from 'lucide-react';
+import { isStandalone } from '../lib/pwa';
 import { useStore } from '../store';
 
 export default function Home() {
@@ -33,6 +34,11 @@ export default function Home() {
         <button className="btn" onClick={() => go({ name: 'packs' })}>
           <Library size={18} /> Паки и редактор
         </button>
+        {!isStandalone() && (
+          <button className="btn" onClick={() => go({ name: 'install' })}>
+            <Smartphone size={18} /> Установить на телефон
+          </button>
+        )}
         <button className="btn" onClick={() => go({ name: 'rules' })}>
           <BookOpen size={18} /> Правила
         </button>
