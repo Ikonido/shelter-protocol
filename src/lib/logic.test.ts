@@ -37,10 +37,10 @@ describe('generation', () => {
 });
 
 describe('round flow', () => {
-  it('forces profession in round 1, then moves to debate, vote, result', () => {
+  it('forces biology (sex & age) in round 1, then moves to debate, vote, result', () => {
     let g = newGame();
-    expect(revealOptions(g, g.players[0])).toEqual(['profession']);
-    for (const p of g.players) g = revealCard(g, p.id, 'profession');
+    expect(revealOptions(g, g.players[0])).toEqual(['biology']);
+    for (const p of g.players) g = revealCard(g, p.id, 'biology');
     expect(g.phase).toBe('debate');
     expect(pendingReveal(g)).toHaveLength(0);
     g = startVote(g);
@@ -53,11 +53,19 @@ describe('round flow', () => {
     expect(g.round).toBe(2);
     expect(g.phase).toBe('reveal');
   });
+  it('after the forced sex/age reveal, later rounds are free choice', () => {
+    let g = newGame();
+    for (const p of g.players) g = revealCard(g, p.id, 'biology');
+    g = resolveVote(Object.assign(startVote(g), {}));
+    g = nextRound(g);
+    const opts = revealOptions(g, g.players.find((p) => !p.isEliminated)!);
+    expect(opts).toEqual(['profession', 'health', 'hobby', 'luggage', 'fact']); // biology уже открыта, action — не открывается
+  });
   it('rejects self votes and double reveal', () => {
     const g = newGame();
     expect(castVote(g, 'p1', 'p1').votes).toEqual({});
-    const r = revealCard(g, 'p1', 'profession');
-    expect(revealCard(r, 'p1', 'profession')).toBe(r);
+    const r = revealCard(g, 'p1', 'biology');
+    expect(revealCard(r, 'p1', 'biology')).toBe(r);
   });
 });
 

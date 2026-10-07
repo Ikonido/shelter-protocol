@@ -51,10 +51,10 @@ export function createGame(config: SessionConfig, scenario: Scenario, packs: Car
 export const alive = (g: GameState) => g.players.filter((p) => !p.isEliminated);
 export const quotaThisRound = (g: GameState) => g.schedule[g.round - 1] ?? 0;
 
-/** Карты, которые игрок может открыть в этом раунде. В первом раунде обязательно открывается профессия. */
+/** Карты, которые игрок может открыть в этом раунде. В первом раунде обязательно открывается биология (пол и возраст), дальше — любая карта по желанию. */
 export function revealOptions(g: GameState, p: PlayerCharacter): Category[] {
   const hidden = REVEALABLE.filter((c) => !p.slots[c].isRevealed);
-  if (g.round === 1 && hidden.includes('profession')) return ['profession'];
+  if (g.round === 1 && hidden.includes('biology')) return ['biology'];
   return hidden;
 }
 

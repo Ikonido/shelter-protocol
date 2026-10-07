@@ -46,11 +46,11 @@ describe('online', () => {
     const { host, clients } = await setup();
     host.start();
     await tick();
-    clients.forEach(({ c }) => c.send({ t: 'reveal', category: 'health' })); // не профессия в 1-м раунде — игнор
+    clients.forEach(({ c }) => c.send({ t: 'reveal', category: 'health' })); // не биология в 1-м раунде — игнор
     await tick();
     expect(host.game!.phase).toBe('reveal');
-    host.actAsHost({ t: 'reveal', category: 'profession' });
-    clients.forEach(({ c }) => c.send({ t: 'reveal', category: 'profession' }));
+    host.actAsHost({ t: 'reveal', category: 'biology' });
+    clients.forEach(({ c }) => c.send({ t: 'reveal', category: 'biology' }));
     await tick();
     expect(host.game!.phase).toBe('debate');
     clients[0].c.send({ t: 'vote', target: 'p1' }); // голос вне фазы — игнор
@@ -112,8 +112,8 @@ describe('security', () => {
     const { host, clients } = await setup();
     host.start();
     await tick();
-    host.actAsHost({ t: 'reveal', category: 'profession' });
-    clients.forEach(({ c }) => c.send({ t: 'reveal', category: 'profession' }));
+    host.actAsHost({ t: 'reveal', category: 'biology' });
+    clients.forEach(({ c }) => c.send({ t: 'reveal', category: 'biology' }));
     await tick();
     host.toVote();
     host.actAsHost({ t: 'vote', target: 'p3' });
