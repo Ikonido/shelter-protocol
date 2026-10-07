@@ -88,7 +88,9 @@ export function Verdict({ game }: { game: GameState }) {
 export function FinalReport({ game, auto = true, onStoryChange }: { game: GameState; auto?: boolean; onStoryChange?: (playing: boolean) => void }) {
   const [story, setStory] = useState(auto);
   // Родитель прячет остальное (журнал, кнопки), пока играет хроника.
-  useEffect(() => onStoryChange?.(story), [story, onStoryChange]);
+  useEffect(() => {
+    onStoryChange?.(story);
+  }, [story, onStoryChange]);
   if (story) return <ChroniclePlayer game={game} onDone={() => setStory(false)} />;
   return (
     <div className="flex flex-col gap-4">
