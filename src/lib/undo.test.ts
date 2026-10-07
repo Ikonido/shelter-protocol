@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CLASSIC_PACK } from '../data/classicPack';
 import type { SessionConfig } from '../types';
 import { createGame, extendDeadline, playAction, revealCard } from './game';
-import { applyUndo, undoable } from './undo';
+import { applyUndo, canUndo, undoable } from './undo';
 
 const cfg: SessionConfig = {
   scenarioId: CLASSIC_PACK.scenarios[0].id, packIds: [CLASSIC_PACK.id], playerCount: 4, shelterSlots: 1, mode: 'pass-and-play', voting: 'open',
@@ -33,5 +33,14 @@ describe('undo of a reveal', () => {
     expect(back.deadline).toBe(later.deadline);
     expect(back.deadline).not.toBe(before.deadline);
     expect(back.players).toBe(before.players);
+  });
+});
+
+describe('when the undo button is offered', () => {
+  it('is hidden once the match time is up (overtime would reveal the same card again)', () => {
+    const before = start();
+    const after = revealCard(before, 'p1', 'biology');
+    expect(canUndo({ before, after }, after, after.deadline! - 1)).toBe(true);
+    expect(canUndo({ before, after }, after, after.deadline!)).toBe(false);
   });
 });

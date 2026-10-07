@@ -22,3 +22,12 @@ export function undoable(after: GameState, current: GameState): boolean {
 export function applyUndo(before: GameState, current: GameState): GameState {
   return { ...before, deadline: current.deadline };
 }
+
+/**
+ * Можно ли показать «отменить» сейчас. После окончания времени партии овертайм сам откроет
+ * ту же карту заново, так что откат ничего бы не дал: кнопку прячем.
+ */
+export function canUndo(snap: { before: GameState; after: GameState }, current: GameState, now = Date.now()): boolean {
+  const overtime = current.deadline !== undefined && now >= current.deadline;
+  return !overtime && undoable(snap.after, current);
+}
