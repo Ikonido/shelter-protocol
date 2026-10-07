@@ -32,7 +32,7 @@ export function cardMatchesSkill(card: Card, skill: string): boolean {
 /** Навыки засчитываются с карт профессии, хобби, факта и багажа; здоровье и биология дают штрафы, а не навыки. */
 const SKILL_CATEGORIES = ['profession', 'hobby', 'fact', 'luggage'] as const;
 
-export function evaluate(scenario: Scenario, survivors: PlayerCharacter[]): Evaluation {
+export function evaluate(scenario: Scenario, survivors: PlayerCharacter[], slots?: number): Evaluation {
   const coverage: SkillCoverage[] = scenario.requiredSkills.map((skill) => ({
     skill,
     by: survivors
@@ -63,7 +63,9 @@ export function evaluate(scenario: Scenario, survivors: PlayerCharacter[]): Eval
   );
   const stability = clamp01(0.5 + (positives - negatives * 1.2) / (n * 6));
 
-  const score = Math.round(100 * (0.6 * skillRatio + 0.15 * health + 0.15 * resources + 0.1 * stability));
+  // Переполненное убежище: ресурсы делятся на всех, и за каждого лишнего — штраф.
+  const overcrowd = slots ? Math.max(0, survivors.length - slots) : 0;
+  const score = Math.max(0, Math.round(100 * (0.6 * skillRatio + 0.15 * health + 0.15 * resources + 0.1 * stability)) - overcrowd * 10);
   const verdict = skillRatio < 0.5 || score < 45 ? 'failed' : score >= 75 && skillRatio === 1 ? 'survived' : 'fragile';
 
   const notes: string[] = [];
@@ -71,6 +73,7 @@ export function evaluate(scenario: Scenario, survivors: PlayerCharacter[]): Eval
   if (missing.length) notes.push(`Не хватило специалистов: ${missing.join(', ')}.`);
   if (badHealth) notes.push(`Проблемы со здоровьем у ${badHealth} из ${survivors.length} выживших.`);
   if (resources < 0.4) notes.push('Запасов и снаряжения мало — зимовка будет тяжёлой.');
+  if (overcrowd) notes.push(`Бункер переполнен: ${survivors.length} человек на ${slots} мест.`);
   if (!survivors.length) notes.push('В убежище никого не осталось.');
 
   const headline =

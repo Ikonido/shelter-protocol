@@ -80,6 +80,10 @@ export interface SessionConfig {
   shelterSlots: number; // K < N
   mode: PlayMode;
   voting: VotingMode;
+  /** Сколько вскрытий (с дебатами) проходит между голосованиями. */
+  revealsPerVote: number;
+  /** Лимит времени на партию в минутах, 0 — без лимита. */
+  timeLimitMin: number;
   names: string[];
   seed: number;
 }
@@ -95,6 +99,10 @@ export interface RoundResult {
   eliminated: string[];
   tally: Record<string, number>;
   tieBreak: boolean;
+  /** Сколько игроков воздержались. */
+  abstained?: number;
+  /** Большинство воздержалось — никто не покидает игру. */
+  skipped?: boolean;
 }
 
 export interface GameState {
@@ -104,7 +112,14 @@ export interface GameState {
   round: number; // с 1
   schedule: number[]; // исключений в каждом раунде
   phase: Phase;
+  /** Кто уже открыл карту в текущем вскрытии (шаге раунда). */
   revealedThisRound: string[];
+  /** Номер вскрытия внутри раунда, с 1 (нет в старых сохранениях → 1). */
+  revealStep?: number;
+  /** Момент окончания партии (мс, часы хоста); нет — без лимита. */
+  deadline?: number;
+  /** Только в «видах» для онлайн-клиентов: сколько осталось по часам хоста. */
+  timeLeftMs?: number;
   votes: Record<string, string>;
   lastResult?: RoundResult;
   log: LogEntry[];

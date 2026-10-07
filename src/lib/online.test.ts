@@ -14,7 +14,7 @@ function pair() {
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 async function setup(n = 3) {
-  const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[0], packs: [CLASSIC_PACK], slots: 1, voting: 'secret' }, 'Хост');
+  const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[0], packs: [CLASSIC_PACK], slots: 1, voting: 'secret', revealsPerVote: 1 }, 'Хост');
   const clients = [] as { c: OnlineClient; p: ReturnType<typeof pair> }[];
   for (let i = 1; i < n; i++) {
     const p = pair();
@@ -56,7 +56,7 @@ describe('online', () => {
     clients[0].c.send({ t: 'vote', target: 'p1' }); // голос вне фазы — игнор
     await tick();
     expect(host.game!.votes).toEqual({});
-    host.toVote();
+    host.endDebate();
     host.actAsHost({ t: 'vote', target: 'p3' });
     clients[0].c.send({ t: 'vote', target: 'p1' });
     clients[0].c.send({ t: 'vote', target: 'ghost' }); // нет такого игрока
@@ -115,7 +115,7 @@ describe('security', () => {
     host.actAsHost({ t: 'reveal', category: 'biology' });
     clients.forEach(({ c }) => c.send({ t: 'reveal', category: 'biology' }));
     await tick();
-    host.toVote();
+    host.endDebate();
     host.actAsHost({ t: 'vote', target: 'p3' });
     clients[0].c.send({ t: 'vote', target: 'p3' });
     clients[1].c.send({ t: 'vote', target: 'p1' });
@@ -177,5 +177,51 @@ describe('security', () => {
     if (c.state.status !== 'game') throw new Error('should accept sanitized');
     expect(c.state.view.players[0].name.length).toBe(24);
     expect(c.state.view.log.length).toBeLessThanOrEqual(200);
+  });
+});
+
+describe('abstain, steps and timer online', () => {
+  it('abstain is accepted; a majority of abstentions keeps everyone', async () => {
+    const { host, clients } = await setup();
+    host.start();
+    await tick();
+    host.actAsHost({ t: 'reveal', category: 'biology' });
+    clients.forEach(({ c }) => c.send({ t: 'reveal', category: 'biology' }));
+    await tick();
+    host.endDebate();
+    host.actAsHost({ t: 'vote', target: 'abstain' });
+    clients[0].c.send({ t: 'vote', target: 'abstain' });
+    clients[1].c.send({ t: 'vote', target: 'p1' });
+    await tick();
+    expect(host.game!.phase).toBe('result');
+    expect(host.game!.lastResult?.skipped).toBe(true);
+    expect(host.game!.players.every((p) => !p.isEliminated)).toBe(true);
+    const st = clients[0].c.state;
+    if (st.status !== 'game') throw new Error('no view');
+    expect(st.view.lastResult?.skipped).toBe(true);
+    expect(st.view.votes).toEqual({}); // тайные бюллетени (включая воздержавшихся) не раскрываются
+  });
+
+  it('two reveals per vote online, and clients get time left instead of host clock', async () => {
+    const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[0], packs: [CLASSIC_PACK], slots: 1, voting: 'open', timeLimitMin: 10 }, 'Хост');
+    const p = pair();
+    host.addConn(p.hostSide);
+    const c = new OnlineClient(p.clientSide, 'Гость', 'tok');
+    await tick();
+    host.start();
+    await tick();
+    expect(host.game!.config.revealsPerVote).toBe(2);
+    const st = c.state;
+    if (st.status !== 'game') throw new Error('no view');
+    expect(st.view.deadline).toBeGreaterThan(Date.now() + 9 * 60_000);
+    expect(st.view.deadline).toBeLessThan(Date.now() + 10 * 60_000 + 1000);
+    host.actAsHost({ t: 'reveal', category: 'biology' });
+    c.send({ t: 'reveal', category: 'biology' });
+    await tick();
+    host.endDebate();
+    expect(host.game!.phase).toBe('reveal'); // второе вскрытие
+    expect(host.game!.revealStep).toBe(2);
+    host.tick(host.game!.deadline! + 1); // время вышло
+    expect(host.game!.phase).toBe('vote');
   });
 });

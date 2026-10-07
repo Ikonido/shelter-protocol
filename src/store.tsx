@@ -10,6 +10,8 @@ export interface OnlineDraft {
   packs: CardPack[];
   slots: number;
   voting: VotingMode;
+  revealsPerVote: number;
+  timeLimitMin: number;
 }
 
 export type Screen =

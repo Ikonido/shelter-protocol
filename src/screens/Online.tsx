@@ -6,10 +6,11 @@ import { createRoom, isValidCode, isValidTicket, joinRoom, normalizeCode, probeL
 import { randomToken } from '../lib/rng';
 import { copyText } from '../ui/clipboard';
 import { QR } from '../ui/QR';
-import { alive, quotaThisRound, revealOptions } from '../lib/game';
+import { ABSTAIN, alive, perVote, quotaThisRound, revealOptions, stepOf, suggestedDebateSec } from '../lib/game';
 import { CATEGORIES, CATEGORY_LABEL, type Category, type GameState } from '../types';
 import { CardFace, Stepper } from '../ui/bits';
 import { Board, DebateTimer } from './Game';
+import { MatchClock } from '../ui/MatchClock';
 import { Verdict } from './Final';
 
 type Send = (m: Exclude<C2H, { t: 'hello' }>) => void;
@@ -50,9 +51,12 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
   const [now, setNow] = useState(Date.now());
   useLive(host);
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    const t = setInterval(() => {
+      setNow(Date.now());
+      host?.tick(); // время вышло -> дебаты пропускаются, карты открываются автоматически
+    }, 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [host]);
   useEffect(() => {
     if (net) void shareOrigin(net).then(setOrigin);
   }, [net]);
@@ -89,7 +93,8 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
   const copy = async (text: string) => notify((await copyText(text)) ? 'Скопировано' : 'Не удалось скопировать');
 
   if (host.game) {
-    const view = host.viewFor(0)!;
+    // Хосту часы нужны по его же времени (клиенты получают «осталось» и пересчитывают у себя).
+    const view = { ...host.viewFor(0)!, deadline: host.game.deadline };
     return (
       <OnlineGame
         view={view}
@@ -280,7 +285,7 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
         <button className="btn btn-sm" onClick={() => confirm('Выйти из партии?') && onExit()}><ArrowLeft size={16} /> Выйти</button>
         <span className="text-sm text-amber">{view.scenario.title}</span>
         <div className="ml-auto text-xs uppercase tracking-widest text-dim">
-          {view.phase !== 'final' && <>Раунд {view.round}/{view.schedule.length} · </>}
+          {view.phase !== 'final' && <>Раунд {view.round}/{view.schedule.length} · вскрытие {stepOf(view)}/{perVote(view)} · </>}
           В игре <b className="text-amber">{living.length}</b> · Мест <b className="text-amber">{view.config.shelterSlots}</b>
         </div>
       </header>
@@ -296,6 +301,9 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
         </>
       ) : (
         <>
+          {view.deadline && (
+            <MatchClock deadline={view.deadline} totalMin={view.config.timeLimitMin} onExtend={host ? () => host.extendTime(5 * 60_000) : undefined} />
+          )}
           <Board game={view} />
 
           <section className="panel flex flex-col gap-2">
@@ -323,7 +331,7 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
 
           {view.phase === 'reveal' && (
             <p className="panel text-sm text-dim">
-              Раунд {view.round}: открытие карт. {iRevealed ? 'Вы открыли карту. ' : ''}Ждём:{' '}
+              Раунд {view.round}, вскрытие {stepOf(view)} из {perVote(view)}. {iRevealed ? 'Вы открыли карту. ' : ''}Ждём:{' '}
               {living.filter((p) => !view.revealedThisRound.includes(p.id) && revealOptions(view, p).length).map((p) => p.name).join(', ') || '—'}
             </p>
           )}
@@ -332,11 +340,11 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
             <section className="panel flex flex-col gap-3">
               <h2 className="h-hud">Дебаты</h2>
               <p className="text-xs text-dim">Обсуждайте голосом или в чате. В этом раунде уйдёт: {quotaThisRound(view)}.</p>
-              <DebateTimer />
+              <DebateTimer suggested={suggestedDebateSec(view)} />
               {host ? (
-                <button className="btn btn-primary" onClick={() => host.toVote()}><Gavel size={18} /> К голосованию</button>
+                <button className="btn btn-primary" onClick={() => host.endDebate()}><Gavel size={18} /> {stepOf(view) < perVote(view) && view.players.some((p) => !p.isEliminated && revealOptions({ ...view, revealStep: stepOf(view) + 1 }, p).length) ? 'К следующему вскрытию' : 'К голосованию'}</button>
               ) : (
-                <p className="text-xs text-dim">Голосование откроет хост.</p>
+                <p className="text-xs text-dim">Дальше ведёт хост.</p>
               )}
             </section>
           )}
@@ -344,7 +352,7 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
           {view.phase === 'vote' && (
             <section className="panel flex flex-col gap-2">
               <h2 className="h-hud">{view.config.voting === 'secret' ? 'Тайное' : 'Открытое'} голосование</h2>
-              <p className="text-xs text-dim">Проголосовало {Object.keys(view.votes).length} из {living.length}. Голос можно менять, пока не проголосуют все.</p>
+              <p className="text-xs text-dim">Проголосовало {Object.keys(view.votes).length} из {living.length}. Голос можно менять, пока не проголосуют все. Воздержаться можно — если таких больше половины, никто не уходит.</p>
               {player.isEliminated ? (
                 <p className="text-sm text-dim">Вы выбыли и не голосуете.</p>
               ) : (
@@ -357,6 +365,11 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
                     </button>
                   );
                 })
+              )}
+              {!player.isEliminated && (
+                <button className={`btn border-dashed ${view.votes[me] === ABSTAIN ? 'btn-primary' : ''}`} onClick={() => send({ t: 'vote', target: ABSTAIN })}>
+                  {view.votes[me] === ABSTAIN ? '✔ ' : ''}Воздержаться
+                </button>
               )}
             </section>
           )}
@@ -372,6 +385,8 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
                 ))}
               </ul>
               {view.lastResult.tieBreak && <p className="text-xs text-amber">Ничья на границе — решено жребием.</p>}
+              {view.lastResult.skipped && <p className="text-sm text-amber">Большинство воздержалось ({view.lastResult.abstained} из {alive(view).length}) — никто не покидает игру. Пропущенное исключение перенесено в дополнительный раунд.</p>}
+              {!view.lastResult.skipped && !!view.lastResult.abstained && <p className="text-xs text-dim">Воздержались: {view.lastResult.abstained}.</p>}
               {host ? <button className="btn btn-primary" onClick={() => host.next()}>Дальше</button> : <p className="text-xs text-dim">Следующий шаг запускает хост.</p>}
             </section>
           )}

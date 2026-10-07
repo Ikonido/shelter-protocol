@@ -18,7 +18,7 @@ function Meter({ label, value }: { label: string; value: number }) {
 
 export function Verdict({ game }: { game: GameState }) {
   const survivors = game.players.filter((p) => !p.isEliminated);
-  const ev = evaluate(game.scenario, survivors);
+  const ev = evaluate(game.scenario, survivors, game.config.shelterSlots);
   const Icon = ev.verdict === 'survived' ? CheckCircle2 : ev.verdict === 'fragile' ? TriangleAlert : Skull;
   const tone = ev.verdict === 'survived' ? 'text-ok' : ev.verdict === 'fragile' ? 'text-amber' : 'text-danger';
   return (

@@ -12,10 +12,17 @@ import {
   resolveVote,
   revealCard,
   revealOptions,
-  startVote,
+  ABSTAIN,
+  applyOvertime,
+  extendDeadline,
+  finishDebate,
+  perVote,
+  stepOf,
+  suggestedDebateSec,
   playAction as applyAction,
 } from '../lib/game';
 import { CardFace, Modal } from '../ui/bits';
+import { MatchClock } from '../ui/MatchClock';
 import { Gate } from '../ui/Gate';
 import Final from './Final';
 import Tabletop from './Tabletop';
@@ -25,6 +32,13 @@ type Update = (fn: (g: GameState) => GameState) => void;
 export default function Game() {
   const { game, setGame, go } = useStore();
   const [showBrief, setShowBrief] = useState(false);
+  const timed = !!game?.deadline && game.config.mode === 'pass-and-play' && game.phase !== 'final';
+  // Время вышло: дебаты пропускаются, карты открываются сами. applyOvertime возвращает тот же объект, пока ничего не изменилось.
+  useEffect(() => {
+    if (!timed) return;
+    const t = setInterval(() => setGame((g) => (g ? applyOvertime(g) : g)), 1000);
+    return () => clearInterval(t);
+  }, [timed, setGame]);
   if (!game) {
     return (
       <div className="py-10 text-center">
@@ -42,10 +56,14 @@ export default function Game() {
         <button className="btn btn-sm" onClick={() => go({ name: 'home' })}><ArrowLeft size={16} /> Меню</button>
         <button className="btn btn-sm" onClick={() => setShowBrief(true)}>{game.scenario.title}</button>
         <div className="ml-auto text-xs uppercase tracking-widest text-dim">
-          {game.config.mode === 'pass-and-play' && game.phase !== 'final' && <>Раунд {game.round}/{game.schedule.length} · </>}
+          {game.config.mode === 'pass-and-play' && game.phase !== 'final' && <>Раунд {game.round}/{game.schedule.length} · вскрытие {stepOf(game)}/{perVote(game)} · </>}
           В игре <b className="text-amber">{living.length}</b> · Мест <b className="text-amber">{game.config.shelterSlots}</b>
         </div>
       </header>
+
+      {timed && game.deadline && (
+        <MatchClock deadline={game.deadline} totalMin={game.config.timeLimitMin} onExtend={() => update((g) => extendDeadline(g, 5 * 60_000))} />
+      )}
 
       {showBrief && (
         <Modal title={game.scenario.title} onClose={() => setShowBrief(false)}>
@@ -180,7 +198,7 @@ function RevealPhase({ game, update }: { game: GameState; update: Update }) {
   }
   return (
     <section className="panel">
-      <h2 className="h-hud mb-1">Раунд {game.round}: открытие карт</h2>
+      <h2 className="h-hud mb-1">Раунд {game.round} · вскрытие {stepOf(game)} из {perVote(game)}</h2>
       <p className="mb-3 text-xs text-dim">Каждый по очереди берёт устройство и открывает одну карту. Осталось: {pending.length}.</p>
       <div className="grid gap-2 sm:grid-cols-2">
         {pending.map((p) => (
@@ -193,7 +211,7 @@ function RevealPhase({ game, update }: { game: GameState; update: Update }) {
 
 /* ---------- Фаза 2: дебаты ---------- */
 
-export function DebateTimer() {
+export function DebateTimer({ suggested }: { suggested?: number | null }) {
   const [left, setLeft] = useState(0);
   const [running, setRunning] = useState(false);
   useEffect(() => {
@@ -207,6 +225,7 @@ export function DebateTimer() {
     <div className="flex flex-wrap items-center gap-2">
       <Timer size={18} className="text-amber" />
       <span className={`w-16 text-2xl ${running && left <= 10 ? 'text-danger' : 'text-amber'}`}>{fmt}</span>
+      {suggested ? <button className="btn btn-sm btn-primary" onClick={() => start(suggested)}>Рекомендуем {Math.floor(suggested / 60)}:{String(suggested % 60).padStart(2, '0')}</button> : null}
       {[60, 120, 180].map((s) => <button key={s} className="btn btn-sm" onClick={() => start(s)}>{s / 60} мин</button>)}
       {running && <button className="btn btn-sm" onClick={() => setRunning(false)}>Стоп</button>}
     </div>
@@ -217,6 +236,7 @@ function DebatePhase({ game, update }: { game: GameState; update: Update }) {
   const [actor, setActor] = useState<string | null>(null);
   const [peek, setPeek] = useState<string | null>(null);
   const living = alive(game);
+  const moreReveals = stepOf(game) < perVote(game) && living.some((p) => revealOptions({ ...game, revealStep: stepOf(game) + 1 }, p).length > 0);
   const actorP = living.find((p) => p.id === actor);
   const peekP = living.find((p) => p.id === peek);
   return (
@@ -224,7 +244,7 @@ function DebatePhase({ game, update }: { game: GameState; update: Update }) {
       <section className="panel flex flex-col gap-3">
         <h2 className="h-hud">Дебаты</h2>
         <p className="text-xs text-dim">Обсудите, кто нужнее убежищу. В этом раунде уйдёт: {quotaThisRound(game)}.</p>
-        <DebateTimer />
+        <DebateTimer suggested={suggestedDebateSec(game)} />
         <div className="flex flex-wrap gap-2">
           {living.map((p) => (
             <button key={p.id} className="btn btn-sm" disabled={p.slots.action.isRevealed} onClick={() => setActor(p.id)}>
@@ -239,7 +259,7 @@ function DebatePhase({ game, update }: { game: GameState; update: Update }) {
             {living.map((p) => <button key={p.id} className="btn btn-sm" onClick={() => setPeek(p.id)}>{p.name}</button>)}
           </div>
         </details>
-        <button className="btn btn-primary" onClick={() => update(startVote)}><Gavel size={18} /> К голосованию</button>
+        <button className="btn btn-primary" onClick={() => update(finishDebate)}><Gavel size={18} /> {moreReveals ? 'К следующему вскрытию' : 'К голосованию'}</button>
       </section>
       {actorP && (
         <Modal>
@@ -283,6 +303,7 @@ function VotePhase({ game, update }: { game: GameState; update: Update }) {
             <span className="w-28 truncate text-amber">{p.name}</span>→
             <select className="input" value={game.votes[p.id] ?? ''} onChange={(e) => update((g) => castVote(g, p.id, e.target.value))}>
               <option value="" disabled>выберите…</option>
+              <option value={ABSTAIN}>— воздержаться —</option>
               {living.filter((t) => t.id !== p.id).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </label>
@@ -302,6 +323,8 @@ function VotePhase({ game, update }: { game: GameState; update: Update }) {
               {t.name}
             </button>
           ))}
+          <button className="btn border-dashed" onClick={() => { update((g) => castVote(g, voter.id, ABSTAIN)); setVoterId(null); }}>Воздержаться</button>
+          <p className="text-xs text-dim">Если воздержится больше половины игроков — в этом раунде никто не покидает игру.</p>
           <button className="btn btn-sm" onClick={() => setVoterId(null)}>Отмена</button>
         </section>
       </Gate>
@@ -310,7 +333,7 @@ function VotePhase({ game, update }: { game: GameState; update: Update }) {
   return (
     <section className="panel flex flex-col gap-3">
       <h2 className="h-hud">Тайное голосование</h2>
-      <p className="text-xs text-dim">Проголосовало {living.length - waiting.length} из {living.length}. Голос можно изменить до подсчёта.</p>
+      <p className="text-xs text-dim">Проголосовало {living.length - waiting.length} из {living.length}. Голос можно изменить до подсчёта. Воздержаться тоже можно: если таких больше половины, никто не уходит.</p>
       <div className="grid gap-2 sm:grid-cols-2">
         {living.map((p) => (
           <button key={p.id} className="btn" onClick={() => setVoterId(p.id)}>
@@ -341,6 +364,8 @@ function ResultPhase({ game, update }: { game: GameState; update: Update }) {
           </li>
         ))}
       </ul>
+      {r.skipped && <p className="text-sm text-amber">Большинство воздержалось ({r.abstained} из {alive(game).length}) — никто не покидает игру. Пропущенное исключение перенесено в дополнительный раунд.</p>}
+      {!r.skipped && !!r.abstained && <p className="text-xs text-dim">Воздержались: {r.abstained}.</p>}
       {r.tieBreak && <p className="text-xs text-amber">Ничья на границе — решено жребием.</p>}
       <button className="btn btn-primary" onClick={() => update(nextRound)}>
         {finishing ? 'К финалу' : 'Следующий раунд'}

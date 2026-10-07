@@ -15,6 +15,8 @@ export default function Setup() {
   const [mode, setMode] = useState<PlayMode>('pass-and-play');
   const [voting, setVoting] = useState<VotingMode>('secret');
   const [names, setNames] = useState<string[]>([]);
+  const [revealsPerVote, setRevealsPerVote] = useState(2);
+  const [timeLimitMin, setTimeLimitMin] = useState(45);
 
   const activePacks = useMemo(() => allPacks.filter((p) => packIds.includes(p.id)), [allPacks, packIds]);
   const scenarios = useMemo(() => activePacks.flatMap((p) => p.scenarios), [activePacks]);
@@ -41,7 +43,7 @@ export default function Setup() {
   const start = () => {
     const chosen = scenario ?? scenarios[Math.floor(Math.random() * scenarios.length)];
     if (mode === 'online') {
-      go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting } });
+      go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting, revealsPerVote, timeLimitMin } });
       return;
     }
     const config: SessionConfig = {
@@ -51,6 +53,8 @@ export default function Setup() {
       shelterSlots: k,
       mode,
       voting,
+      revealsPerVote,
+      timeLimitMin: mode === 'tabletop' ? 0 : timeLimitMin,
       names: Array.from({ length: n }, (_, i) => nameAt(i)),
       seed: newSeed(),
     };
@@ -146,6 +150,23 @@ export default function Setup() {
           </div>
         )}
       </section>
+
+      {mode !== 'tabletop' && (
+        <section className="panel flex flex-wrap items-end gap-x-8 gap-y-4">
+          <div>
+            <Stepper label="Вскрытий до голосования" value={revealsPerVote} min={1} max={3} onChange={setRevealsPerVote} />
+            <p className="mt-1 max-w-xs text-xs text-dim">Между голосованиями каждый открывает столько карт (с дебатами после каждой). Чем больше вскрытий, тем меньше раундов.</p>
+          </div>
+          <div>
+            <label className="label" htmlFor="tl">Время на партию</label>
+            <select id="tl" className="input" value={timeLimitMin} onChange={(e) => setTimeLimitMin(Number(e.target.value))}>
+              <option value={0}>Без лимита</option>
+              {[15, 30, 45, 60, 90, 120].map((m) => <option key={m} value={m}>{m} мин</option>)}
+            </select>
+            <p className="mt-1 max-w-xs text-xs text-dim">Когда время выйдет, дебаты пропускаются, а карты открываются автоматически. Решение о голосовании остаётся за игроками.</p>
+          </div>
+        </section>
+      )}
 
       <button className="btn btn-primary" disabled={!canStart} onClick={start}>
         <Dices size={18} /> {mode === 'online' ? 'Создать комнату' : 'Сгенерировать персонажей и начать'}

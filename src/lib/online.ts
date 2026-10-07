@@ -19,8 +19,11 @@ import {
   resolveVote,
   revealCard,
   revealOptions,
-  startVote,
-} from './game';
+  ABSTAIN,
+  applyOvertime,
+  extendDeadline,
+  finishDebate,
+  } from './game';
 import { newSeed, randomCode } from './rng';
 import { LIMITS as L, clip } from './limits';
 import { sanitizeScenario } from './packs';
@@ -79,7 +82,9 @@ export function viewFor(g: GameState, me: string, voting: VotingMode = g.config.
       : g.phase === 'vote'
         ? Object.fromEntries(Object.keys(g.votes).map((v) => [v, v === me ? g.votes[v] : v]))
         : {};
-  return { ...g, players, votes, seed: 0, config: { ...g.config, seed: 0 } };
+  // Часы хоста клиентам не нужны (у телефонов они расходятся): передаём «сколько осталось» на момент отправки.
+  const { deadline, ...rest } = g;
+  return { ...rest, players, votes, seed: 0, config: { ...g.config, seed: 0 }, ...(deadline ? { timeLeftMs: Math.max(0, deadline - Date.now()) } : {}) };
 }
 
 /* ---------- Хост ---------- */
@@ -97,6 +102,8 @@ export interface HostSetup {
   packs: CardPack[];
   slots: number;
   voting: VotingMode;
+  revealsPerVote?: number; // по умолчанию 2
+  timeLimitMin?: number; // 0 — без лимита; по умолчанию 0
 }
 
 const cleanName = (v: unknown) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, 24) : '');
@@ -262,7 +269,7 @@ export class OnlineHost {
     else if (msg.t === 'action') {
       if (g.phase === 'reveal' || g.phase === 'debate') next = playAction(g, id);
     } else if (msg.t === 'vote' && g.phase === 'vote') {
-      const target = alive(g).find((p) => p.id === msg.target);
+      const target = msg.target === ABSTAIN ? { id: ABSTAIN } : alive(g).find((p) => p.id === msg.target);
       if (target) next = castVote(g, id, target.id);
       if (allVoted(next)) next = resolveVote(next);
     }
@@ -290,6 +297,8 @@ export class OnlineHost {
         shelterSlots: Math.max(1, Math.min(this.setup.slots, n - 1)),
         mode: 'online',
         voting: this.setup.voting,
+        revealsPerVote: Math.min(3, Math.max(1, this.setup.revealsPerVote ?? 2)),
+        timeLimitMin: Math.min(180, Math.max(0, this.setup.timeLimitMin ?? 0)),
         names,
         seed: newSeed(),
       },
@@ -302,8 +311,18 @@ export class OnlineHost {
   }
 
   /* Управление раундом — только у хоста */
-  toVote() {
-    if (this.game?.phase === 'debate') this.setGame(startVote(this.game));
+  /** Закончить дебаты: следующее вскрытие или голосование. */
+  endDebate() {
+    if (this.game?.phase === 'debate') this.setGame(finishDebate(this.game));
+  }
+  /** Вызывается раз в секунду: по истечении времени пропускает дебаты и открывает карты за медлительных. */
+  tick(now = Date.now()) {
+    if (!this.game) return;
+    const next = applyOvertime(this.game, now);
+    if (next !== this.game) this.setGame(next);
+  }
+  extendTime(ms: number) {
+    if (this.game) this.setGame(extendDeadline(this.game, ms));
   }
   next() {
     if (this.game?.phase === 'result') this.setGame(nextRound(this.game));
@@ -486,6 +505,8 @@ export function sanitizeView(raw: unknown): GameState | null {
       shelterSlots: int(cfg.shelterSlots, 1, 19),
       mode: 'online',
       voting: cfg.voting === 'open' ? 'open' : 'secret',
+      revealsPerVote: int(cfg.revealsPerVote, 1, 3),
+      timeLimitMin: int(cfg.timeLimitMin, 0, 180),
       names: players.map((p) => p.name),
       seed: 0,
     },
@@ -494,6 +515,8 @@ export function sanitizeView(raw: unknown): GameState | null {
     round: int(r.round, 1, 50),
     schedule: Array.isArray(r.schedule) ? r.schedule.slice(0, 6).map((n) => int(n, 0, 19)) : [],
     phase: r.phase as GameState['phase'],
+    revealStep: int(r.revealStep, 1, 3),
+    ...(r.timeLeftMs !== undefined ? { deadline: Date.now() + int(r.timeLeftMs, 0, 180 * 60_000) } : {}),
     revealedThisRound: Array.isArray(r.revealedThisRound) ? r.revealedThisRound.slice(0, MAX_ONLINE_PLAYERS).map((x) => text(x, 12)) : [],
     votes,
     log: Array.isArray(r.log) ? r.log.slice(-200).map((l) => ({ round: int(rec(l).round, 1, 50), text: text(rec(l).text, 400) })) : [],
@@ -504,6 +527,8 @@ export function sanitizeView(raw: unknown): GameState | null {
       eliminated: Array.isArray(lr.eliminated) ? lr.eliminated.slice(0, MAX_ONLINE_PLAYERS).map((x) => text(x, 12)) : [],
       tally,
       tieBreak: lr.tieBreak === true,
+      abstained: int(lr.abstained, 0, MAX_ONLINE_PLAYERS),
+      skipped: lr.skipped === true,
     };
   }
   return game;

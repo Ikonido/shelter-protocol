@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { CLASSIC_PACK } from '../data/classicPack';
 import { CATEGORIES, type SessionConfig } from '../types';
-import { alive, buildSchedule, castVote, createGame, nextRound, pendingReveal, resolveVote, revealCard, revealOptions, startVote } from './game';
+import { ABSTAIN, alive, applyOvertime, buildSchedule, castVote, createGame, finishDebate, maxRoundsFor, nextRound, pendingReveal, resolveVote, revealCard, revealOptions, startVote, suggestedDebateSec } from './game';
 import { evaluate } from './evaluate';
 import { decodePack, encodePack, sanitizePack } from './packs';
 
-const config = (n = 6, k = 3): SessionConfig => ({
+const config = (n = 6, k = 3, revealsPerVote = 1, timeLimitMin = 0): SessionConfig => ({
   scenarioId: CLASSIC_PACK.scenarios[0].id, packIds: ['classic'], playerCount: n, shelterSlots: k,
-  mode: 'pass-and-play', voting: 'open', names: Array.from({ length: n }, (_, i) => `P${i + 1}`), seed: 42,
+  mode: 'pass-and-play', voting: 'open', revealsPerVote, timeLimitMin, names: Array.from({ length: n }, (_, i) => `P${i + 1}`), seed: 42,
 });
-const newGame = (n = 6, k = 3) => createGame(config(n, k), CLASSIC_PACK.scenarios[0], [CLASSIC_PACK]);
+const newGame = (n = 6, k = 3, rpv = 1, limit = 0) => createGame(config(n, k, rpv, limit), CLASSIC_PACK.scenarios[0], [CLASSIC_PACK]);
 
 describe('schedule', () => {
   it('sums to N-K and caps rounds', () => {
@@ -99,5 +99,112 @@ describe('packs', () => {
     expect(p.cards.profession[0].modifier).toBeUndefined();
     expect(p.scenarios[0].shelterSlots).toBe(19);
     expect(decodePack('garbage!!')).toBeNull();
+  });
+});
+
+const revealAll = (g: ReturnType<typeof newGame>, cat?: Parameters<typeof revealCard>[2]) => {
+  for (const p of pendingReveal(g)) g = revealCard(g, p.id, cat ?? revealOptions(g, p)[0]);
+  return g;
+};
+
+describe('voting every N reveals', () => {
+  it('two reveals (with debates) happen before each vote', () => {
+    let g = newGame(6, 3, 2);
+    expect(g.phase).toBe('reveal');
+    g = revealAll(g);                       // 1-е вскрытие: биология
+    expect(g.phase).toBe('debate');
+    g = finishDebate(g);                    // не голосование, а второе вскрытие
+    expect(g.phase).toBe('reveal');
+    expect(g.revealStep).toBe(2);
+    expect(revealOptions(g, g.players[0])).toEqual(['profession', 'health', 'hobby', 'luggage', 'fact']); // дальше по желанию
+    g = revealAll(g, 'hobby');
+    g = finishDebate(g);
+    expect(g.phase).toBe('vote');
+    expect(g.players.every((p) => p.slots.biology.isRevealed && p.slots.hobby.isRevealed)).toBe(true);
+  });
+
+  it('limits rounds so open cards suffice for all reveals', () => {
+    expect(maxRoundsFor(1)).toBe(6);
+    expect(maxRoundsFor(2)).toBe(3);
+    expect(maxRoundsFor(3)).toBe(2);
+    expect(buildSchedule(12, 4, maxRoundsFor(2))).toEqual([3, 3, 2]);
+    expect(newGame(12, 4, 2).schedule).toEqual([3, 3, 2]);
+  });
+
+  it('next round starts again from the first reveal', () => {
+    let g = newGame(6, 3, 2);
+    g = finishDebate(revealAll(g)); g = finishDebate(revealAll(g));
+    g = startVote(g);
+    for (const p of g.players) g = castVote(g, p.id, p.id === 'p1' ? 'p2' : 'p1');
+    g = nextRound(resolveVote(g));
+    expect(g.round).toBe(2);
+    expect(g.revealStep).toBe(1);
+    expect(g.phase).toBe('reveal');
+  });
+});
+
+describe('abstain', () => {
+  const vote = (votes: Record<string, string>, n = 6, k = 3) => {
+    let g = startVote(newGame(n, k));
+    for (const [v, t] of Object.entries(votes)) g = castVote(g, v, t);
+    return resolveVote(g);
+  };
+  it('majority abstaining -> nobody leaves, quota moves to an extra round', () => {
+    const g = vote({ p1: ABSTAIN, p2: ABSTAIN, p3: ABSTAIN, p4: ABSTAIN, p5: 'p1', p6: 'p1' });
+    expect(g.lastResult).toMatchObject({ skipped: true, abstained: 4, eliminated: [] });
+    expect(alive(g)).toHaveLength(6);
+    expect(g.schedule).toEqual([1, 1, 1, 1]); // было 3 раунда по 1, добавлен ещё один
+    const next = nextRound(g);
+    expect(next.round).toBe(2);
+  });
+  it('exactly half is not a majority; abstentions are not counted against anyone', () => {
+    const g = vote({ p1: ABSTAIN, p2: ABSTAIN, p3: ABSTAIN, p4: 'p6', p5: 'p6', p6: 'p5' });
+    expect(g.lastResult?.skipped).toBeFalsy();
+    expect(g.lastResult?.abstained).toBe(3);
+    expect(g.players.find((p) => p.id === 'p6')!.isEliminated).toBe(true);
+    expect(Object.values(g.lastResult!.tally).reduce((a, b) => a + b, 0)).toBe(3); // только настоящие голоса
+  });
+  it('cannot extend rounds forever', () => {
+    let g = newGame(6, 3);
+    for (let i = 0; i < 12 && g.phase !== 'final'; i++) {
+      g = startVote({ ...g, phase: 'debate' });
+      for (const p of alive(g)) g = castVote(g, p.id, ABSTAIN);
+      g = nextRound(resolveVote(g));
+    }
+    expect(g.phase).toBe('final');
+    expect(alive(g)).toHaveLength(6); // все остались -> в финале бункер переполнен
+  });
+});
+
+describe('match timer', () => {
+  it('no limit -> no deadline, overtime is a no-op', () => {
+    const g = newGame();
+    expect(g.deadline).toBeUndefined();
+    expect(applyOvertime(g, Date.now() + 1e9)).toBe(g);
+    expect(suggestedDebateSec(g)).toBeNull();
+  });
+  it('before the deadline nothing happens; after it debates are skipped and cards auto-revealed, vote stays manual', () => {
+    const g = newGame(6, 3, 2, 30);
+    const t0 = g.deadline! - 30 * 60_000;
+    expect(applyOvertime(g, t0 + 60_000)).toBe(g);
+    const late = applyOvertime(g, g.deadline! + 1);
+    expect(late.phase).toBe('vote');
+    expect(late.votes).toEqual({});
+    expect(late.players.every((p) => ['biology', 'profession', 'health', 'hobby', 'luggage', 'fact'].filter((c) => p.slots[c as 'biology'].isRevealed).length === 2)).toBe(true);
+  });
+  it('suggests shorter debates when time is short, within bounds', () => {
+    const g = { ...newGame(6, 3, 2, 30), phase: 'debate' as const };
+    const roomy = suggestedDebateSec(g, g.deadline! - 30 * 60_000)!;
+    const tight = suggestedDebateSec(g, g.deadline! - 2 * 60_000)!;
+    expect(roomy).toBeGreaterThan(tight);
+    expect(tight).toBeGreaterThanOrEqual(20);
+    expect(roomy).toBeLessThanOrEqual(240);
+  });
+  it('overcrowded shelter is penalised', () => {
+    const g = newGame(6, 3);
+    const few = evaluate(g.scenario, g.players.slice(0, 3), 3);
+    const many = evaluate(g.scenario, g.players, 3);
+    expect(many.notes.join()).toContain('переполнен');
+    expect(many.score).toBeLessThan(few.score + 1);
   });
 });
