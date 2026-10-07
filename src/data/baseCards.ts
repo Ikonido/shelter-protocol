@@ -1,5 +1,10 @@
 import { cards, type Row } from './packKit';
 
+/**
+ * Базовые колоды «Телосложение» и «Характер»: общие для всех паков и всегда входят в раздачу.
+ * Паки добавляют сюда только свои дополнения (например, грубые характеры в 18+).
+ */
+
 /** Телосложение: рост, вес и комплекция (отдельно от биологии: пол, возраст, раса). Теги дают только мощные и выносливые. */
 export const PHYSIQUE_ROWS: Row[] = [
   ['Рост 190 см, вес 98 кг, накачанный', 'positive', ['безопасность']],
@@ -34,34 +39,44 @@ export const PHYSIQUE_ROWS: Row[] = [
   ['Рост 173 см, вес 100 кг, дряблое', 'negative'],
 ];
 
-export const GENERIC_PHYSIQUE = cards('generic', 'physique', PHYSIQUE_ROWS);
+export const BASE_PHYSIQUE = cards('base', 'physique', PHYSIQUE_ROWS);
 
 /** Характер: темперамент и манера держаться. Сильные стороны дают плюс и навык «психология» там, где он нужен. */
 export const CHARACTER_ROWS: Row[] = [
-  ['Лидер', 'positive', ['психология']],
-  ['Спокойный', 'positive', ['психология']],
+  ['Лидер', 'positive', ['психология', 'харизма']],
+  ['Спокойный', 'positive', ['психология', 'терпение']],
+  ['Хладнокровный', 'positive', ['психология', 'терпение']],
+  ['Дипломат', 'positive', ['психология', 'харизма']],
   ['Предприниматель', 'positive'],
   ['Добряк', 'positive'],
-  ['Хладнокровный', 'positive', ['психология']],
   ['Оптимист', 'positive'],
-  ['Дипломат', 'positive', ['психология']],
+  ['Заботливый', 'positive'],
+  ['Храбрый', 'positive'],
+  ['Принципиальный', 'positive'],
+  ['Весельчак', 'neutral', ['харизма']],
   ['Упрямый', 'neutral'],
   ['Хитрый', 'neutral'],
-  ['Весельчак', 'neutral'],
   ['Молчун', 'neutral'],
   ['Авантюрист', 'neutral'],
   ['Скромник', 'neutral'],
   ['Педант', 'neutral'],
+  ['Мечтатель', 'neutral'],
+  ['Циник', 'neutral'],
+  ['Ворчун', 'neutral'],
   ['Драма-квин', 'negative'],
   ['Паникёр', 'negative'],
   ['Трус', 'negative'],
   ['Эгоист', 'negative'],
   ['Вспыльчивый', 'negative'],
+  ['Агрессивный', 'negative'],
+  ['Обидчивый', 'negative'],
   ['Нытик', 'negative'],
   ['Зануда', 'negative'],
+  ['Душнила', 'negative'],
   ['Параноик', 'negative'],
   ['Манипулятор', 'negative'],
+  ['Сплетник', 'negative'],
   ['Лентяй', 'negative'],
 ];
 
-export const GENERIC_CHARACTER = cards('generic', 'character', CHARACTER_ROWS);
+export const BASE_CHARACTER = cards('base', 'character', CHARACTER_ROWS);

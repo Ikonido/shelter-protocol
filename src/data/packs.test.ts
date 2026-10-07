@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUILTIN_PACKS, CLASSIC_PACK } from './classicPack';
-import { generateCharacters } from '../lib/generator';
+import { generateCharacters, mergePools } from '../lib/generator';
+import { BASE_CHARACTER, BASE_PHYSIQUE } from './baseCards';
 import { mulberry32 } from '../lib/rng';
 import { CATEGORIES, type CardPack, type SessionConfig } from '../types';
 import { sanitizePack } from '../lib/packs';
@@ -45,7 +46,10 @@ describe('built-in packs', () => {
       });
 
       it('has enough cards and rich scenarios', () => {
-        for (const c of CATEGORIES) expect(pack.cards[c].length, c).toBeGreaterThanOrEqual(c === 'action' ? 8 : 10);
+        for (const c of CATEGORIES) {
+          if (c === 'physique' || c === 'character') continue; // общие колоды в baseCards.ts, паки лишь дополняют
+          expect(pack.cards[c].length, c).toBeGreaterThanOrEqual(c === 'action' ? 8 : 10);
+        }
         for (const sc of pack.scenarios) {
           expect((sc.hazards ?? []).length, sc.id).toBeGreaterThanOrEqual(4);
           for (const h of sc.hazards ?? []) {
@@ -114,21 +118,45 @@ describe('built-in packs', () => {
   });
 });
 
-describe('biology vs physique', () => {
+describe('biology, physique and character', () => {
   for (const pack of BUILTIN_PACKS) {
-    it(`${pack.name}: биология — только пол, возраст, раса; рост и вес живут в телосложении`, () => {
+    it(`${pack.name}: биология — только пол, возраст, раса`, () => {
       for (const c of pack.cards.biology) expect(c.description, c.description).not.toMatch(/(^|[^а-яё])(рост|вес)([^а-яё]|$)|(^|[^а-яё])(кг|см)([^а-яё]|$)|накач|жирн|толст|худ|повар|кузнец|борода/i);
-      expect(pack.cards.physique.length).toBeGreaterThanOrEqual(10);
-      for (const c of pack.cards.physique) expect(c.description, c.description).toMatch(/Рост \d+ см, вес \d+ кг/);
     });
   }
-  it('самодельный пак без телосложения получает общую колоду', () => {
+  it('телосложение: рост, вес и комплекция; без повторов', () => {
+    expect(BASE_PHYSIQUE.length).toBeGreaterThanOrEqual(30);
+    for (const c of [...BASE_PHYSIQUE, ...BUILTIN_PACKS.flatMap((p) => p.cards.physique)]) expect(c.description, c.description).toMatch(/Рост \d+ см, вес \d+ кг/);
+    expect(new Set(BASE_PHYSIQUE.map((c) => c.description)).size).toBe(BASE_PHYSIQUE.length);
+  });
+  it('характер: один базовый набор без повторов, только черта характера (без профессий и рас)', () => {
+    expect(BASE_CHARACTER.length).toBeGreaterThanOrEqual(30);
+    expect(new Set(BASE_CHARACTER.map((c) => c.description)).size).toBe(BASE_CHARACTER.length);
+    const all = [...BASE_CHARACTER, ...BUILTIN_PACKS.flatMap((p) => p.cards.character)];
+    for (const c of all) {
+      expect(c.description, c.description).not.toMatch(/маг|рыцар|эльф|гном|дракон|воин|повар|врач|торговец|[,:;(]/i);
+      expect(c.description.split(/\s+/).length, c.description).toBeLessThanOrEqual(3);
+    }
+    // пак не дублирует базовые характеры
+    const base = new Set(BASE_CHARACTER.map((c) => c.description));
+    for (const p of BUILTIN_PACKS) for (const c of p.cards.character) expect(base.has(c.description), c.description).toBe(false);
+    // любой пак получает базовую колоду, даже если своих карт нет
+    for (const p of BUILTIN_PACKS) {
+      const chars = generateCharacters(['А', 'Б', 'В'], [p], mulberry32(3));
+      for (const ch of chars) expect(ch.slots.character.card.description).not.toMatch(/нет карт/);
+    }
+  });
+  it('самодельный пак без телосложения и характера получает базовые колоды', () => {
     const bare = { ...CLASSIC_PACK, id: 'bare', cards: { ...CLASSIC_PACK.cards, physique: [], character: [] } };
     const chars = generateCharacters(['А', 'Б'], [bare], mulberry32(1));
     for (const p of chars) {
       expect(p.slots.physique.card.description).toMatch(/Рост \d+ см/);
-      expect(p.slots.character.card.id).toMatch(/^generic-character/);
+      expect(p.slots.character.card.id).toMatch(/^base-character/);
     }
+  });
+  it('два пака вместе не умножают одинаковые карты', () => {
+    const pool = mergePools(BUILTIN_PACKS);
+    expect(new Set(pool.character.map((c) => c.description)).size).toBe(pool.character.length);
   });
 });
 

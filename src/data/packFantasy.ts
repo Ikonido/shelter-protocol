@@ -1,6 +1,5 @@
 import type { CardPack } from '../types';
 import { cards, ev, haz } from './packKit';
-import { CHARACTER_ROWS } from './physique';
 
 const P = 'fan';
 
@@ -136,13 +135,7 @@ export const FANTASY_PACK: CardPack = {
       ['Рост 175 см, вес 50 кг, костлявое, с острыми плечами', 'negative'],
       ['Рост 160 см, вес 80 кг, плотное, чуть пузатое', 'neutral'],
     ]),
-    character: cards(P, 'character', [
-      ...CHARACTER_ROWS,
-      ['Гордый как дракон', 'neutral'],
-      ['Высокомерный эльфийский дипломат', 'neutral', ['дипломатия']],
-      ['Мстительный как гном', 'negative'],
-      ['Вечно сомневающийся маг', 'negative'],
-    ]),
+    character: [],
     health: cards(P, 'health', [
       ['Крепкое здоровье', 'positive'],
       ['Железное здоровье', 'positive'],
