@@ -34,9 +34,29 @@ function csp(env: Record<string, string>): Plugin {
   };
 }
 
+/**
+ * Версия сборки: в CI — короткий SHA коммита, локально — метка времени. Одно значение попадает и в код приложения
+ * (__APP_VERSION__), и в файл version.json рядом с сайтом: по их сравнению приложение понимает, что вышла новая версия.
+ */
+const BUILD = {
+  id: (process.env.GITHUB_SHA ?? Date.now().toString(36)).slice(0, 7),
+  builtAt: new Date().toISOString(),
+};
+
+function versionFile(): Plugin {
+  return {
+    name: 'shelter-version-file',
+    apply: 'build',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify(BUILD) });
+    },
+  };
+}
+
 // base './' keeps the build portable: GitHub Pages sub-path, Cloudflare Pages, Vercel, LAN server.
 export default defineConfig(({ mode }) => ({
   base: './',
-  plugins: [react(), tailwindcss(), csp(loadEnv(mode, process.cwd(), 'VITE_'))],
+  define: { __APP_VERSION__: JSON.stringify(mode === 'production' ? BUILD : { id: 'dev', builtAt: BUILD.builtAt }) },
+  plugins: [react(), tailwindcss(), csp(loadEnv(mode, process.cwd(), 'VITE_')), versionFile()],
   test: { environment: 'node' },
 }));

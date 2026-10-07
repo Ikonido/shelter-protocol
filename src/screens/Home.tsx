@@ -2,6 +2,7 @@ import { BookOpen, ChevronRight, Globe, Library, Play, QrCode, RotateCcw, Smartp
 import { useStore, type Screen } from '../store';
 import { Emblem } from '../ui/Emblem';
 import { isStandalone } from '../lib/pwa';
+import { UpdateBanner, UpdateButton } from '../ui/UpdateButton';
 
 function MenuItem({ icon: Icon, title, hint, onClick }: { icon: LucideIcon; title: string; hint: string; onClick: () => void }) {
   return (
@@ -37,6 +38,7 @@ export default function Home() {
       </header>
 
       <nav className="anim-rise flex flex-col gap-3" style={{ animationDelay: '.08s' }} aria-label="Главное меню">
+        <UpdateBanner />
         {resumable && (
           <button className="btn btn-primary hud min-h-14 justify-between" onClick={to({ name: 'game' })}>
             <span className="flex items-center gap-2"><Play size={18} /> Продолжить партию</span>
@@ -63,6 +65,7 @@ export default function Home() {
           </button>
         )}
         <p className="text-center text-[11px] text-dim">Работает офлайн · данные хранятся только в вашем браузере</p>
+        <UpdateButton />
       </nav>
     </div>
   );
