@@ -44,6 +44,24 @@ describe('online', () => {
     expect(mine.slots.profession.card.description).not.toBe('???');
   });
 
+  it('action cards can be played during the vote and are announced to everyone', async () => {
+    const { host, clients } = await setup();
+    host.start();
+    await tick();
+    host.actAsHost({ t: 'reveal', category: 'biology' });
+    clients.forEach(({ c }) => c.send({ t: 'reveal', category: 'biology' }));
+    await tick();
+    expect(host.game!.phase).toBe('vote');
+    clients[0].c.send({ t: 'action' });
+    await tick();
+    const me = host.game!.players.find((p) => p.id === 'p2')!;
+    expect(me.slots.action.isRevealed).toBe(true);
+    expect(host.game!.log.some((l) => l.text.includes('применяет карту действия'))).toBe(true);
+    clients[0].c.send({ t: 'action' }); // повторно нельзя
+    await tick();
+    expect(host.game!.log.filter((l) => l.text.includes('применяет карту действия'))).toHaveLength(1);
+  });
+
   it('plays a round: reveal → debate → secret vote → result; rejects bad input', async () => {
     const { host, clients } = await setup();
     host.start();

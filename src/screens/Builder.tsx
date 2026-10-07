@@ -12,7 +12,7 @@ import { Stepper } from '../ui/bits';
 import { ChipPicker } from '../ui/ChipPicker';
 
 const STEPS = ['Основа', 'Навыки', 'Угрозы', 'Способности', 'Проверка'] as const;
-const ABILITY_CATS: Category[] = ['profession', 'biology', 'physique', 'hobby', 'luggage', 'fact'];
+const ABILITY_CATS: Category[] = ['profession', 'biology', 'physique', 'character', 'hobby', 'luggage', 'fact'];
 const DURATIONS = ['1 год', '2 года', '3 года', '5 лет', '10 лет'];
 const SEVERITY: [Severity, string, string][] = [
   ['critical', 'Смертельная', 'border-danger text-danger bg-danger/10'],

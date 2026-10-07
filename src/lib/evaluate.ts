@@ -43,7 +43,19 @@ export function cardMatchesSkill(card: Card, skill: string): boolean {
 }
 
 /** Навыки дают профессия, биология (расы со способностями), хобби, багаж и факт. */
-export const SKILL_CATEGORIES = ['profession', 'biology', 'physique', 'hobby', 'fact', 'luggage'] as const;
+export const SKILL_CATEGORIES = ['profession', 'biology', 'physique', 'character', 'hobby', 'fact', 'luggage'] as const;
+
+/** Тяжесть болезни по названию карты здоровья: критическая — 3, тяжёлая — 2, средняя — 1.5, остальные — 1. */
+export function severityOf(card: Card): number {
+  if (card.modifier !== 'negative') return 0;
+  const text = norm(`${card.title ?? ''} ${card.description}`);
+  if (text.includes('критич')) return 3;
+  if (text.includes('тяжел') || text.includes('тяжёл')) return 2;
+  if (text.includes('средн')) return 1.5;
+  return 1;
+}
+
+const HEALING = ['медицина', 'лечение'];
 
 export function evaluate(scenario: Scenario, survivors: PlayerCharacter[], slots?: number, hazards: Hazard[] = [], difficulty?: Difficulty): Evaluation {
   const rules = rulesFor(difficulty);
@@ -72,8 +84,15 @@ export function evaluate(scenario: Scenario, survivors: PlayerCharacter[], slots
     survivors.filter((p) => p.slots[cat].card.modifier === mod).length;
 
   const badHealth = count('health', 'negative');
+  // Тяжёлые и критические болезни бьют сильнее; хоть один врач или лекарь смягчает каждую на единицу.
+  const healers = survivors.filter((p) => SKILL_CATEGORIES.some((c) => HEALING.some((sk) => cardMatchesSkill(p.slots[c].card, sk)))).length;
+  const severe = survivors.filter((p) => severityOf(p.slots.health.card) >= 2);
+  const badWeight = survivors.reduce((s, p) => {
+    const w = severityOf(p.slots.health.card);
+    return s + (w > 1 && healers > 0 ? w - 1 : w);
+  }, 0);
   const goodHealth = count('health', 'positive');
-  const health = clamp01(0.6 + (goodHealth - badHealth * 1.5) / n / 2);
+  const health = clamp01(0.6 + (goodHealth - badWeight * 1.5) / n / 2);
 
   const goodLuggage = count('luggage', 'positive');
   const badLuggage = count('luggage', 'negative');
@@ -105,6 +124,7 @@ export function evaluate(scenario: Scenario, survivors: PlayerCharacter[], slots
   const missing = coverage.filter((c) => c.by.length === 0).map((c) => c.skill);
   if (missing.length) notes.push(`Не хватило специалистов: ${missing.join(', ')}.`);
   if (badHealth) notes.push(`Проблемы со здоровьем у ${badHealth} из ${survivors.length} выживших.`);
+  if (severe.length) notes.push(healers > 0 ? `Тяжёлых больных: ${severe.length}, но врач держит их на ногах.` : `Тяжёлых больных: ${severe.length}, а лечить их некому.`);
   if (resources < 0.4) notes.push('Запасов и снаряжения мало — зимовка будет тяжёлой.');
   for (const r of open) {
     const lack = r.by.length ? ` (нужно ${r.need}, есть ${r.by.length})` : '';

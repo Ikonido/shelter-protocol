@@ -244,9 +244,11 @@ function ActionsPanel({ game, update }: { game: GameState; update: Update }) {
   const living = alive(game);
   const actorP = living.find((p) => p.id === actor);
   const peekP = living.find((p) => p.id === peek);
+  const lastAction = [...game.log].reverse().find((l) => l.round === game.round && l.text.includes('применяет карту действия'));
   return (
     <>
-      <details className="panel p-3">
+      {lastAction && <p className="panel border-[#e879f9]/60 text-sm" role="status"><Zap size={14} className="mr-1 inline text-[#e879f9]" />{lastAction.text}</p>}
+      <details className="panel p-3" open>
         <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">Карты действий и своё досье</summary>
         <div className="mt-3 flex flex-wrap gap-2">
           {living.map((p) => (
@@ -287,6 +289,15 @@ function ActionsPanel({ game, update }: { game: GameState; update: Update }) {
 /* ---------- Фаза 3: голосование ---------- */
 
 function VotePhase({ game, update }: { game: GameState; update: Update }) {
+  return (
+    <>
+      <VoteBody game={game} update={update} />
+      <ActionsPanel game={game} update={update} />
+    </>
+  );
+}
+
+function VoteBody({ game, update }: { game: GameState; update: Update }) {
   const living = alive(game);
   const [voterId, setVoterId] = useState<string | null>(null);
   const voter = living.find((p) => p.id === voterId);

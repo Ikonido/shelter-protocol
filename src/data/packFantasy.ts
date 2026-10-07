@@ -1,5 +1,6 @@
 import type { CardPack } from '../types';
 import { cards, ev, haz } from './packKit';
+import { CHARACTER_ROWS } from './physique';
 
 const P = 'fan';
 
@@ -135,6 +136,13 @@ export const FANTASY_PACK: CardPack = {
       ['Рост 175 см, вес 50 кг, костлявое, с острыми плечами', 'negative'],
       ['Рост 160 см, вес 80 кг, плотное, чуть пузатое', 'neutral'],
     ]),
+    character: cards(P, 'character', [
+      ...CHARACTER_ROWS,
+      ['Гордый как дракон', 'neutral'],
+      ['Высокомерный эльфийский дипломат', 'neutral', ['дипломатия']],
+      ['Мстительный как гном', 'negative'],
+      ['Вечно сомневающийся маг', 'negative'],
+    ]),
     health: cards(P, 'health', [
       ['Крепкое здоровье', 'positive'],
       ['Железное здоровье', 'positive'],
@@ -149,6 +157,15 @@ export const FANTASY_PACK: CardPack = {
       ['Вечно хворает', 'neutral'],
       ['Каменная кожа', 'positive'],
       ['Магическое истощение', 'negative'],
+      ['Лёгкое проклятие', 'neutral'],
+      ['Тяжёлое проклятие', 'negative'],
+      ['Лёгкая магическая лихорадка', 'neutral'],
+      ['Тяжёлая магическая лихорадка', 'negative'],
+      ['Лёгкое ранение', 'neutral'],
+      ['Тяжёлое ранение', 'negative'],
+      ['Лёгкое отравление', 'neutral'],
+      ['Тяжёлое отравление', 'negative'],
+      ['Критическое состояние', 'negative'],
     ]),
     hobby: cards(P, 'hobby', [
       ['Вышивка рунами', 'positive', ['магия']],

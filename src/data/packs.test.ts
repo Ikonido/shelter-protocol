@@ -123,9 +123,12 @@ describe('biology vs physique', () => {
     });
   }
   it('самодельный пак без телосложения получает общую колоду', () => {
-    const bare = { ...CLASSIC_PACK, id: 'bare', cards: { ...CLASSIC_PACK.cards, physique: [] } };
+    const bare = { ...CLASSIC_PACK, id: 'bare', cards: { ...CLASSIC_PACK.cards, physique: [], character: [] } };
     const chars = generateCharacters(['А', 'Б'], [bare], mulberry32(1));
-    for (const p of chars) expect(p.slots.physique.card.description).toMatch(/Рост \d+ см/);
+    for (const p of chars) {
+      expect(p.slots.physique.card.description).toMatch(/Рост \d+ см/);
+      expect(p.slots.character.card.id).toMatch(/^generic-character/);
+    }
   });
 });
 

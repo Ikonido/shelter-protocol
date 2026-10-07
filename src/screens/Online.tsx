@@ -303,7 +303,8 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
   const speaker = currentSpeaker(view);
   const myTurn = speaker?.id === me;
   const options = view.phase === 'reveal' && myTurn && !player.isEliminated ? revealOptions(view, player) : [];
-  const canAction = (view.phase === 'reveal' || view.phase === 'speech') && !player.isEliminated && !player.slots.action.isRevealed;
+  const canAction = (view.phase === 'reveal' || view.phase === 'speech' || view.phase === 'vote') && !player.isEliminated && !player.slots.action.isRevealed;
+  const lastAction = [...view.log].reverse().find((l) => l.round === view.round && l.text.includes('применяет карту действия'));
   const lonely = options.length === 1 ? options[0] : null;
   const chosen = pick && (options.includes(pick) || (pick === 'action' && canAction)) ? pick : lonely;
 
@@ -406,6 +407,7 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
               </section>
             )}
 
+            {lastAction && <p className="panel border-[#e879f9]/60 text-sm" role="status"><Zap size={14} className="mr-1 inline text-[#e879f9]" />{lastAction.text}</p>}
             <section className="panel flex flex-col gap-2">
               <h2 className="h-hud flex items-center gap-2"><Avatar id={player.id} name={player.name} size={24} /> {player.name}{player.isEliminated ? ' — вы наблюдатель' : ' — ваши карты'}</h2>
               {CATEGORIES.map((c) => {
@@ -422,6 +424,7 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
                   />
                 );
               })}
+              {canAction && !chosen && <p className="text-xs text-dim">Карту действия можно применить в любой момент вскрытия, речи или голосования: коснитесь её и нажмите «Применить». Все увидят объявление.</p>}
               {chosen && (
                 <button className="btn btn-primary" onClick={() => { send(chosen === 'action' ? { t: 'action' } : { t: 'reveal', category: chosen }); setPick(null); }}>
                   {chosen === 'action' ? <><Zap size={16} /> Применить действие</> : `Открыть всем: ${CATEGORY_LABEL[chosen]}`}

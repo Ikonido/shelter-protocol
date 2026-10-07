@@ -289,7 +289,7 @@ export class OnlineHost {
     let next = g;
     if (msg.t === 'reveal') next = revealCard(g, id, msg.category);
     else if (msg.t === 'action') {
-      if (g.phase === 'reveal' || g.phase === 'speech') next = playAction(g, id);
+      if (g.phase === 'reveal' || g.phase === 'speech' || g.phase === 'vote') next = playAction(g, id);
     } else if (msg.t === 'volunteer') {
       next = volunteer(g, id);
     } else if (msg.t === 'done') {

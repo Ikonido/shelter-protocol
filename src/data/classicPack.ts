@@ -1,5 +1,5 @@
 import type { Card, CardPack, Category, Hazard, Modifier } from '../types';
-import { PHYSIQUE_ROWS } from './physique';
+import { CHARACTER_ROWS, PHYSIQUE_ROWS } from './physique';
 import { MEDIEVAL_PACK } from './packMedieval';
 import { FANTASY_PACK } from './packFantasy';
 import { ADULT_PACK } from './packAdult';
@@ -169,6 +169,7 @@ export const CLASSIC_PACK: CardPack = {
       ['Мужчина, 52 года', 'neutral'],
     ]),
     physique: make('physique', PHYSIQUE_ROWS),
+    character: make('character', CHARACTER_ROWS),
     health: make('health', [
       ['Идеально здоров', 'positive'],
       ['Железный иммунитет', 'positive'],
@@ -186,6 +187,16 @@ export const CLASSIC_PACK: CardPack = {
       ['Хронический алкоголик', 'negative'],
       ['Больная спина', 'negative'],
       ['Отличное здоровье', 'positive'],
+      ['Лёгкая простуда', 'neutral'],
+      ['Тяжёлый грипп', 'negative'],
+      ['Лёгкое ранение', 'neutral'],
+      ['Тяжёлое ранение', 'negative'],
+      ['Тяжёлая астма', 'negative'],
+      ['Лёгкий диабет 2 типа', 'neutral'],
+      ['Лёгкая депрессия', 'neutral'],
+      ['Тяжёлая депрессия', 'negative'],
+      ['Пневмония средней тяжести', 'negative'],
+      ['Критическое состояние', 'negative'],
     ]),
     hobby: make('hobby', [
       ['Альпинизм и выживание в дикой природе', 'positive', ['безопасность']],

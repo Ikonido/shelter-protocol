@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CLASSIC_PACK } from '../data/classicPack';
 import { CATEGORIES, type SessionConfig } from '../types';
 import { ABSTAIN, applyEvent, continueEvent, volunteer, alive, applyOvertime, buildSchedule, castVote, createGame, currentSpeaker, endSpeech, maxRoundsFor, nextRound, pendingReveal, resolveVote, revealCard, revealOptions, startVote, tickGame } from './game';
-import { evaluate } from './evaluate';
+import { evaluate, severityOf } from './evaluate';
 import type { Hazard } from '../types';
 import { EVENTS, drawEvent, isEligible } from './events';
 import { decodePack, encodePack, sanitizePack, sanitizeHazard } from './packs';
@@ -81,7 +81,7 @@ describe('round flow', () => {
     g = resolveVote(g);
     g = nextRound(g);
     const opts = revealOptions(g, g.players.find((p) => !p.isEliminated)!);
-    expect(opts).toEqual(['profession', 'physique', 'health', 'hobby', 'luggage', 'fact']); // biology уже открыта, action — не открывается
+    expect(opts).toEqual(['profession', 'physique', 'character', 'health', 'hobby', 'luggage', 'fact']); // biology уже открыта, action — не открывается
   });
   it('rejects self votes', () => {
     expect(castVote(newGame(), 'p1', 'p1').votes).toEqual({});
@@ -159,7 +159,7 @@ describe('voting every N reveals', () => {
     expect(g.phase).toBe('reveal'); // не голосование, а второе вскрытие
     expect(g.revealStep).toBe(2);
     expect(currentSpeaker(g)!.id).toBe('p1'); // очередь заново с первого
-    expect(revealOptions(g, g.players[0])).toEqual(['profession', 'physique', 'health', 'hobby', 'luggage', 'fact']); // дальше по желанию
+    expect(revealOptions(g, g.players[0])).toEqual(['profession', 'physique', 'character', 'health', 'hobby', 'luggage', 'fact']); // дальше по желанию
     for (const p of g.players) g = endSpeech(revealCard(g, p.id, 'hobby'));
     expect(g.phase).toBe('vote');
     expect(g.players.every((p) => p.slots.biology.isRevealed && p.slots.hobby.isRevealed)).toBe(true);
@@ -167,10 +167,10 @@ describe('voting every N reveals', () => {
 
   it('limits rounds so open cards suffice for all reveals', () => {
     expect(maxRoundsFor(1)).toBe(6);
-    expect(maxRoundsFor(2)).toBe(3);
+    expect(maxRoundsFor(2)).toBe(4);
     expect(maxRoundsFor(3)).toBe(2);
-    expect(buildSchedule(12, 4, maxRoundsFor(2))).toEqual([3, 3, 2]);
-    expect(newGame(12, 4, 2).schedule).toEqual([3, 3, 2]);
+    expect(buildSchedule(12, 4, maxRoundsFor(2))).toEqual([2, 2, 2, 2]);
+    expect(newGame(12, 4, 2).schedule).toEqual([2, 2, 2, 2]);
   });
 
   it('next round starts again from the first reveal', () => {
@@ -231,7 +231,7 @@ describe('match timer', () => {
     const late = applyOvertime(g, g.deadline! + 1);
     expect(late.phase).toBe('vote');
     expect(late.votes).toEqual({});
-    expect(late.players.every((p) => ['biology', 'profession', 'physique', 'health', 'hobby', 'luggage', 'fact'].filter((c) => p.slots[c as 'biology'].isRevealed).length === 2)).toBe(true);
+    expect(late.players.every((p) => ['biology', 'profession', 'physique', 'character', 'health', 'hobby', 'luggage', 'fact'].filter((c) => p.slots[c as 'biology'].isRevealed).length === 2)).toBe(true);
   });
   it('overcrowded shelter is penalised', () => {
     const g = newGame(6, 3);
@@ -247,6 +247,45 @@ describe('match timer', () => {
     const many = evaluate(g.scenario, plain, 3);
     expect(many.notes.join()).toContain('переполнен');
     expect(many.score).toBeLessThanOrEqual(few.score);
+  });
+});
+
+describe('health severity', () => {
+  const base = () => {
+    const g = newGame(4, 4);
+    return g.players.map((p) => {
+      const slots = { ...p.slots };
+      for (const c of ['profession', 'hobby', 'fact', 'luggage', 'biology', 'physique', 'character'] as const) {
+        slots[c] = { ...slots[c], card: { ...slots[c].card, description: 'Обычный человек', title: undefined, tags: [], modifier: 'neutral' as const } };
+      }
+      slots.health = { ...slots.health, card: { ...slots.health.card, description: 'Здоров', tags: [], modifier: 'neutral' as const } };
+      return { ...p, slots };
+    });
+  };
+  const sick = (players: ReturnType<typeof base>, text: string) =>
+    players.map((p, i) => (i === 0 ? { ...p, slots: { ...p.slots, health: { ...p.slots.health, card: { ...p.slots.health.card, description: text, modifier: 'negative' as const } } } } : p));
+  const sc = newGame(4, 4).scenario;
+
+  it('severity is read from the card text', () => {
+    const card = (description: string, modifier: 'negative' | 'neutral' = 'negative') => ({ id: 'x', category: 'health' as const, description, modifier });
+    expect(severityOf(card('Лёгкая простуда', 'neutral'))).toBe(0);
+    expect(severityOf(card('Астма'))).toBe(1);
+    expect(severityOf(card('Пневмония средней тяжести'))).toBe(1.5);
+    expect(severityOf(card('Тяжёлый грипп'))).toBe(2);
+    expect(severityOf(card('Критическое состояние'))).toBe(3);
+  });
+
+  it('heavier illness lowers health more, and a healer softens it', () => {
+    const light = evaluate(sc, sick(base(), 'Астма'), 4);
+    const heavy = evaluate(sc, sick(base(), 'Тяжёлая астма'), 4);
+    const critical = evaluate(sc, sick(base(), 'Критическое состояние'), 4);
+    expect(heavy.health).toBeLessThan(light.health);
+    expect(critical.health).toBeLessThan(heavy.health);
+    expect(heavy.notes.join()).toContain('лечить их некому');
+    const withDoc = sick(base(), 'Тяжёлая астма').map((p, i) => (i === 1 ? { ...p, slots: { ...p.slots, profession: { ...p.slots.profession, card: { ...p.slots.profession.card, tags: ['медицина'] } } } } : p));
+    const treated = evaluate(sc, withDoc, 4);
+    expect(treated.health).toBeGreaterThan(heavy.health);
+    expect(treated.notes.join()).toContain('врач держит');
   });
 });
 
@@ -436,7 +475,7 @@ describe('round events', () => {
     const g = withEvents();
     const r = applyEvent(g, ev('leak'));
     for (const p of r.players) {
-      const open = (['profession', 'biology', 'physique', 'health', 'hobby', 'luggage', 'fact'] as const).filter((c) => p.slots[c].isRevealed);
+      const open = (['profession', 'biology', 'physique', 'character', 'health', 'hobby', 'luggage', 'fact'] as const).filter((c) => p.slots[c].isRevealed);
       expect(open).toHaveLength(1);
       expect(open).not.toContain('biology');
     }
@@ -516,7 +555,7 @@ import type { CardPack } from '../types';
 
 describe('scenario builder logic', () => {
   const classic = CLASSIC_PACK;
-  const customWith = (over: Partial<CardPack>): CardPack => ({ id: 'mine', name: 'Мои', description: '', isCustom: true, scenarios: [], cards: { profession: [], biology: [], physique: [], health: [], hobby: [], luggage: [], fact: [], action: [] }, ...over });
+  const customWith = (over: Partial<CardPack>): CardPack => ({ id: 'mine', name: 'Мои', description: '', isCustom: true, scenarios: [], cards: { profession: [], biology: [], physique: [], character: [], health: [], hobby: [], luggage: [], fact: [], action: [] }, ...over });
 
   it('tag overrides teach a built-in card a new ability, only when the pack is selected', () => {
     const doc = classic.cards.profession.find((c) => c.description === 'Хирург')!;
