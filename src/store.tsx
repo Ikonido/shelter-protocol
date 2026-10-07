@@ -29,7 +29,8 @@ export type Screen =
   | { name: 'rules' }
   | { name: 'lobby'; draft: OnlineDraft }
   | { name: 'join'; code?: string; ticket?: string }
-  | { name: 'install' };
+  | { name: 'install' }
+  | { name: 'settings' };
 
 interface Store {
   screen: Screen;

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Hourglass, Plus } from 'lucide-react';
+import { signal } from '../lib/feedback';
 
 /** Часы партии: обратный отсчёт до deadline с цветом «спокойно → торопитесь → время вышло». */
 export function MatchClock({ deadline, totalMin, onExtend }: { deadline: number; totalMin: number; onExtend?: () => void }) {
@@ -9,8 +10,23 @@ export function MatchClock({ deadline, totalMin, onExtend }: { deadline: number;
     return () => clearInterval(t);
   }, []);
   const left = Math.max(0, deadline - now);
+  const flags = useRef({ minute: false, over: false });
+  useEffect(() => {
+    flags.current = { minute: false, over: false };
+  }, [deadline]);
   const frac = Math.min(1, left / Math.max(1, totalMin * 60_000));
   const over = left === 0;
+  // Предупреждение за минуту и сигнал, когда время вышло (один раз на дедлайн).
+  useEffect(() => {
+    if (totalMin > 2 && left > 0 && left <= 60_000 && !flags.current.minute) {
+      flags.current.minute = true;
+      signal('warn');
+    }
+    if (over && !flags.current.over) {
+      flags.current.over = true;
+      signal('end');
+    }
+  }, [left, over, totalMin]);
   const tone = over || frac < 0.15 ? 'text-danger' : frac < 0.35 ? 'text-amber' : 'text-ok';
   const bar = over || frac < 0.15 ? 'bg-danger' : frac < 0.35 ? 'bg-amber' : 'bg-ok';
   const s = Math.ceil(left / 1000);

@@ -36,6 +36,30 @@
 .cat-luggage    { --c: #38bdf8; }
 .cat-fact       { --c: #a3e635; }
 .cat-action     { --c: #e879f9; }
+.cat-physique   { --c: #fb923c; }
+.cat-character  { --c: #22d3ee; }
+
+/* Светлая тема: те же токены, другие значения. Переключается атрибутом data-theme на <html>. */
+:root[data-theme="light"] {
+  --color-bg: #f4f1e8;
+  --color-panel: #fffdf7;
+  --color-panel-2: #fbf7ec;
+  --color-edge: #cfc8b4;
+  --color-edge-hi: #a99f84;
+  --color-ink: #1d2a26;
+  --color-dim: #5a6b64;
+  --color-amber: #a15c00;
+  --color-danger: #b42318;
+  --color-ok: #15803d;
+}
+:root[data-theme="light"] body {
+  background-image:
+    radial-gradient(900px 420px at 50% -80px, rgba(161,92,0,.08), transparent 70%),
+    linear-gradient(rgba(29,42,38,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(29,42,38,.04) 1px, transparent 1px);
+  background-size: auto, 36px 36px, 36px 36px;
+}
+:root[data-theme="light"] .panel { box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 8px 24px -14px rgba(60,50,20,.35); }
 
 html, body, #root { min-height: 100%; }
 body {
@@ -89,3 +113,13 @@ body {
   .no-print { display: none !important; }
   .print-card { break-inside: avoid; border-color: #000 !important; background: #fff !important; color: #000 !important; }
 }
+
+:root[data-theme="light"] .cat-profession { --c: #a15c00; }
+:root[data-theme="light"] .cat-biology    { --c: #be123c; }
+:root[data-theme="light"] .cat-physique   { --c: #c2410c; }
+:root[data-theme="light"] .cat-character  { --c: #0e7490; }
+:root[data-theme="light"] .cat-health     { --c: #047857; }
+:root[data-theme="light"] .cat-hobby      { --c: #6d28d9; }
+:root[data-theme="light"] .cat-luggage    { --c: #0369a1; }
+:root[data-theme="light"] .cat-fact       { --c: #4d7c0f; }
+:root[data-theme="light"] .cat-action     { --c: #a21caf; }

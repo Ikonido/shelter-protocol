@@ -7,6 +7,7 @@ import { newSeed } from '../lib/rng';
 import type { Difficulty, PlayMode, SessionConfig, VotingMode } from '../types';
 import { DIFFICULTIES, DIFFICULTY_ORDER } from '../lib/difficulty';
 import { MY_PACK_ID } from '../lib/builder';
+import { loadLastSetup, saveLastSetup } from '../lib/quick';
 
 const DIFF_STYLE = {
   easy: { Icon: Smile, tone: { text: 'text-ok', border: 'border-ok', bg: 'bg-ok/10 shadow-[0_0_22px_-10px_var(--color-ok)]' } },
@@ -33,19 +34,22 @@ const rememberAdult = () => {
 
 export default function Setup({ initialMode, initialPacks, initialScenario }: { initialMode?: PlayMode; initialPacks?: string[]; initialScenario?: string }) {
   const { allPacks, go, setGame, notify } = useStore();
-  const [packIds, setPackIds] = useState<string[]>(() => initialPacks?.filter((id) => allPacks.some((p) => p.id === id)) ?? [allPacks[0].id]);
-  const [scenarioId, setScenarioId] = useState<string>(initialScenario ?? 'random');
-  const [n, setN] = useState(8);
-  const [k, setK] = useState(4);
+  // Прошлая партия на этом устройстве: настройки и имена подставляются заново, чтобы не вводить всё с нуля.
+  const [last] = useState(loadLastSetup);
+  const lastPackIds = last?.packIds.filter((id) => allPacks.some((p) => p.id === id));
+  const [packIds, setPackIds] = useState<string[]>(() => initialPacks?.filter((id) => allPacks.some((p) => p.id === id)) ?? (lastPackIds?.length ? lastPackIds : [allPacks[0].id]));
+  const [scenarioId, setScenarioId] = useState<string>(initialScenario ?? last?.scenarioId ?? 'random');
+  const [n, setN] = useState(last?.n ?? 8);
+  const [k, setK] = useState(last?.k ?? 4);
   const [mode, setMode] = useState<PlayMode>(initialMode ?? 'pass-and-play');
-  const [voting, setVoting] = useState<VotingMode>('secret');
-  const [names, setNames] = useState<string[]>([]);
-  const [revealsPerVote, setRevealsPerVote] = useState(2);
-  const [timeLimitMin, setTimeLimitMin] = useState(45);
-  const [speechSec, setSpeechSec] = useState(45);
-  const [hazardCount, setHazardCount] = useState(2);
-  const [difficulty, setDifficulty] = useState<Difficulty>('normal');
-  const [roundEvents, setRoundEvents] = useState(false);
+  const [voting, setVoting] = useState<VotingMode>(last?.voting ?? 'secret');
+  const [names, setNames] = useState<string[]>(last?.names ?? []);
+  const [revealsPerVote, setRevealsPerVote] = useState(last?.revealsPerVote ?? 2);
+  const [timeLimitMin, setTimeLimitMin] = useState(last?.timeLimitMin ?? 45);
+  const [speechSec, setSpeechSec] = useState(last?.speechSec ?? 45);
+  const [hazardCount, setHazardCount] = useState(last?.hazardCount ?? 2);
+  const [difficulty, setDifficulty] = useState<Difficulty>(last?.difficulty ?? 'normal');
+  const [roundEvents, setRoundEvents] = useState(last?.roundEvents ?? false);
   // Пресет подставляет рекомендуемые значения, после чего их можно поменять вручную.
   const pickDifficulty = (d: Difficulty) => {
     const r = DIFFICULTIES[d];
@@ -85,6 +89,7 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
   const canStart = scenarios.length > 0 && activePacks.some((p) => Object.values(p.cards).some((c) => c.length));
   const start = () => {
     const chosen = scenario ?? scenarios[Math.floor(Math.random() * scenarios.length)];
+    saveLastSetup({ packIds, n, k, names: Array.from({ length: n }, (_, i) => nameAt(i)), voting, revealsPerVote, timeLimitMin, speechSec, hazardCount, difficulty, roundEvents, scenarioId });
     if (mode === 'online') {
       go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting, revealsPerVote, speechSec, hazardCount, difficulty, roundEvents, timeLimitMin, adult: activePacks.some((p) => p.adult) } });
       return;

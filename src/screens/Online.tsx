@@ -13,6 +13,7 @@ import { CardFace, Stepper } from '../ui/bits';
 import { Board } from '../ui/Board';
 import { GameHud } from '../ui/GameHud';
 import { SpeechTimer } from '../ui/SpeechTimer';
+import { signal } from '../lib/feedback';
 import { ThreatsPanel } from '../ui/Threats';
 import { Avatar } from '../ui/Avatar';
 import { Tally } from '../ui/Tally';
@@ -305,6 +306,11 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
   const options = view.phase === 'reveal' && myTurn && !player.isEliminated ? revealOptions(view, player) : [];
   const canAction = (view.phase === 'reveal' || view.phase === 'speech' || view.phase === 'vote') && !player.isEliminated && !player.slots.action.isRevealed;
   const lastAction = [...view.log].reverse().find((l) => l.round === view.round && l.text.includes('применяет карту действия'));
+  // «Ваш ход»: сигнал и заметная плашка, чтобы не пропустить очередь, пока телефон лежит на столе.
+  const myRevealTurn = myTurn && view.phase === 'reveal' && !player.isEliminated;
+  useEffect(() => {
+    if (myRevealTurn) signal('turn');
+  }, [myRevealTurn, view.round, view.revealStep]);
   const lonely = options.length === 1 ? options[0] : null;
   const chosen = pick && (options.includes(pick) || (pick === 'action' && canAction)) ? pick : lonely;
 
@@ -360,7 +366,7 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
                   {myTurn ? 'Объясните, чем вы полезны убежищу' : `${speaker.name} объясняет пользу`}
                 </h2>
                 <CardFace card={speaker.slots[view.lastReveal.category].card} showMod flip />
-                <SpeechTimer endsAt={view.speechEndsAt} totalSec={view.config.speechSec} />
+                <SpeechTimer endsAt={view.speechEndsAt} totalSec={view.config.speechSec} mine={myTurn} />
                 {myTurn ? (
                   <button className="btn btn-primary" onClick={() => send({ t: 'done' })}>Закончил — следующий игрок</button>
                 ) : host ? (
@@ -407,6 +413,7 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
               </section>
             )}
 
+            {myRevealTurn && <p className="panel animate-pulse border-amber text-center text-sm font-bold uppercase tracking-widest text-amber" role="alert">Ваш ход: откройте карту</p>}
             {lastAction && <p className="panel border-[#e879f9]/60 text-sm" role="status"><Zap size={14} className="mr-1 inline text-[#e879f9]" />{lastAction.text}</p>}
             <section className="panel flex flex-col gap-2">
               <h2 className="h-hud flex items-center gap-2"><Avatar id={player.id} name={player.name} size={24} /> {player.name}{player.isEliminated ? ' — вы наблюдатель' : ' — ваши карты'}</h2>

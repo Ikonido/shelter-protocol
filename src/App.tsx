@@ -9,7 +9,9 @@ import Rules from './screens/Rules';
 import Install from './screens/Install';
 import Builder from './screens/Builder';
 import { Join, Lobby } from './screens/Online';
+import Settings from './screens/Settings';
 import { Modal } from './ui/bits';
+import { useWakeLock } from './lib/wakelock';
 import { packStats } from './lib/packs';
 
 export default function App() {
@@ -20,6 +22,8 @@ export default function App() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [screen.name]);
+  // Пока открыта партия или лобби, экран телефона не гаснет.
+  useWakeLock(screen.name === 'game' || screen.name === 'lobby' || screen.name === 'join');
   return (
     <main className="mx-auto min-h-dvh max-w-5xl px-4 pb-[env(safe-area-inset-bottom)]">
       <div key={screen.name} className="anim-rise">
@@ -31,6 +35,7 @@ export default function App() {
       {screen.name === 'editor' && <Editor packId={screen.packId} />}
       {screen.name === 'rules' && <Rules />}
       {screen.name === 'install' && <Install />}
+      {screen.name === 'settings' && <Settings />}
       {screen.name === 'lobby' && <Lobby draft={screen.draft} />}
       {screen.name === 'join' && <Join initialCode={screen.code} initialTicket={screen.ticket} />}
       </div>
