@@ -1,0 +1,5 @@
+# Сертификат HTTPS Caddy получает и продлевает сам. {$DOMAIN} берётся из .env
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy peerjs:9000
+}
