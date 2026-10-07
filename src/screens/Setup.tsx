@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Dices, Eye, EyeOff, Flame, Gauge, Globe, Printer, Skull, Smartphone, Smile } from 'lucide-react';
+import { ArrowLeft, Dices, Eye, EyeOff, Flame, Gauge, Globe, Pencil, Printer, Skull, Smartphone, Smile, Wand2 } from 'lucide-react';
 import { useStore } from '../store';
 import { Stepper } from '../ui/bits';
 import { clampConfig, createGame } from '../lib/game';
 import { newSeed } from '../lib/rng';
 import type { Difficulty, PlayMode, SessionConfig, VotingMode } from '../types';
 import { DIFFICULTIES, DIFFICULTY_ORDER } from '../lib/difficulty';
+import { MY_PACK_ID } from '../lib/builder';
 
 const DIFF_STYLE = {
   easy: { Icon: Smile, tone: { text: 'text-ok', border: 'border-ok', bg: 'bg-ok/10 shadow-[0_0_22px_-10px_var(--color-ok)]' } },
@@ -14,10 +15,10 @@ const DIFF_STYLE = {
   nightmare: { Icon: Skull, tone: { text: 'text-danger', border: 'border-danger', bg: 'bg-danger/10 shadow-[0_0_22px_-10px_var(--color-danger)]' } },
 } as const;
 
-export default function Setup({ initialMode }: { initialMode?: PlayMode }) {
+export default function Setup({ initialMode, initialPacks, initialScenario }: { initialMode?: PlayMode; initialPacks?: string[]; initialScenario?: string }) {
   const { allPacks, go, setGame, notify } = useStore();
-  const [packIds, setPackIds] = useState<string[]>(() => [allPacks[0].id]);
-  const [scenarioId, setScenarioId] = useState<string>('random');
+  const [packIds, setPackIds] = useState<string[]>(() => initialPacks?.filter((id) => allPacks.some((p) => p.id === id)) ?? [allPacks[0].id]);
+  const [scenarioId, setScenarioId] = useState<string>(initialScenario ?? 'random');
   const [n, setN] = useState(8);
   const [k, setK] = useState(4);
   const [mode, setMode] = useState<PlayMode>(initialMode ?? 'pass-and-play');
@@ -124,6 +125,12 @@ export default function Setup({ initialMode }: { initialMode?: PlayMode }) {
           <p className="mt-2 text-xs text-dim">Сценарий выбирается при старте.</p>
         )}
         {scenarios.length === 0 && <p className="mt-2 text-xs text-danger">В выбранных паках нет сценариев.</p>}
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button className="btn btn-sm" onClick={() => go({ name: 'builder' })}><Wand2 size={14} /> Создать свой сценарий</button>
+          {scenario && allPacks.some((p) => p.id === MY_PACK_ID && p.scenarios.some((x) => x.id === scenario.id)) && (
+            <button className="btn btn-sm" onClick={() => go({ name: 'builder', scenarioId: scenario.id })}><Pencil size={14} /> Изменить этот</button>
+          )}
+        </div>
       </section>
 
       <section className="panel">

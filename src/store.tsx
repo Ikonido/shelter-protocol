@@ -20,7 +20,8 @@ export interface OnlineDraft {
 
 export type Screen =
   | { name: 'home' }
-  | { name: 'setup'; mode?: PlayMode }
+  | { name: 'setup'; mode?: PlayMode; packIds?: string[]; scenarioId?: string }
+  | { name: 'builder'; scenarioId?: string }
   | { name: 'game' }
   | { name: 'packs' }
   | { name: 'editor'; packId: string }

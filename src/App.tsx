@@ -7,6 +7,7 @@ import Packs from './screens/Packs';
 import Editor from './screens/Editor';
 import Rules from './screens/Rules';
 import Install from './screens/Install';
+import Builder from './screens/Builder';
 import { Join, Lobby } from './screens/Online';
 import { Modal } from './ui/bits';
 import { packStats } from './lib/packs';
@@ -23,7 +24,8 @@ export default function App() {
     <main className="mx-auto min-h-dvh max-w-5xl px-4 pb-[env(safe-area-inset-bottom)]">
       <div key={screen.name} className="anim-rise">
       {screen.name === 'home' && <Home />}
-      {screen.name === 'setup' && <Setup initialMode={screen.mode} />}
+      {screen.name === 'setup' && <Setup initialMode={screen.mode} initialPacks={screen.packIds} initialScenario={screen.scenarioId} />}
+      {screen.name === 'builder' && <Builder scenarioId={screen.scenarioId} />}
       {screen.name === 'game' && <Game />}
       {screen.name === 'packs' && <Packs />}
       {screen.name === 'editor' && <Editor packId={screen.packId} />}

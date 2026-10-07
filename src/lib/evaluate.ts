@@ -43,7 +43,7 @@ export function cardMatchesSkill(card: Card, skill: string): boolean {
 }
 
 /** Навыки засчитываются с карт профессии, хобби, факта и багажа; здоровье и биология дают штрафы, а не навыки. */
-const SKILL_CATEGORIES = ['profession', 'hobby', 'fact', 'luggage'] as const;
+export const SKILL_CATEGORIES = ['profession', 'hobby', 'fact', 'luggage'] as const;
 
 export function evaluate(scenario: Scenario, survivors: PlayerCharacter[], slots?: number, hazards: Hazard[] = [], difficulty?: Difficulty): Evaluation {
   const rules = rulesFor(difficulty);

@@ -1,4 +1,4 @@
-import { BookOpen, ChevronRight, Globe, Library, Play, QrCode, RotateCcw, Smartphone, type LucideIcon } from 'lucide-react';
+import { BookOpen, ChevronRight, Globe, Library, Play, QrCode, RotateCcw, Smartphone, Wand2, type LucideIcon } from 'lucide-react';
 import { useStore, type Screen } from '../store';
 import { Emblem } from '../ui/Emblem';
 import { isStandalone } from '../lib/pwa';
@@ -51,7 +51,8 @@ export default function Home() {
         </button>
         <div className="grid gap-3 sm:grid-cols-2">
           <MenuItem icon={Globe} title="Войти в комнату" hint="по коду или QR от друга" onClick={to({ name: 'join' })} />
-          <MenuItem icon={Library} title="Паки" hint="свои сценарии и карты" onClick={to({ name: 'packs' })} />
+          <MenuItem icon={Wand2} title="Свой сценарий" hint="конструктор: угрозы и способности карт" onClick={to({ name: 'builder' })} />
+          <MenuItem icon={Library} title="Паки" hint="файлы, ссылки, расширенный редактор" onClick={to({ name: 'packs' })} />
           {!isStandalone() && <MenuItem icon={Smartphone} title="На телефон" hint="установить, работает офлайн" onClick={to({ name: 'install' })} />}
           <MenuItem icon={BookOpen} title="Правила" hint="разберётесь за минуту" onClick={to({ name: 'rules' })} />
           {game && game.phase === 'final' && <MenuItem icon={RotateCcw} title="Итоги" hint="прошлой партии" onClick={to({ name: 'game' })} />}
