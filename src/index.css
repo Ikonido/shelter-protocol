@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #070b0a;
+  --color-panel: #0d1513;
+  --color-edge: #1f3a33;
+  --color-ink: #cfe8df;
+  --color-dim: #6f9488;
+  --color-amber: #fbbf24;
+  --color-danger: #f87171;
+  --color-ok: #4ade80;
+  --font-mono: ui-monospace, "JetBrains Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+html, body, #root { min-height: 100%; }
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  -webkit-tap-highlight-color: transparent;
+  background-image:
+    radial-gradient(ellipse at top, rgba(251,191,36,.06), transparent 60%),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0 1px, transparent 1px 3px);
+}
+
+@layer components {
+  .panel { @apply rounded-lg border border-edge bg-panel p-4; }
+  .btn { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-edge bg-panel px-4 py-2 text-sm uppercase tracking-wider text-ink transition hover:border-amber hover:text-amber active:scale-[.98] disabled:pointer-events-none disabled:opacity-40; }
+  .btn-primary { @apply border-amber bg-amber/10 text-amber hover:bg-amber/20; }
+  .btn-danger { @apply border-danger/60 text-danger hover:border-danger hover:text-danger; }
+  .btn-sm { @apply min-h-9 px-3 py-1 text-xs; }
+  .input { @apply min-h-11 w-full rounded-md border border-edge bg-bg px-3 py-2 text-sm text-ink outline-none placeholder:text-dim focus:border-amber; }
+  .label { @apply mb-1 block text-xs uppercase tracking-widest text-dim; }
+  .h-hud { @apply text-xs uppercase tracking-[.25em] text-amber; }
+}
+
+@media print {
+  body { background: #fff !important; color: #000 !important; }
+  .no-print { display: none !important; }
+  .print-card { break-inside: avoid; border-color: #000 !important; background: #fff !important; color: #000 !important; }
+}

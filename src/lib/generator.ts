@@ -1,0 +1,58 @@
+import { CATEGORIES, type Card, type CardPack, type Category, type PlayerCharacter } from '../types';
+import { shuffle, type Rng } from './rng';
+
+/** Объединяет пулы выбранных паков по категориям (без дублей по id). */
+export function mergePools(packs: CardPack[]): Record<Category, Card[]> {
+  const pools = Object.fromEntries(CATEGORIES.map((c) => [c, [] as Card[]])) as Record<Category, Card[]>;
+  const seen = new Set<string>();
+  for (const pack of packs) {
+    for (const cat of CATEGORIES) {
+      for (const card of pack.cards[cat] ?? []) {
+        const key = `${cat}:${card.id}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        pools[cat].push({ ...card, category: cat });
+      }
+    }
+  }
+  return pools;
+}
+
+/** Раздаёт карты без повторов, пока хватает пула; если карт меньше, чем игроков, колода перетасовывается заново. */
+export function drawCards(pool: Card[], count: number, rng: Rng): Card[] {
+  if (pool.length === 0) return [];
+  const out: Card[] = [];
+  let deck = shuffle(pool, rng);
+  while (out.length < count) {
+    if (deck.length === 0) deck = shuffle(pool, rng);
+    out.push(deck.pop()!);
+  }
+  return out;
+}
+
+export function emptyCard(category: Category): Card {
+  return { id: `empty-${category}`, category, description: '— нет карт в выбранных паках —', modifier: 'neutral' };
+}
+
+export function generateCharacters(names: string[], packs: CardPack[], rng: Rng): PlayerCharacter[] {
+  const pools = mergePools(packs);
+  const hands = Object.fromEntries(
+    CATEGORIES.map((c) => [c, drawCards(pools[c], names.length, rng)]),
+  ) as Record<Category, Card[]>;
+  return names.map((name, i) => ({
+    id: `p${i + 1}`,
+    name,
+    isEliminated: false,
+    slots: Object.fromEntries(
+      CATEGORIES.map((c) => [c, { card: hands[c][i] ?? emptyCard(c), isRevealed: false }]),
+    ) as PlayerCharacter['slots'],
+  }));
+}
+
+/** Перегенерировать одну карту игрока (tabletop: «не нравится — перекинь»). */
+export function rerollCard(player: PlayerCharacter, category: Category, packs: CardPack[], rng: Rng): PlayerCharacter {
+  const pool = mergePools(packs)[category].filter((c) => c.id !== player.slots[category].card.id);
+  if (pool.length === 0) return player;
+  const card = pool[Math.floor(rng() * pool.length)];
+  return { ...player, slots: { ...player.slots, [category]: { card, isRevealed: false } } };
+}

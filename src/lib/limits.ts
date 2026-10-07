@@ -1,0 +1,24 @@
+/** Жёсткие ограничения на размер текста: пак должен оставаться лёгким (ссылка, localStorage, сеть). */
+export const LIMITS = {
+  packName: 60,
+  packDescription: 300,
+  scenarios: 12,
+  scenarioTitle: 60,
+  scenarioDescription: 400,
+  scenarioDuration: 30,
+  skills: 8,
+  skillLen: 24,
+  threats: 6,
+  threatLen: 80,
+  cardDescription: 240,
+  cardTitle: 40,
+  cardTags: 5,
+  tagLen: 24,
+  cardsPerCategory: 60,
+} as const;
+
+export const clip = (s: string, max: number) => s.slice(0, max);
+
+/** Список строк с ограничением числа элементов и длины каждого. */
+export const clipList = (items: string[], maxItems: number, maxLen: number) =>
+  items.map((s) => clip(s.trim(), maxLen)).filter(Boolean).slice(0, maxItems);

@@ -1,0 +1,155 @@
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Dices, Globe, Printer, Smartphone, Eye, EyeOff } from 'lucide-react';
+import { useStore } from '../store';
+import { Stepper } from '../ui/bits';
+import { clampConfig, createGame } from '../lib/game';
+import { newSeed } from '../lib/rng';
+import type { PlayMode, SessionConfig, VotingMode } from '../types';
+
+export default function Setup() {
+  const { allPacks, go, setGame, notify } = useStore();
+  const [packIds, setPackIds] = useState<string[]>(() => [allPacks[0].id]);
+  const [scenarioId, setScenarioId] = useState<string>('random');
+  const [n, setN] = useState(8);
+  const [k, setK] = useState(4);
+  const [mode, setMode] = useState<PlayMode>('pass-and-play');
+  const [voting, setVoting] = useState<VotingMode>('secret');
+  const [names, setNames] = useState<string[]>([]);
+
+  const activePacks = useMemo(() => allPacks.filter((p) => packIds.includes(p.id)), [allPacks, packIds]);
+  const scenarios = useMemo(() => activePacks.flatMap((p) => p.scenarios), [activePacks]);
+  const scenario = scenarios.find((s) => s.id === scenarioId);
+
+  // Сценарий, выпавший из выбранных паков, сбрасываем на «случайный».
+  useEffect(() => {
+    if (scenarioId !== 'random' && !scenario) setScenarioId('random');
+  }, [scenario, scenarioId]);
+  // Число мест подстраиваем под сценарий.
+  useEffect(() => {
+    if (scenario) setK(clampConfig(n, scenario.shelterSlots).k);
+  }, [scenario]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setPlayers = (v: number) => {
+    const c = clampConfig(v, k);
+    setN(c.n);
+    setK(c.k);
+  };
+  const nameAt = (i: number) => names[i]?.trim() || `Игрок ${i + 1}`;
+  const toggle = (id: string) => setPackIds((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
+
+  const canStart = scenarios.length > 0 && activePacks.some((p) => Object.values(p.cards).some((c) => c.length));
+  const start = () => {
+    const chosen = scenario ?? scenarios[Math.floor(Math.random() * scenarios.length)];
+    if (mode === 'online') {
+      go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting } });
+      return;
+    }
+    const config: SessionConfig = {
+      scenarioId: chosen.id,
+      packIds,
+      playerCount: n,
+      shelterSlots: k,
+      mode,
+      voting,
+      names: Array.from({ length: n }, (_, i) => nameAt(i)),
+      seed: newSeed(),
+    };
+    setGame(createGame(config, chosen, activePacks));
+    notify('Персонажи сгенерированы');
+    go({ name: 'game' });
+  };
+
+  return (
+    <div className="mx-auto flex max-w-2xl flex-col gap-5 py-6">
+      <button className="btn btn-sm self-start" onClick={() => go({ name: 'home' })}><ArrowLeft size={16} /> Назад</button>
+      <h1 className="h-hud text-base">Настройка партии</h1>
+
+      <section className="panel">
+        <h2 className="label">1. Паки карт</h2>
+        <div className="flex flex-col gap-2">
+          {allPacks.map((p) => (
+            <label key={p.id} className="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border border-edge p-2">
+              <input type="checkbox" className="mt-1 size-4 accent-amber" checked={packIds.includes(p.id)} onChange={() => toggle(p.id)} />
+              <span className="text-sm">
+                <b>{p.name}</b>{p.isCustom && <span className="ml-2 text-xs text-amber">[свой]</span>}
+                <br /><span className="text-xs text-dim">{p.description}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </section>
+
+      <section className="panel">
+        <h2 className="label">2. Сценарий катастрофы</h2>
+        <select className="input" value={scenarioId} onChange={(e) => setScenarioId(e.target.value)}>
+          <option value="random">🎲 Случайный</option>
+          {scenarios.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
+        </select>
+        {scenario ? (
+          <div className="mt-3 text-sm">
+            <p className="text-ink/90">{scenario.description}</p>
+            <p className="mt-2 text-xs text-dim">
+              Изоляция: {scenario.isolationDuration || '—'} · Нужны: {scenario.requiredSkills.join(', ') || '—'}
+            </p>
+          </div>
+        ) : (
+          <p className="mt-2 text-xs text-dim">Сценарий выбирается при старте.</p>
+        )}
+        {scenarios.length === 0 && <p className="mt-2 text-xs text-danger">В выбранных паках нет сценариев.</p>}
+      </section>
+
+      <section className="panel">
+        <h2 className="label">3. Игроки и места</h2>
+        <div className="flex flex-wrap gap-8">
+          {mode !== 'online' && <Stepper label="Игроков (N)" value={n} min={2} max={20} onChange={setPlayers} />}
+          <Stepper label="Мест в бункере (K)" value={k} min={1} max={mode === 'online' ? 19 : n - 1} onChange={(v) => setK(mode === 'online' ? Math.min(19, Math.max(1, v)) : clampConfig(n, v).k)} />
+        </div>
+        {mode === 'online' && <p className="mt-2 text-xs text-dim">Число игроков определится по тем, кто подключился к комнате.</p>}
+        <details className={`mt-4 ${mode === 'online' ? 'hidden' : ''}`}>
+          <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">Имена игроков</summary>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {Array.from({ length: n }, (_, i) => (
+              <input
+                key={i}
+                className="input"
+                maxLength={24}
+                placeholder={`Игрок ${i + 1}`}
+                value={names[i] ?? ''}
+                onChange={(e) => setNames((l) => Object.assign([...l], { [i]: e.target.value }))}
+              />
+            ))}
+          </div>
+        </details>
+      </section>
+
+      <section className="panel">
+        <h2 className="label">4. Режим</h2>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <button className={`btn ${mode === 'online' ? 'btn-primary' : ''}`} onClick={() => setMode('online')}>
+            <Globe size={18} /> Онлайн (по коду)
+          </button>
+          <button className={`btn ${mode === 'pass-and-play' ? 'btn-primary' : ''}`} onClick={() => setMode('pass-and-play')}>
+            <Smartphone size={18} /> Pass-and-Play
+          </button>
+          <button className={`btn ${mode === 'tabletop' ? 'btn-primary' : ''}`} onClick={() => setMode('tabletop')}>
+            <Printer size={18} /> Настольный (карточки)
+          </button>
+        </div>
+        {mode !== 'tabletop' && (
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <button className={`btn btn-sm ${voting === 'secret' ? 'btn-primary' : ''}`} onClick={() => setVoting('secret')}>
+              <EyeOff size={16} /> Тайное голосование
+            </button>
+            <button className={`btn btn-sm ${voting === 'open' ? 'btn-primary' : ''}`} onClick={() => setVoting('open')}>
+              <Eye size={16} /> Открытое голосование
+            </button>
+          </div>
+        )}
+      </section>
+
+      <button className="btn btn-primary" disabled={!canStart} onClick={start}>
+        <Dices size={18} /> {mode === 'online' ? 'Создать комнату' : 'Сгенерировать персонажей и начать'}
+      </button>
+    </div>
+  );
+}

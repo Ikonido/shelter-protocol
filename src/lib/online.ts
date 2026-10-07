@@ -1,0 +1,510 @@
+import {
+  CATEGORIES,
+  type Card,
+  type CardPack,
+  type Category,
+  type GameState,
+  type PlayerCharacter,
+  type Scenario,
+  type VotingMode,
+} from '../types';
+import {
+  alive,
+  allVoted,
+  castVote,
+  createGame,
+  nextRound,
+  pendingReveal,
+  playAction,
+  resolveVote,
+  revealCard,
+  revealOptions,
+  startVote,
+} from './game';
+import { newSeed, randomCode } from './rng';
+import { LIMITS as L, clip } from './limits';
+import { sanitizeScenario } from './packs';
+
+/* ---------- Протокол ---------- */
+
+export type C2H =
+  | { t: 'hello'; name: string; token: string; ticket?: string }
+  | { t: 'reveal'; category: Category }
+  | { t: 'action' }
+  | { t: 'vote'; target: string };
+
+export interface LobbyMember {
+  name: string;
+  connected: boolean;
+}
+export type H2C =
+  | { t: 'lobby'; members: LobbyMember[]; scenario: string; slots: number; you: number; locked?: boolean }
+  | { t: 'view'; view: GameState; me: string }
+  | { t: 'reject'; reason: string };
+
+/** Минимальный дуплексный канал: в проде — WebRTC DataChannel (PeerJS), в тестах — in-memory. */
+export interface Conn<Out> {
+  send(m: Out): void;
+  onMessage(cb: (m: unknown) => void): void;
+  onClose(cb: () => void): void;
+  close(): void;
+}
+
+export const MAX_ONLINE_PLAYERS = 20;
+const MAX_PENDING = 40;
+const HANDSHAKE_MS = 10_000;
+const MAX_MSGS_PER_SEC = 30;
+/** Билет QR-кода живёт столько, потом хост выпускает новый; ещё GRACE_MS после смены старый принимается — вдруг кто-то уже навёл камеру. */
+export const TICKET_TTL_MS = 5 * 60_000;
+const TICKET_GRACE_MS = 20_000;
+
+/* ---------- Маскирование состояния ---------- */
+
+const hiddenCard = (category: Category): Card => ({ id: `hidden-${category}`, category, description: '???' });
+
+/** Что игрок `me` вправе знать: чужие закрытые карты вырезаются на хосте, до клиента они не доходят. */
+export function viewFor(g: GameState, me: string, voting: VotingMode = g.config.voting): GameState {
+  const final = g.phase === 'final';
+  const players: PlayerCharacter[] = g.players.map((p) => {
+    if (p.id === me || (final && !p.isEliminated)) return p;
+    const slots = Object.fromEntries(
+      CATEGORIES.map((c) => [c, p.slots[c].isRevealed ? p.slots[c] : { card: hiddenCard(c), isRevealed: false }]),
+    ) as PlayerCharacter['slots'];
+    return { ...p, slots };
+  });
+  // Тайное голосование: во время голосования видно лишь кто уже проголосовал (и свой выбор), после — ничего.
+  const votes =
+    voting !== 'secret'
+      ? g.votes
+      : g.phase === 'vote'
+        ? Object.fromEntries(Object.keys(g.votes).map((v) => [v, v === me ? g.votes[v] : v]))
+        : {};
+  return { ...g, players, votes, seed: 0, config: { ...g.config, seed: 0 } };
+}
+
+/* ---------- Хост ---------- */
+
+interface Member {
+  token: string;
+  name: string;
+  conn: Conn<H2C> | null; // null — сам хост
+  connected: boolean;
+  playerId?: string;
+}
+
+export interface HostSetup {
+  scenario: Scenario;
+  packs: CardPack[];
+  slots: number;
+  voting: VotingMode;
+}
+
+const cleanName = (v: unknown) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, 24) : '');
+
+export class OnlineHost {
+  members: Member[];
+  game: GameState | null = null;
+  /** Закрытая комната не принимает новых игроков (вернуться по токену можно). */
+  locked = false;
+  /** «Только по QR»: без действующего билета новые игроки не принимаются (код комнаты один не работает). */
+  requireTicket = false;
+  private tickets: { value: string; expires: number }[] = [];
+  private listeners = new Set<() => void>();
+  private pending = new Set<Conn<H2C>>();
+  private rate = new Map<Conn<H2C>, { t: number; n: number }>();
+
+  constructor(
+    public setup: HostSetup,
+    hostName = 'Хост',
+  ) {
+    this.members = [{ token: 'host', name: cleanName(hostName) || 'Хост', conn: null, connected: true }];
+  }
+
+  subscribe(cb: () => void) {
+    this.listeners.add(cb);
+    return () => void this.listeners.delete(cb);
+  }
+
+  addConn(conn: Conn<H2C>) {
+    if (this.pending.size >= MAX_PENDING) return conn.close();
+    this.pending.add(conn);
+    // Соединение, не представившееся за HANDSHAKE_MS, отбрасываем — иначе слоты можно занять «пустыми» подключениями.
+    const timer = setTimeout(() => this.pending.has(conn) && this.drop(conn, true), HANDSHAKE_MS);
+    (timer as { unref?: () => void }).unref?.();
+    conn.onMessage((raw) => {
+      if (this.tooFast(conn)) return this.drop(conn, true);
+      this.onRaw(conn, raw);
+    });
+    conn.onClose(() => this.drop(conn, false));
+  }
+
+  private tooFast(conn: Conn<H2C>): boolean {
+    const now = Date.now();
+    const w = this.rate.get(conn);
+    if (!w || now - w.t > 1000) {
+      this.rate.set(conn, { t: now, n: 1 });
+      return false;
+    }
+    return ++w.n > MAX_MSGS_PER_SEC;
+  }
+
+  private drop(conn: Conn<H2C>, close: boolean) {
+    this.pending.delete(conn);
+    this.rate.delete(conn);
+    const m = this.members.find((x) => x.conn === conn);
+    if (close) conn.close();
+    if (m) {
+      m.connected = false;
+      m.conn = null;
+      this.changed();
+    }
+  }
+
+  /** Действующий билет для QR; по истечении TTL автоматически выпускается новый. */
+  currentTicket(): { value: string; expiresAt: number } {
+    const now = Date.now();
+    this.tickets = this.tickets.filter((t) => now < t.expires + TICKET_GRACE_MS);
+    let cur = this.tickets[this.tickets.length - 1];
+    if (!cur || now >= cur.expires) {
+      cur = { value: randomCode(6), expires: now + TICKET_TTL_MS };
+      this.tickets.push(cur);
+    }
+    return { value: cur.value, expiresAt: cur.expires };
+  }
+
+  /** Немедленно аннулировать все билеты и выпустить новый (кнопка «Обновить QR»). */
+  rotateTicket() {
+    this.tickets = [];
+    this.currentTicket();
+    this.changed();
+  }
+
+  private ticketValid(t: unknown): boolean {
+    this.currentTicket();
+    return typeof t === 'string' && this.tickets.some((x) => x.value === t.toUpperCase());
+  }
+
+  setRequireTicket(v: boolean) {
+    this.requireTicket = v;
+    this.changed();
+  }
+
+  setLocked(v: boolean) {
+    this.locked = v;
+    this.changed();
+  }
+
+  /** Лобби: удалить игрока из комнаты. */
+  kick(index: number) {
+    const m = this.members[index];
+    if (this.game || index === 0 || !m) return;
+    m.conn?.send({ t: 'reject', reason: 'Хост исключил вас из комнаты' });
+    const conn = m.conn;
+    this.members.splice(index, 1);
+    if (conn) {
+      this.pending.delete(conn);
+      conn.close();
+    }
+    this.changed();
+  }
+
+  private onRaw(conn: Conn<H2C>, raw: unknown) {
+    if (!raw || typeof raw !== 'object') return;
+    const msg = raw as Record<string, unknown>;
+    if (msg.t === 'hello') {
+      const token = typeof msg.token === 'string' ? msg.token.slice(0, 64) : '';
+      const name = cleanName(msg.name);
+      if (!token || !name || token === 'host') return conn.send({ t: 'reject', reason: 'Некорректные данные' });
+      // Одно соединение — один участник: повторный hello с другим токеном игнорируется.
+      const bound = this.members.find((m) => m.conn === conn);
+      if (bound) return bound.token === token ? this.changed() : undefined;
+      const known = this.members.find((m) => m.token === token);
+      if (known) {
+        const old = known.conn;
+        known.conn = conn;
+        known.connected = true;
+        if (old && old !== conn) {
+          this.pending.delete(old);
+          old.close();
+        }
+      } else if (this.game) {
+        return conn.send({ t: 'reject', reason: 'Партия уже началась' });
+      } else if (this.locked) {
+        return conn.send({ t: 'reject', reason: 'Комната закрыта хостом' });
+      } else if (msg.ticket !== undefined && !this.ticketValid(msg.ticket)) {
+        return conn.send({ t: 'reject', reason: 'QR-код устарел — отсканируйте актуальный у хоста' });
+      } else if (this.requireTicket && msg.ticket === undefined) {
+        return conn.send({ t: 'reject', reason: 'Вход только по QR-коду хоста' });
+      } else if (this.members.length >= MAX_ONLINE_PLAYERS) {
+        return conn.send({ t: 'reject', reason: 'Комната заполнена' });
+      } else {
+        this.members.push({ token, name, conn, connected: true });
+      }
+      this.pending.delete(conn);
+      return this.changed();
+    }
+    const member = this.members.find((m) => m.conn === conn);
+    if (!member) return;
+    if (msg.t === 'reveal' && CATEGORIES.includes(msg.category as Category)) this.act(member, { t: 'reveal', category: msg.category as Category });
+    else if (msg.t === 'action') this.act(member, { t: 'action' });
+    else if (msg.t === 'vote' && typeof msg.target === 'string') this.act(member, { t: 'vote', target: msg.target });
+  }
+
+  /** Действие игрока (в том числе самого хоста через index 0). Все проверки — здесь, клиенту не доверяем. */
+  act(member: Member, msg: Exclude<C2H, { t: 'hello' }>) {
+    const g = this.game;
+    const id = member.playerId;
+    if (!g || !id) return;
+    const me = g.players.find((p) => p.id === id);
+    if (!me || me.isEliminated) return;
+    let next = g;
+    if (msg.t === 'reveal') next = revealCard(g, id, msg.category);
+    else if (msg.t === 'action') {
+      if (g.phase === 'reveal' || g.phase === 'debate') next = playAction(g, id);
+    } else if (msg.t === 'vote' && g.phase === 'vote') {
+      const target = alive(g).find((p) => p.id === msg.target);
+      if (target) next = castVote(g, id, target.id);
+      if (allVoted(next)) next = resolveVote(next);
+    }
+    if (next !== g) this.setGame(next);
+  }
+
+  actAsHost(msg: Exclude<C2H, { t: 'hello' }>) {
+    this.act(this.members[0], msg);
+  }
+
+  rename(name: string) {
+    this.members[0].name = cleanName(name) || 'Хост';
+    this.changed();
+  }
+
+  start(): boolean {
+    if (this.game || this.members.length < 2) return false;
+    const names = uniqueNames(this.members.map((m) => m.name));
+    const n = names.length;
+    const g = createGame(
+      {
+        scenarioId: this.setup.scenario.id,
+        packIds: this.setup.packs.map((p) => p.id),
+        playerCount: n,
+        shelterSlots: Math.max(1, Math.min(this.setup.slots, n - 1)),
+        mode: 'online',
+        voting: this.setup.voting,
+        names,
+        seed: newSeed(),
+      },
+      this.setup.scenario,
+      this.setup.packs,
+    );
+    this.members.forEach((m, i) => (m.playerId = g.players[i].id));
+    this.setGame(g);
+    return true;
+  }
+
+  /* Управление раундом — только у хоста */
+  toVote() {
+    if (this.game?.phase === 'debate') this.setGame(startVote(this.game));
+  }
+  next() {
+    if (this.game?.phase === 'result') this.setGame(nextRound(this.game));
+  }
+  /** Автоход за отключившихся: открыть первую доступную карту / отдать голос за случайного, чтобы партия не зависла. */
+  autofillDisconnected() {
+    let g = this.game;
+    if (!g) return;
+    for (const m of this.members) {
+      if (m.connected || !m.playerId) continue;
+      const p = g.players.find((x) => x.id === m.playerId);
+      if (!p || p.isEliminated) continue;
+      if (g.phase === 'reveal' && pendingReveal(g).some((x) => x.id === p.id)) {
+        g = revealCard(g, p.id, revealOptions(g, p)[0]);
+      } else if (g.phase === 'vote' && !g.votes[p.id]) {
+        const others = alive(g).filter((x) => x.id !== p.id);
+        if (others.length) g = castVote(g, p.id, others[Math.floor(Math.random() * others.length)].id);
+      }
+    }
+    if (g.phase === 'vote' && allVoted(g)) g = resolveVote(g);
+    if (g !== this.game) this.setGame(g);
+  }
+
+  disconnectedPending(): string[] {
+    return this.members.filter((m) => !m.connected).map((m) => m.name);
+  }
+
+  viewFor(index: number): GameState | null {
+    const m = this.members[index];
+    return this.game && m?.playerId ? viewFor(this.game, m.playerId) : null;
+  }
+
+  destroy() {
+    this.members.forEach((m) => m.conn?.close());
+    this.listeners.clear();
+  }
+
+  private setGame(g: GameState) {
+    this.game = g;
+    this.changed();
+  }
+
+  private changed() {
+    this.members.forEach((m, i) => {
+      if (!m.conn || !m.connected) return;
+      if (this.game && m.playerId) m.conn.send({ t: 'view', view: viewFor(this.game, m.playerId), me: m.playerId });
+      else
+        m.conn.send({
+          t: 'lobby',
+          members: this.members.map((x) => ({ name: x.name, connected: x.connected })),
+          scenario: this.setup.scenario.title,
+          slots: this.setup.slots,
+          you: i,
+          locked: this.locked,
+        });
+    });
+    this.listeners.forEach((cb) => cb());
+  }
+}
+
+function uniqueNames(names: string[]): string[] {
+  const seen = new Map<string, number>();
+  return names.map((n) => {
+    const c = (seen.get(n) ?? 0) + 1;
+    seen.set(n, c);
+    return c > 1 ? `${n} ${c}` : n;
+  });
+}
+
+/* ---------- Клиент ---------- */
+
+export type ClientState =
+  | { status: 'connecting' }
+  | { status: 'lobby'; members: LobbyMember[]; scenario: string; slots: number; you: number }
+  | { status: 'game'; view: GameState; me: string }
+  | { status: 'closed' }
+  | { status: 'rejected'; reason: string };
+
+export class OnlineClient {
+  state: ClientState = { status: 'connecting' };
+  private listeners = new Set<() => void>();
+
+  constructor(
+    private conn: Conn<C2H>,
+    name: string,
+    token: string,
+    ticket?: string,
+  ) {
+    conn.onMessage((raw) => this.onRaw(raw));
+    conn.onClose(() => {
+      if (this.state.status !== 'rejected') this.set({ status: 'closed' });
+    });
+    conn.send({ t: 'hello', name, token, ...(ticket ? { ticket } : {}) });
+  }
+
+  subscribe(cb: () => void) {
+    this.listeners.add(cb);
+    return () => void this.listeners.delete(cb);
+  }
+  send(m: Exclude<C2H, { t: 'hello' }>) {
+    this.conn.send(m);
+  }
+  destroy() {
+    this.conn.close();
+    this.listeners.clear();
+  }
+
+  private set(s: ClientState) {
+    this.state = s;
+    this.listeners.forEach((cb) => cb());
+  }
+
+  private onRaw(raw: unknown) {
+    if (!raw || typeof raw !== 'object') return;
+    const m = raw as Partial<H2C> & Record<string, unknown>;
+    if (m.t === 'reject') this.set({ status: 'rejected', reason: typeof m.reason === 'string' ? m.reason.slice(0, 100) : 'Отказано' });
+    else if (m.t === 'lobby' && Array.isArray(m.members))
+      this.set({
+        status: 'lobby',
+        members: m.members.slice(0, MAX_ONLINE_PLAYERS).map((x) => ({ name: clip(String(x?.name ?? ''), 24), connected: !!x?.connected })),
+        scenario: clip(String(m.scenario ?? ''), L.scenarioTitle),
+        slots: Number(m.slots) || 0,
+        you: Number(m.you) || 0,
+      });
+    else if (m.t === 'view' && typeof m.me === 'string') {
+      const view = sanitizeView(m.view);
+      if (view && view.players.some((p) => p.id === m.me)) this.set({ status: 'game', view, me: m.me });
+    }
+  }
+}
+
+/* ---------- Недоверенное состояние от хоста ---------- */
+
+const PHASES = ['reveal', 'debate', 'vote', 'result', 'final'];
+const MODS = ['positive', 'neutral', 'negative'];
+const text = (v: unknown, max: number) => (typeof v === 'string' ? clip(v, max) : '');
+const rec = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
+
+function cleanCard(raw: unknown, category: Category): Card | null {
+  const r = rec(raw);
+  if (typeof r.description !== 'string') return null;
+  const card: Card = { id: text(r.id, 60), category, description: text(r.description, L.cardDescription) };
+  if (typeof r.title === 'string') card.title = text(r.title, L.cardTitle);
+  if (MODS.includes(r.modifier as string)) card.modifier = r.modifier as Card['modifier'];
+  if (Array.isArray(r.tags)) card.tags = r.tags.slice(0, L.cardTags).map((t) => text(t, L.tagLen)).filter(Boolean);
+  return card;
+}
+
+/** Хост — внешний источник: заново собираем состояние только из проверенных полей и обрезаем строки по лимитам. */
+export function sanitizeView(raw: unknown): GameState | null {
+  const r = rec(raw);
+  if (!Array.isArray(r.players) || r.players.length < 1 || r.players.length > MAX_ONLINE_PLAYERS) return null;
+  const scenario = sanitizeScenario(r.scenario, 0);
+  if (!scenario || !PHASES.includes(r.phase as string)) return null;
+  const players: PlayerCharacter[] = [];
+  for (const rp of r.players) {
+    const p = rec(rp);
+    const slots = rec(p.slots);
+    const out: Partial<PlayerCharacter['slots']> = {};
+    for (const c of CATEGORIES) {
+      const slot = rec(slots[c]);
+      const card = cleanCard(slot.card, c);
+      if (!card) return null;
+      out[c] = { card, isRevealed: slot.isRevealed === true };
+    }
+    players.push({ id: text(p.id, 12), name: text(p.name, 24), isEliminated: p.isEliminated === true, slots: out as PlayerCharacter['slots'] });
+  }
+  const cfg = rec(r.config);
+  const int = (v: unknown, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(Number(v)) || lo));
+  const votes: Record<string, string> = {};
+  for (const [k, v] of Object.entries(rec(r.votes)).slice(0, MAX_ONLINE_PLAYERS)) votes[text(k, 12)] = text(v, 12);
+  const lr = rec(r.lastResult);
+  const tally: Record<string, number> = {};
+  for (const [k, v] of Object.entries(rec(lr.tally)).slice(0, MAX_ONLINE_PLAYERS)) tally[text(k, 12)] = int(v, 0, 99);
+  const game: GameState = {
+    config: {
+      scenarioId: scenario.id,
+      packIds: [],
+      playerCount: players.length,
+      shelterSlots: int(cfg.shelterSlots, 1, 19),
+      mode: 'online',
+      voting: cfg.voting === 'open' ? 'open' : 'secret',
+      names: players.map((p) => p.name),
+      seed: 0,
+    },
+    scenario,
+    players,
+    round: int(r.round, 1, 50),
+    schedule: Array.isArray(r.schedule) ? r.schedule.slice(0, 6).map((n) => int(n, 0, 19)) : [],
+    phase: r.phase as GameState['phase'],
+    revealedThisRound: Array.isArray(r.revealedThisRound) ? r.revealedThisRound.slice(0, MAX_ONLINE_PLAYERS).map((x) => text(x, 12)) : [],
+    votes,
+    log: Array.isArray(r.log) ? r.log.slice(-200).map((l) => ({ round: int(rec(l).round, 1, 50), text: text(rec(l).text, 400) })) : [],
+    seed: 0,
+  };
+  if (r.lastResult) {
+    game.lastResult = {
+      eliminated: Array.isArray(lr.eliminated) ? lr.eliminated.slice(0, MAX_ONLINE_PLAYERS).map((x) => text(x, 12)) : [],
+      tally,
+      tieBreak: lr.tieBreak === true,
+    };
+  }
+  return game;
+}
