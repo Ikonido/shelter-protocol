@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CLASSIC_PACK } from '../data/classicPack';
 import { CATEGORIES, type SessionConfig } from '../types';
 import { ABSTAIN, applyEvent, continueEvent, volunteer, alive, applyOvertime, buildSchedule, castVote, createGame, currentSpeaker, endSpeech, maxRoundsFor, nextRound, pendingReveal, resolveVote, revealCard, revealOptions, startVote, tickGame } from './game';
-import { evaluate } from './evaluate';
+import { evaluate, severityOf } from './evaluate';
 import type { Hazard } from '../types';
 import { EVENTS, drawEvent, isEligible } from './events';
 import { decodePack, encodePack, sanitizePack, sanitizeHazard } from './packs';
@@ -247,6 +247,45 @@ describe('match timer', () => {
     const many = evaluate(g.scenario, plain, 3);
     expect(many.notes.join()).toContain('переполнен');
     expect(many.score).toBeLessThanOrEqual(few.score);
+  });
+});
+
+describe('health severity', () => {
+  const base = () => {
+    const g = newGame(4, 4);
+    return g.players.map((p) => {
+      const slots = { ...p.slots };
+      for (const c of ['profession', 'hobby', 'fact', 'luggage', 'biology', 'physique', 'character'] as const) {
+        slots[c] = { ...slots[c], card: { ...slots[c].card, description: 'Обычный человек', title: undefined, tags: [], modifier: 'neutral' as const } };
+      }
+      slots.health = { ...slots.health, card: { ...slots.health.card, description: 'Здоров', tags: [], modifier: 'neutral' as const } };
+      return { ...p, slots };
+    });
+  };
+  const sick = (players: ReturnType<typeof base>, text: string) =>
+    players.map((p, i) => (i === 0 ? { ...p, slots: { ...p.slots, health: { ...p.slots.health, card: { ...p.slots.health.card, description: text, modifier: 'negative' as const } } } } : p));
+  const sc = newGame(4, 4).scenario;
+
+  it('severity is read from the card text', () => {
+    const card = (description: string, modifier: 'negative' | 'neutral' = 'negative') => ({ id: 'x', category: 'health' as const, description, modifier });
+    expect(severityOf(card('Лёгкая простуда', 'neutral'))).toBe(0);
+    expect(severityOf(card('Астма'))).toBe(1);
+    expect(severityOf(card('Пневмония средней тяжести'))).toBe(1.5);
+    expect(severityOf(card('Тяжёлый грипп'))).toBe(2);
+    expect(severityOf(card('Критическое состояние'))).toBe(3);
+  });
+
+  it('heavier illness lowers health more, and a healer softens it', () => {
+    const light = evaluate(sc, sick(base(), 'Астма'), 4);
+    const heavy = evaluate(sc, sick(base(), 'Тяжёлая астма'), 4);
+    const critical = evaluate(sc, sick(base(), 'Критическое состояние'), 4);
+    expect(heavy.health).toBeLessThan(light.health);
+    expect(critical.health).toBeLessThan(heavy.health);
+    expect(heavy.notes.join()).toContain('лечить их некому');
+    const withDoc = sick(base(), 'Тяжёлая астма').map((p, i) => (i === 1 ? { ...p, slots: { ...p.slots, profession: { ...p.slots.profession, card: { ...p.slots.profession.card, tags: ['медицина'] } } } } : p));
+    const treated = evaluate(sc, withDoc, 4);
+    expect(treated.health).toBeGreaterThan(heavy.health);
+    expect(treated.notes.join()).toContain('врач держит');
   });
 });
 
