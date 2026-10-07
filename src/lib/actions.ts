@@ -136,10 +136,11 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
       const keepNew = rank(d.card) > rank(old.card);
       let next = d.g;
       if (keepNew) {
-        next = withSlot(next, actorId, 'luggage', { card: d.card, isRevealed: false });
+        next = withSlot(next, actorId, 'luggage', { card: d.card, isRevealed: old.isRevealed });
         next = toDiscard(next, 'luggage', old.card);
       } else next = toDiscard(next, 'luggage', d.card);
-      return say(next, `${head}: вытягивает новый багаж и ${keepNew ? 'оставляет его вместо прежнего' : 'оставляет прежний'}`);
+      // Журнал видят все: исход (оставил ли новую) не раскрываем, пока багаж закрыт.
+      return say(next, `${head}: тянет ещё один багаж и оставляет лучший`);
     }
     case 'stealLuggage': {
       const t = target!;
@@ -151,7 +152,7 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
     case 'giveLuggage': {
       const t = target!;
       const d = draw(n, 'luggage')!;
-      let next = withSlot(d.g, t.id, 'luggage', { card: d.card, isRevealed: false });
+      let next = withSlot(d.g, t.id, 'luggage', { card: d.card, isRevealed: t.slots.luggage.isRevealed });
       next = toDiscard(next, 'luggage', t.slots.luggage.card);
       return say(next, `${head}: у ${t.name} теперь другой багаж`);
     }

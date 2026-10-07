@@ -30,6 +30,7 @@ import { ThreatsPanel } from '../ui/Threats';
 import { Board } from '../ui/Board';
 import { ActionTargetPicker } from '../ui/ActionTarget';
 import { canApply, needsTarget } from '../lib/actions';
+import { applyUndo, undoable } from '../lib/undo';
 import { SkillsStrip } from '../ui/SkillsStrip';
 import { GameHud } from '../ui/GameHud';
 import { Avatar } from '../ui/Avatar';
@@ -53,11 +54,11 @@ export default function Game() {
   const [showBrief, setShowBrief] = useState(false);
   // Снимок состояния до последнего вскрытия: нужен для кнопки «отменить».
   const prevRef = useRef<GameState | null>(null);
-  const [undoSnap, setUndoSnap] = useState<GameState | null>(null);
+  const [undoSnap, setUndoSnap] = useState<{ before: GameState; after: GameState } | null>(null);
   useEffect(() => {
     const p = prevRef.current;
     if (!game || game.phase === 'vote' || game.phase === 'result' || game.phase === 'final' || game.phase === 'event') setUndoSnap(null);
-    else if (p && p.phase === 'reveal' && game.lastReveal && game.lastReveal !== p.lastReveal && game.round === p.round) setUndoSnap(p);
+    else if (p && p.phase === 'reveal' && game.lastReveal && game.lastReveal !== p.lastReveal && game.round === p.round) setUndoSnap({ before: p, after: game });
     prevRef.current = game;
   }, [game]);
   const timed = !!game?.deadline && game.config.mode === 'pass-and-play' && game.phase !== 'final';
@@ -79,8 +80,8 @@ export default function Game() {
   }
   const update: Update = (fn) => setGame((g) => (g ? fn(g) : g));
   const undo: Undo | undefined =
-    undoSnap && game.config.mode === 'pass-and-play' && (game.phase === 'speech' || game.phase === 'reveal')
-      ? { name: game.players.find((p) => p.id === game.lastReveal?.playerId)?.name ?? '', run: () => { setGame(undoSnap); setUndoSnap(null); } }
+    undoSnap && game.config.mode === 'pass-and-play' && (game.phase === 'speech' || game.phase === 'reveal') && undoable(undoSnap.after, game)
+      ? { name: game.players.find((p) => p.id === game.lastReveal?.playerId)?.name ?? '', run: () => { setGame((cur) => (cur ? applyUndo(undoSnap.before, cur) : cur)); setUndoSnap(null); } }
       : undefined;
 
   const speaker = currentSpeaker(game);
