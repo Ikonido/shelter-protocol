@@ -6,11 +6,9 @@ export interface Settings {
   vibrate: boolean;
   theme: 'dark' | 'light';
   textSize: 'normal' | 'large' | 'xl';
-  /** Карты действий сами исполняются в игре (бета); по умолчанию выключено, действие объявляется, а выполняют его игроки. */
-  autoActions: boolean;
 }
 
-export const DEFAULT_SETTINGS: Settings = { sound: true, vibrate: true, theme: 'dark', textSize: 'normal', autoActions: false };
+export const DEFAULT_SETTINGS: Settings = { sound: true, vibrate: true, theme: 'dark', textSize: 'normal' };
 const KEY = 'shelter:settings';
 const SIZE_PX = { normal: 16, large: 18, xl: 20 } as const;
 
@@ -22,7 +20,6 @@ export function parseSettings(raw: unknown): Settings {
     vibrate: typeof r.vibrate === 'boolean' ? r.vibrate : DEFAULT_SETTINGS.vibrate,
     theme: r.theme === 'light' ? 'light' : 'dark',
     textSize: r.textSize === 'large' || r.textSize === 'xl' ? r.textSize : 'normal',
-    autoActions: r.autoActions === true,
   };
 }
 

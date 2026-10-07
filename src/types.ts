@@ -77,11 +77,63 @@ export interface Scenario {
   events?: ScenarioEvent[];
 }
 
+/** Что делает карта действия, когда включено автоисполнение; без эффекта карта только объявляется. */
+export type ActionEffect =
+  | 'drawLuggage'
+  | 'stealLuggage'
+  | 'giveLuggage'
+  | 'swapLuggage'
+  | 'sabotage'
+  | 'forceReveal'
+  | 'rerollPrevPhysique'
+  | 'rerollNextPhysique'
+  | 'rerollPrevBiology'
+  | 'swapNeighborsPhysique'
+  | 'swapNeighborsBiology'
+  | 'rerollHobby'
+  | 'heal'
+  | 'veto'
+  | 'doubleVote'
+  | 'ally'
+  | 'immunity';
+
+export const ACTION_EFFECTS: Record<ActionEffect, string> = {
+  drawLuggage: 'Взять новый багаж и оставить лучший',
+  stealLuggage: 'Украсть багаж у игрока',
+  giveLuggage: 'Подменить багаж игрока случайным',
+  swapLuggage: 'Обменяться багажом',
+  sabotage: 'Потерять чужой багаж',
+  forceReveal: 'Заставить открыть карту',
+  rerollPrevPhysique: 'Сменить телосложение предыдущего игрока',
+  rerollNextPhysique: 'Сменить телосложение следующего игрока',
+  rerollPrevBiology: 'Сменить биологию предыдущего игрока',
+  swapNeighborsPhysique: 'Поменять телосложение соседей',
+  swapNeighborsBiology: 'Поменять биологию соседей',
+  rerollHobby: 'Сменить своё хобби',
+  heal: 'Вылечиться (нужен врач)',
+  veto: 'Отменить голос против себя',
+  doubleVote: 'Двойной голос',
+  ally: 'Тайный союзник',
+  immunity: 'Неприкосновенность на раунд',
+};
+
+/** Действия на голосовании, накапливаются до подсчёта голосов. */
+export interface ActionFx {
+  double: string[];
+  veto: string[];
+  immune: string[];
+  allies: [string, string][];
+}
+
+export type DeckCategory = 'luggage' | 'physique' | 'biology' | 'hobby';
+
 export interface Card {
   id: string;
   category: Category;
   title?: string; // актуально для action
   description: string;
+  /** Только для action: что карта делает при автоисполнении. */
+  effect?: ActionEffect;
   modifier?: Modifier;
   /** Навыки/свойства, которые карта даёт при финальной оценке (сопоставляются с requiredSkills). */
   tags?: string[];
@@ -131,6 +183,8 @@ export interface SessionConfig {
   hazardCount: number;
   /** Карта кризиса перед каждым раундом. */
   roundEvents: boolean;
+  /** Карты действий исполняются в игре сами (бета); иначе их только объявляют, а выполняют игроки. */
+  autoActions?: boolean;
   /** Пресет сложности: влияет на пороги и штрафы финальной оценки (нет в старых сохранениях → normal). */
   difficulty: Difficulty;
   /** Секунд на объяснение пользы после вскрытия, 0 — без таймера (только кнопка). */
@@ -205,6 +259,11 @@ export interface GameState {
   /** Только в «видах» для онлайн-клиентов: сколько осталось по часам хоста. */
   timeLeftMs?: number;
   votes: Record<string, string>;
+  /** Нераздаваемые карты по категориям («колода») и сброс: нужны эффектам действий. Клиентам не передаются. */
+  deck?: Partial<Record<DeckCategory, Card[]>>;
+  discard?: Partial<Record<DeckCategory, Card[]>>;
+  /** Действия, влияющие на подсчёт голосов этого раунда. Клиентам не передаются (тайный союз). */
+  fx?: ActionFx;
   lastResult?: RoundResult;
   log: LogEntry[];
   /** Tabletop-режим: выжившие отмечаются вручную перед финалом. */

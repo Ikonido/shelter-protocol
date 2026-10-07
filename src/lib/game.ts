@@ -12,6 +12,7 @@ import {
   type CardPack,
 } from '../types';
 import { generateCharacters } from './generator';
+import { IMMUNE_VOTE, effectiveVotes, initialDeck, markImmune, runEffect, type ActionParams } from './actions';
 import { EVENTS, drawEvent, hiddenForLeak, unusedHazards } from './events';
 import { mulberry32, shuffle } from './rng';
 
@@ -42,6 +43,7 @@ export function createGame(config: SessionConfig, scenario: Scenario, packs: Car
   const rng = mulberry32(config.seed);
   const players = generateCharacters(config.names, packs, rng);
   const base: GameState = {
+    ...initialDeck(players, packs, config.seed),
     config,
     scenario: { ...scenario },
     players,
@@ -119,10 +121,12 @@ export function revealCard(g: GameState, playerId: string, category: Category): 
   return afterTurn(next);
 }
 
-export function playAction(g: GameState, playerId: string): GameState {
+export function playAction(g: GameState, playerId: string, params?: ActionParams): GameState {
   const p = g.players.find((x) => x.id === playerId);
   if (!p || p.isEliminated || p.slots.action.isRevealed) return g;
   const card = p.slots.action.card;
+  // Автоисполнение (по желанию игроков): эффект карты выполняется в игре. Невозможное действие ничего не меняет.
+  if (g.config.autoActions && card.effect) return runEffect(g, playerId, card.effect, params);
   return {
     ...g,
     players: g.players.map((x) =>
@@ -142,15 +146,17 @@ export function startVote(g: GameState): GameState {
       ...g,
       phase: 'result',
       votes: {},
+      fx: undefined,
       lastResult: { eliminated: [], tally: Object.fromEntries(alive(g).map((p) => [p.id, 0])), tieBreak: false, noVote: true },
       log: [...g.log, { round: g.round, text: 'Добровольцы закрыли квоту — голосования нет' }],
     };
   }
-  return { ...g, phase: 'vote', votes: {} };
+  return markImmune({ ...g, phase: 'vote', votes: {} });
 }
 
 export function castVote(g: GameState, voterId: string, targetId: string): GameState {
   if (voterId === targetId) return g; // ABSTAIN допустим как цель
+  if (g.votes[voterId] === IMMUNE_VOTE) return g; // неприкосновенный не голосует
   return { ...g, votes: { ...g.votes, [voterId]: targetId } };
 }
 
@@ -165,17 +171,22 @@ export function allVoted(g: GameState): boolean {
  */
 export function resolveVote(g: GameState): GameState {
   const living = alive(g);
+  const fx = g.fx;
+  // Действия игроков: союзники, вето и неприкосновенность применяются к голосам перед подсчётом.
+  const votes = effectiveVotes(g);
+  const immune = new Set(fx?.immune ?? []);
   const quota = Math.min(quotaThisRound(g), living.length);
   const tally: Record<string, number> = Object.fromEntries(living.map((p) => [p.id, 0]));
   let abstained = 0;
-  for (const p of living) if (g.votes[p.id] === ABSTAIN) abstained++;
-  for (const [voter, target] of Object.entries(g.votes)) {
-    if (tally[voter] !== undefined && tally[target] !== undefined) tally[target]++;
+  for (const p of living) if (votes[p.id] === ABSTAIN) abstained++;
+  for (const [voter, target] of Object.entries(votes)) {
+    if (tally[voter] !== undefined && tally[target] !== undefined) tally[target] += fx?.double.includes(voter) ? 2 : 1;
   }
   if (abstained * 2 > living.length) {
     const extend = g.schedule.length < MAX_TOTAL_ROUNDS && quota > 0;
     return {
       ...g,
+      fx: undefined,
       phase: 'result',
       lastResult: { eliminated: [], tally, tieBreak: false, abstained, skipped: true },
       schedule: extend ? [...g.schedule, quota] : g.schedule,
@@ -183,18 +194,22 @@ export function resolveVote(g: GameState): GameState {
     };
   }
   const rng = mulberry32(g.seed ^ (g.round * 2654435761));
-  const ranked = shuffle(living, rng).sort((a, b) => tally[b.id] - tally[a.id]);
-  const eliminated = ranked.slice(0, quota).map((p) => p.id);
-  const cutoff = ranked[quota - 1] ? tally[ranked[quota - 1].id] : 0;
-  const tieBreak = living.filter((p) => tally[p.id] === cutoff).length > eliminated.filter((id) => tally[id] === cutoff).length;
+  // Неприкосновенные в списке на исключение не участвуют.
+  const candidates = living.filter((p) => !immune.has(p.id));
+  const ranked = shuffle(candidates, rng).sort((a, b) => tally[b.id] - tally[a.id]);
+  const take = Math.min(quota, ranked.length);
+  const eliminated = ranked.slice(0, take).map((p) => p.id);
+  const cutoff = ranked[take - 1] ? tally[ranked[take - 1].id] : 0;
+  const tieBreak = candidates.filter((p) => tally[p.id] === cutoff).length > eliminated.filter((id) => tally[id] === cutoff).length;
   const result: RoundResult = { eliminated, tally, tieBreak, abstained };
   const names = eliminated.map((id) => g.players.find((p) => p.id === id)!.name).join(', ');
   return {
     ...g,
+    fx: undefined,
     phase: 'result',
     lastResult: result,
     players: g.players.map((p) => (eliminated.includes(p.id) ? { ...p, isEliminated: true } : p)),
-    log: [...g.log, { round: g.round, text: `Исключён(ы): ${names}${tieBreak ? ' (ничья решена жребием)' : ''}${abstained ? `; воздержались: ${abstained}` : ''}` }],
+    log: [...g.log, { round: g.round, text: `Исключён(ы): ${names || 'никто'}${tieBreak ? ' (ничья решена жребием)' : ''}${abstained ? `; воздержались: ${abstained}` : ''}` }],
   };
 }
 

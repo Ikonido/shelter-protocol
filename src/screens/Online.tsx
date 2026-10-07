@@ -14,6 +14,8 @@ import { Board } from '../ui/Board';
 import { GameHud } from '../ui/GameHud';
 import { SpeechTimer } from '../ui/SpeechTimer';
 import { SkillsStrip } from '../ui/SkillsStrip';
+import { ActionTargetPicker } from '../ui/ActionTarget';
+import { needsTarget } from '../lib/actions';
 import { signal } from '../lib/feedback';
 import { ThreatsPanel } from '../ui/Threats';
 import { Avatar } from '../ui/Avatar';
@@ -302,17 +304,19 @@ function OnlineGame({ view, me, send, host, onExit, offline = [] }: { view: Game
   const player = view.players.find((p) => p.id === me)!;
   const living = alive(view);
   const [pick, setPick] = useState<Category | null>(null);
+  const [picking, setPicking] = useState(false);
   const [storyOn, setStoryOn] = useState(true); // идёт хроника изоляции — остальное скрыто
   const speaker = currentSpeaker(view);
   const myTurn = speaker?.id === me;
   const options = view.phase === 'reveal' && myTurn && !player.isEliminated ? revealOptions(view, player) : [];
   const canAction = (view.phase === 'reveal' || view.phase === 'speech' || view.phase === 'vote') && !player.isEliminated && !player.slots.action.isRevealed;
-  const lastAction = [...view.log].reverse().find((l) => l.round === view.round && l.text.includes('применяет карту действия'));
+  const lastAction = [...view.log].reverse().find((l) => l.round === view.round && l.text.includes(' применяет '));
   // «Ваш ход»: сигнал и заметная плашка, чтобы не пропустить очередь, пока телефон лежит на столе.
   const myRevealTurn = myTurn && view.phase === 'reveal' && !player.isEliminated;
   useEffect(() => {
     if (myRevealTurn) signal('turn');
   }, [myRevealTurn, view.round, view.revealStep]);
+  const autoEffect = view.config.autoActions ? player.slots.action.card.effect : undefined;
   const lonely = options.length === 1 ? options[0] : null;
   const chosen = pick && (options.includes(pick) || (pick === 'action' && canAction)) ? pick : lonely;
 
@@ -440,10 +444,28 @@ function OnlineGame({ view, me, send, host, onExit, offline = [] }: { view: Game
                 );
               })}
               {canAction && !chosen && <p className="text-xs text-dim">Карту действия можно применить в любой момент вскрытия, речи или голосования: коснитесь её и нажмите «Применить». Все увидят объявление.</p>}
-              {chosen && (
-                <button className="btn btn-primary" onClick={() => { send(chosen === 'action' ? { t: 'action' } : { t: 'reveal', category: chosen }); setPick(null); }}>
-                  {chosen === 'action' ? <><Zap size={16} /> Применить действие</> : `Открыть всем: ${CATEGORY_LABEL[chosen]}`}
-                </button>
+              {chosen && picking && autoEffect ? (
+                <ActionTargetPicker
+                  game={view}
+                  actorId={player.id}
+                  effect={autoEffect}
+                  title={player.slots.action.card.title ?? 'Действие'}
+                  onCancel={() => setPicking(false)}
+                  onConfirm={(params) => { send({ t: 'action', ...params }); setPicking(false); setPick(null); }}
+                />
+              ) : (
+                chosen && (
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => {
+                      if (chosen === 'action' && autoEffect && needsTarget(autoEffect)) return setPicking(true);
+                      send(chosen === 'action' ? { t: 'action' } : { t: 'reveal', category: chosen });
+                      setPick(null);
+                    }}
+                  >
+                    {chosen === 'action' ? <><Zap size={16} /> Применить действие</> : `Открыть всем: ${CATEGORY_LABEL[chosen]}`}
+                  </button>
+                )
               )}
             </section>
 

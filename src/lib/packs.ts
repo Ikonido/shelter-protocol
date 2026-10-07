@@ -1,5 +1,5 @@
 import LZString from 'lz-string';
-import { CATEGORIES, type Card, type CardPack, type Category, type EventKind, type Hazard, type Modifier, type Scenario, type ScenarioEvent, type Severity } from '../types';
+import { ACTION_EFFECTS, CATEGORIES, type ActionEffect, type Card, type CardPack, type Category, type EventKind, type Hazard, type Modifier, type Scenario, type ScenarioEvent, type Severity } from '../types';
 import { uid } from './rng';
 import { LIMITS as L } from './limits';
 
@@ -20,9 +20,11 @@ function sanitizeCard(raw: unknown, category: Category, i: number): Card | null 
   if (MODS.includes(r.modifier as Modifier)) card.modifier = r.modifier as Modifier;
   const tags = strList(r.tags, L.cardTags, L.tagLen);
   if (tags.length) card.tags = tags;
+  if (category === 'action' && ACTION_EFFECT_IDS.includes(r.effect as string)) card.effect = r.effect as ActionEffect;
   return card;
 }
 
+const ACTION_EFFECT_IDS = Object.keys(ACTION_EFFECTS);
 const SEVERITIES: Severity[] = ['critical', 'major', 'minor'];
 const EVENT_KINDS: EventKind[] = ['shrink', 'plague', 'volunteer', 'leak', 'silence', 'newHazard', 'relief', 'prompt'];
 const TONES: ScenarioEvent['tone'][] = ['good', 'bad', 'neutral'];
