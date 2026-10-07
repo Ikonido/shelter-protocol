@@ -1,7 +1,8 @@
 import { useEffect, useReducer, useState } from 'react';
-import { ArrowLeft, Copy, Lock, LogIn, RefreshCw, Unlock, UserX, Users, Wifi, WifiOff, Zap } from 'lucide-react';
+import { ArrowLeft, Camera, Copy, Lock, LogIn, RefreshCw, Unlock, UserX, Users, Wifi, WifiOff, Zap } from 'lucide-react';
 import { useStore, type OnlineDraft } from '../store';
 import { OnlineClient, OnlineHost, type C2H, type Conn, type H2C } from '../lib/online';
+import { QRScanner } from '../ui/QRScanner';
 import { createRoom, isValidCode, isValidTicket, joinRoom, normalizeCode, probeLan, shareOrigin, type NetMode } from '../lib/net';
 import { randomToken } from '../lib/rng';
 import { copyText } from '../ui/clipboard';
@@ -187,6 +188,8 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
 export function Join({ initialCode, initialTicket }: { initialCode?: string; initialTicket?: string }) {
   const { go } = useStore();
   const [code, setCode] = useState(initialCode ?? '');
+  const [ticketIn, setTicketIn] = useState(initialTicket);
+  const [scanning, setScanning] = useState(false);
   const [name, setName] = useState(readLS('shelter:name') ?? '');
   const [client, setClient] = useState<OnlineClient | null>(null);
   const [busy, setBusy] = useState(false);
@@ -210,7 +213,7 @@ export function Join({ initialCode, initialTicket }: { initialCode?: string; ini
     setError(null);
     try {
       const { conn, destroy } = await joinRoom(c, net ?? 'internet');
-      const ticket = initialTicket && isValidTicket(initialTicket) && c === initialCode ? initialTicket : undefined;
+      const ticket = ticketIn && isValidTicket(ticketIn) ? ticketIn : undefined;
       const cl = new OnlineClient(conn as Conn<C2H>, n, token, ticket);
       const orig = cl.destroy.bind(cl);
       cl.destroy = () => (orig(), destroy());
@@ -248,8 +251,20 @@ export function Join({ initialCode, initialTicket }: { initialCode?: string; ini
           {error && <p className="text-sm text-danger">{error}</p>}
           <div>
             <span className="label">Код комнаты</span>
-            <input className="input text-center text-2xl uppercase tracking-[.3em]" value={code} maxLength={5} autoCapitalize="characters" onChange={(e) => setCode(normalizeCode(e.target.value))} />
+            <input className="input text-center text-2xl uppercase tracking-[.3em]" value={code} maxLength={5} autoCapitalize="characters" onChange={(e) => { setCode(normalizeCode(e.target.value)); setTicketIn(undefined); }} />
           </div>
+          {scanning ? (
+            <QRScanner
+              onClose={() => setScanning(false)}
+              onInvite={(i) => {
+                setCode(i.code);
+                setTicketIn(i.ticket);
+                setScanning(false);
+              }}
+            />
+          ) : (
+            <button className="btn" onClick={() => setScanning(true)}><Camera size={18} /> Сканировать QR-код</button>
+          )}
           <div>
             <span className="label">Ваше имя</span>
             <input className="input" maxLength={24} value={name} onChange={(e) => setName(e.target.value)} />
