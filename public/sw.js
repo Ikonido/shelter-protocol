@@ -1,5 +1,5 @@
 /* Service worker: офлайн-оболочка приложения. Версию поднимайте при изменении логики кеширования. */
-const VERSION = 'v1';
+const VERSION = 'v2'; // v2: version.json не кешируется; старые кеши (с накопленными запросами проверки версии) удаляются при активации
 const CACHE = `shelter-${VERSION}`;
 const SHELL = ['./', './index.html', './manifest.webmanifest', './favicon.svg', './icon-192.png', './icon-512.png'];
 
@@ -17,7 +17,7 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);
   // Только свои GET-запросы; брокер LAN (/peerjs), lan-info и всё чужое — мимо кеша.
-  if (req.method !== 'GET' || url.origin !== self.location.origin || url.pathname.includes('/peerjs') || url.pathname.endsWith('lan-info.json')) return;
+  if (req.method !== 'GET' || url.origin !== self.location.origin || url.pathname.includes('/peerjs') || url.pathname.endsWith('lan-info.json') || url.pathname.endsWith('version.json')) return;
 
   if (req.mode === 'navigate') {
     // Страница: сначала сеть (свежая версия), при отсутствии сети — кеш.
