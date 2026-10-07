@@ -15,6 +15,22 @@ const DIFF_STYLE = {
   nightmare: { Icon: Skull, tone: { text: 'text-danger', border: 'border-danger', bg: 'bg-danger/10 shadow-[0_0_22px_-10px_var(--color-danger)]' } },
 } as const;
 
+const ADULT_KEY = 'shelter:adultOk';
+const adultConfirmed = () => {
+  try {
+    return localStorage.getItem(ADULT_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+const rememberAdult = () => {
+  try {
+    localStorage.setItem(ADULT_KEY, '1');
+  } catch {
+    /* ок: спросим снова */
+  }
+};
+
 export default function Setup({ initialMode, initialPacks, initialScenario }: { initialMode?: PlayMode; initialPacks?: string[]; initialScenario?: string }) {
   const { allPacks, go, setGame, notify } = useStore();
   const [packIds, setPackIds] = useState<string[]>(() => initialPacks?.filter((id) => allPacks.some((p) => p.id === id)) ?? [allPacks[0].id]);
@@ -58,13 +74,19 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
     setK(c.k);
   };
   const nameAt = (i: number) => names[i]?.trim() || `Игрок ${i + 1}`;
-  const toggle = (id: string) => setPackIds((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
+  const toggle = (id: string) => {
+    const pack = allPacks.find((p) => p.id === id);
+    // Контент 18+ включается только после подтверждения возраста (запоминается на этом устройстве).
+    if (pack?.adult && !packIds.includes(id) && !adultConfirmed() && !confirm('Этот пак содержит мат, чёрный юмор и грубые шутки. Вам есть 18 лет, и вы согласны это увидеть?')) return;
+    if (pack?.adult && !packIds.includes(id)) rememberAdult();
+    setPackIds((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
+  };
 
   const canStart = scenarios.length > 0 && activePacks.some((p) => Object.values(p.cards).some((c) => c.length));
   const start = () => {
     const chosen = scenario ?? scenarios[Math.floor(Math.random() * scenarios.length)];
     if (mode === 'online') {
-      go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting, revealsPerVote, speechSec, hazardCount, difficulty, roundEvents, timeLimitMin } });
+      go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting, revealsPerVote, speechSec, hazardCount, difficulty, roundEvents, timeLimitMin, adult: activePacks.some((p) => p.adult) } });
       return;
     }
     const config: SessionConfig = {
@@ -100,12 +122,16 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
             <label key={p.id} className="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border border-edge p-2">
               <input type="checkbox" className="mt-1 size-4 accent-amber" checked={packIds.includes(p.id)} onChange={() => toggle(p.id)} />
               <span className="text-sm">
-                <b>{p.name}</b>{p.isCustom && <span className="ml-2 text-xs text-amber">[свой]</span>}
+                <b>{p.name}</b>
+                {p.adult && <span className="ml-2 rounded border border-danger px-1 text-[10px] font-bold text-danger">18+</span>}
+                {p.isCustom && <span className="ml-2 text-xs text-amber">[свой]</span>}
+                <span className="ml-2 text-[10px] uppercase tracking-widest text-dim">{p.scenarios.length} сцен.</span>
                 <br /><span className="text-xs text-dim">{p.description}</span>
               </span>
             </label>
           ))}
         </div>
+        {activePacks.length > 1 && <p className="mt-2 text-xs text-dim">Выбрано несколько паков: карты перемешаются, а сценарии объединятся. Для цельной атмосферы возьмите один тематический пак.</p>}
       </section>
 
       <section className="panel">

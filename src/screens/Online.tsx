@@ -117,6 +117,7 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
     <div className="mx-auto flex max-w-xl flex-col gap-4 py-6">
       <button className="btn btn-sm self-start" onClick={() => go({ name: 'home' })}><ArrowLeft size={16} /> Закрыть комнату</button>
       <h1 className="h-hud text-base">Онлайн-комната · {draft.scenario.title}</h1>
+      {draft.adult && <p className="rounded-md border border-danger/60 bg-danger/10 p-2 text-xs text-danger"><b>18+</b>: гости увидят предупреждение о мате и грубом юморе, пока ждут начала. Приглашайте только взрослых.</p>}
 
       <section className="panel text-center">
         {error ? (
@@ -263,6 +264,11 @@ export function Join({ initialCode, initialTicket }: { initialCode?: string; ini
       {st?.status === 'lobby' && (
         <section className="panel">
           <p className="text-sm">Вы в комнате. Сценарий: <b className="text-amber">{st.scenario}</b></p>
+          {st.adult && (
+            <p className="mt-2 rounded-md border border-danger/60 bg-danger/10 p-2 text-xs text-danger" role="alert">
+              <b>18+</b>: в этой комнате ненормативная лексика и грубый юмор. Если вам нет 18 лет или это не для вас, нажмите «Назад» и выйдите.
+            </p>
+          )}
           <h2 className="label mt-3">Игроки ({st.members.length})</h2>
           <ul className="text-sm">{st.members.map((m, i) => <li key={i}>{m.name}{i === st.you && ' (вы)'}</li>)}</ul>
           <p className="mt-3 text-xs text-dim">Ждём, пока хост начнёт игру…</p>

@@ -1,4 +1,4 @@
-import type { Card, CardPack, Category, Scenario } from '../types';
+import type { Card, CardPack, Scenario } from '../types';
 import { cardMatchesSkill, SKILL_CATEGORIES } from './evaluate';
 import { mergePools } from './generator';
 
@@ -68,4 +68,3 @@ export function validateScenario(sc: Scenario, packs: CardPack[]): Problem[] {
   return out;
 }
 
-export const CATEGORY_FOR_ABILITIES: Category[] = ['profession', 'hobby', 'luggage', 'fact'];

@@ -370,3 +370,22 @@ describe('round events online', () => {
     if (c2.state.status === 'game') expect(c2.state.view.event).toBeUndefined(); // неизвестный вид события отбрасывается
   });
 });
+
+describe('18+ notice online', () => {
+  it('guests are told about adult content before the game starts', async () => {
+    const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[0], packs: [CLASSIC_PACK], slots: 1, voting: 'open', adult: true, roundEvents: false }, 'Хост');
+    const p = pair();
+    host.addConn(p.hostSide);
+    const c = new OnlineClient(p.clientSide, 'Гость', 'tok');
+    await tick();
+    if (c.state.status !== 'lobby') throw new Error('not in lobby');
+    expect(c.state.adult).toBe(true);
+    const plain = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[0], packs: [CLASSIC_PACK], slots: 1, voting: 'open', roundEvents: false }, 'Хост');
+    const q = pair();
+    plain.addConn(q.hostSide);
+    const c2 = new OnlineClient(q.clientSide, 'Гость', 't2');
+    await tick();
+    if (c2.state.status !== 'lobby') throw new Error('not in lobby');
+    expect(c2.state.adult).toBe(false);
+  });
+});

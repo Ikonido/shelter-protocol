@@ -42,8 +42,8 @@ export function cardMatchesSkill(card: Card, skill: string): boolean {
   return hay.includes(stem(k));
 }
 
-/** Навыки засчитываются с карт профессии, хобби, факта и багажа; здоровье и биология дают штрафы, а не навыки. */
-export const SKILL_CATEGORIES = ['profession', 'hobby', 'fact', 'luggage'] as const;
+/** Навыки дают профессия, биология (расы со способностями), хобби, багаж и факт. */
+export const SKILL_CATEGORIES = ['profession', 'biology', 'hobby', 'fact', 'luggage'] as const;
 
 export function evaluate(scenario: Scenario, survivors: PlayerCharacter[], slots?: number, hazards: Hazard[] = [], difficulty?: Difficulty): Evaluation {
   const rules = rulesFor(difficulty);

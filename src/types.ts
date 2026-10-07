@@ -48,6 +48,15 @@ export interface Hazard {
   onFail?: string;
 }
 
+/** Событие раунда, заданное сценарием (тематические «приколы»); без них берутся общие события. */
+export interface ScenarioEvent {
+  id: string;
+  kind: EventKind;
+  tone: 'good' | 'bad' | 'neutral';
+  title: string;
+  text: string;
+}
+
 export interface Scenario {
   id: string;
   title: string;
@@ -58,6 +67,8 @@ export interface Scenario {
   threats: string[];
   /** Пул факторов угрозы; на партию выбирается случайный набор. */
   hazards?: Hazard[];
+  /** Тематические события раунда этого сценария (иначе — общие). */
+  events?: ScenarioEvent[];
 }
 
 export interface Card {
@@ -75,6 +86,8 @@ export interface CardPack {
   name: string;
   description: string;
   isCustom?: boolean;
+  /** Контент 18+ (ненормативная лексика, взрослый юмор): включается после подтверждения возраста. */
+  adult?: boolean;
   scenarios: Scenario[];
   cards: Record<Category, Card[]>;
   /**

@@ -14,6 +14,7 @@ export interface OnlineDraft {
   hazardCount: number;
   difficulty: Difficulty;
   roundEvents: boolean;
+  adult?: boolean;
   speechSec: number;
   timeLimitMin: number;
 }
