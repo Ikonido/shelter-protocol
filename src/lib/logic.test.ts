@@ -235,10 +235,18 @@ describe('match timer', () => {
   });
   it('overcrowded shelter is penalised', () => {
     const g = newGame(6, 3);
-    const few = evaluate(g.scenario, g.players.slice(0, 3), 3);
-    const many = evaluate(g.scenario, g.players, 3);
+    // нейтральные карты, чтобы сравнивалась только теснота, а не случайная раздача
+    const plain = g.players.map((p) => {
+      const slots = { ...p.slots };
+      for (const c of ['profession', 'hobby', 'fact', 'luggage'] as const) {
+        slots[c] = { ...slots[c], card: { ...slots[c].card, description: 'Обычный человек', title: undefined, tags: [] } };
+      }
+      return { ...p, slots };
+    });
+    const few = evaluate(g.scenario, plain.slice(0, 3), 3);
+    const many = evaluate(g.scenario, plain, 3);
     expect(many.notes.join()).toContain('переполнен');
-    expect(many.score).toBeLessThan(few.score + 1);
+    expect(many.score).toBeLessThanOrEqual(few.score);
   });
 });
 
