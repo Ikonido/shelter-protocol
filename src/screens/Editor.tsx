@@ -4,6 +4,7 @@ import { useStore } from '../store';
 import { CATEGORIES, CATEGORY_LABEL, type Card, type CardPack, type Category, type Modifier, type Scenario } from '../types';
 import { exportPackFile, shareUrl } from '../lib/packs';
 import { uid } from '../lib/rng';
+import { copyText } from '../ui/clipboard';
 import { CATEGORY_ICON } from '../ui/bits';
 import { LIMITS as L, clip, clipList } from '../lib/limits';
 
@@ -65,7 +66,7 @@ export default function Editor({ packId }: { packId: string }) {
         <h1 className="truncate text-sm font-bold text-amber">{pack.name}</h1>
         <div className="ml-auto flex gap-2">
           <button className="btn btn-sm" onClick={() => exportPackFile(pack)}><Download size={14} /> JSON</button>
-          <button className="btn btn-sm" onClick={() => navigator.clipboard.writeText(shareUrl(pack)).then(() => notify('Ссылка скопирована'), () => notify('Не удалось скопировать'))}><Link2 size={14} /> Ссылка</button>
+          <button className="btn btn-sm" onClick={async () => { const u = shareUrl(pack); notify(!u ? 'Пак слишком большой для ссылки — используйте JSON-файл' : (await copyText(u)) ? 'Ссылка скопирована' : 'Не удалось скопировать'); }}><Link2 size={14} /> Ссылка</button>
         </div>
       </div>
       <p className="text-[10px] uppercase tracking-widest text-dim">Изменения сохраняются автоматически</p>

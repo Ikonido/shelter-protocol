@@ -23,7 +23,7 @@ function sanitizeCard(raw: unknown, category: Category, i: number): Card | null 
   return card;
 }
 
-function sanitizeScenario(raw: unknown, i: number): Scenario | null {
+export function sanitizeScenario(raw: unknown, i: number): Scenario | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
   const title = str(r.title, L.scenarioTitle);
@@ -94,18 +94,26 @@ export function encodePack(pack: CardPack): string {
   return LZString.compressToEncodedURIComponent(JSON.stringify(pack));
 }
 
+/** Предел длины ссылки: lz-string не умеет ограничивать размер распаковки, а «бомба» из коротких данных раздувается квадратично. */
+export const MAX_SHARE_CHARS = 20000;
+export const MAX_FILE_BYTES = 500_000;
+
 export function decodePack(encoded: string): CardPack | null {
+  if (encoded.length > MAX_SHARE_CHARS) return null;
   try {
     const json = LZString.decompressFromEncodedURIComponent(encoded);
-    return json ? sanitizePack(JSON.parse(json)) : null;
+    return json && json.length <= MAX_FILE_BYTES * 2 ? sanitizePack(JSON.parse(json)) : null;
   } catch {
     return null;
   }
 }
 
-export function shareUrl(pack: CardPack): string {
+/** null — пак не помещается в ссылку (используйте файл). */
+export function shareUrl(pack: CardPack): string | null {
+  const enc = encodePack(pack);
+  if (enc.length > MAX_SHARE_CHARS) return null;
   const { origin, pathname } = window.location;
-  return `${origin}${pathname}#pack=${encodePack(pack)}`;
+  return `${origin}${pathname}#pack=${enc}`;
 }
 
 export function packFromHash(hash: string): CardPack | null {
@@ -164,7 +172,7 @@ export async function importPackFile(): Promise<CardPack | null> {
     });
   }
   if (!file) return null;
-  if (file.size > 5_000_000) throw new Error('Файл слишком большой (>5 МБ)');
+  if (file.size > MAX_FILE_BYTES) throw new Error('Файл слишком большой (>500 КБ)');
   try {
     const pack = sanitizePack(JSON.parse(await file.text()));
     if (!pack) throw new Error();

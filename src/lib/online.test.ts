@@ -106,3 +106,76 @@ describe('online', () => {
     expect(host.members).toHaveLength(3);
   });
 });
+
+describe('security', () => {
+  const play = async () => {
+    const { host, clients } = await setup();
+    host.start();
+    await tick();
+    host.actAsHost({ t: 'reveal', category: 'profession' });
+    clients.forEach(({ c }) => c.send({ t: 'reveal', category: 'profession' }));
+    await tick();
+    host.toVote();
+    host.actAsHost({ t: 'vote', target: 'p3' });
+    clients[0].c.send({ t: 'vote', target: 'p3' });
+    clients[1].c.send({ t: 'vote', target: 'p1' });
+    await tick();
+    return { host, clients };
+  };
+
+  it('secret ballots are not leaked in the result phase', async () => {
+    const { host, clients } = await play();
+    expect(host.game!.phase).toBe('result');
+    const st = clients[0].c.state;
+    if (st.status !== 'game') throw new Error('no view');
+    // клиент p2 не должен узнать, кто за кого голосовал (кроме себя)
+    expect(st.view.votes).toEqual({});
+  });
+
+  it('one connection cannot register several members', async () => {
+    const { host, clients } = await setup();
+    clients[0].p.raw({ t: 'hello', name: 'Клон', token: 'other' });
+    clients[0].p.raw({ t: 'hello', name: 'Клон2', token: 'other2' });
+    await tick();
+    expect(host.members).toHaveLength(3);
+  });
+
+  it('locked room and kick', async () => {
+    const { host } = await setup();
+    host.locked = true;
+    const p = pair();
+    host.addConn(p.hostSide);
+    const late = new OnlineClient(p.clientSide, 'Поздний', 'zzz');
+    await tick();
+    expect(late.state.status).toBe('rejected');
+    host.kick(1);
+    await tick();
+    expect(host.members.map((m) => m.name)).toEqual(['Хост', 'Гость2']);
+  });
+
+  it('drops flooding connections', async () => {
+    const { host, clients } = await setup();
+    for (let i = 0; i < 200; i++) clients[0].p.raw({ t: 'action' });
+    await tick();
+    expect(host.members.find((m) => m.name === 'Гость1')!.connected).toBe(false);
+  });
+
+  it('client rejects malformed or hostile host state without crashing', async () => {
+    const p = pair();
+    const c = new OnlineClient(p.clientSide, 'a', 't');
+    const send = (m: unknown) => (p.hostSide as unknown as { send(m: unknown): void }).send(m);
+    send({ t: 'view', me: 'p1', view: { players: [{}], scenario: {} } });
+    await tick();
+    expect(c.state.status).toBe('connecting');
+    const { host } = await setup();
+    host.start();
+    const good = JSON.parse(JSON.stringify(host.viewFor(0)));
+    good.players[0].name = 'x'.repeat(5000);
+    good.log = Array.from({ length: 5000 }, () => ({ round: 1, text: 'y'.repeat(5000) }));
+    send({ t: 'view', me: 'p1', view: good });
+    await tick();
+    if (c.state.status !== 'game') throw new Error('should accept sanitized');
+    expect(c.state.view.players[0].name.length).toBe(24);
+    expect(c.state.view.log.length).toBeLessThanOrEqual(200);
+  });
+});

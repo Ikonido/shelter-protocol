@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lan": "npm run build && node scripts/lan-server.mjs",
+    "lan:serve": "node scripts/lan-server.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.52.0",
@@ -21,6 +23,8 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "express": "^5.2.1",
+    "peer": "^1.0.2",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.3",

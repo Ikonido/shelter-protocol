@@ -1,8 +1,10 @@
 import { useEffect, useReducer, useState } from 'react';
-import { ArrowLeft, Copy, Gavel, LogIn, Users, Wifi, WifiOff, Zap } from 'lucide-react';
+import { ArrowLeft, Copy, Gavel, Lock, LogIn, Unlock, UserX, Users, Wifi, WifiOff, Zap } from 'lucide-react';
 import { useStore, type OnlineDraft } from '../store';
 import { OnlineClient, OnlineHost, type C2H, type Conn, type H2C } from '../lib/online';
-import { createRoom, isValidCode, joinRoom, normalizeCode } from '../lib/net';
+import { createRoom, isValidCode, joinRoom, normalizeCode, probeLan, type NetMode } from '../lib/net';
+import { randomToken } from '../lib/rng';
+import { copyText } from '../ui/clipboard';
 import { alive, quotaThisRound, revealOptions } from '../lib/game';
 import { CATEGORIES, CATEGORY_LABEL, type Category, type GameState } from '../types';
 import { CardFace, Stepper } from '../ui/bits';
@@ -19,6 +21,19 @@ function useLive(obj: { subscribe(cb: () => void): () => void } | null) {
 
 const readLS = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const writeLS = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* ok */ } };
+const removeLS = (k: string) => { try { localStorage.removeItem(k); } catch { /* ok */ } };
+
+function NetBadge({ mode }: { mode: NetMode | null }) {
+  if (!mode) return null;
+  return mode === 'lan' ? (
+    <p className="text-xs text-ok">Локальная сеть: интернет не нужен, данные не покидают вашу сеть.</p>
+  ) : (
+    <p className="text-xs text-dim">
+      Через интернет: публичный брокер PeerJS и STUN-серверы видят IP-адреса участников и код комнаты, но не содержимое игры
+      (оно шифруется и идёт напрямую). Для полной приватности используйте LAN-режим.
+    </p>
+  );
+}
 
 /* ---------- Хост: лобби ---------- */
 
@@ -29,6 +44,7 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState(readLS('shelter:name') ?? 'Хост');
   const [slots, setSlots] = useState(draft.slots);
+  const [net, setNet] = useState<NetMode | null>(null);
   useLive(host);
 
   useEffect(() => {
@@ -36,9 +52,17 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
     let cancelled = false;
     const h = new OnlineHost(draft, readLS('shelter:name') ?? 'Хост');
     setHost(h);
-    createRoom((c) => h.addConn(c as Conn<H2C>))
-      .then((r) => (cancelled ? r.destroy() : ((room = r), setCode(r.code))))
-      .catch((e: Error) => !cancelled && setError(e.message));
+    (async () => {
+      const mode: NetMode = (await probeLan()) ? 'lan' : 'internet';
+      if (cancelled) return;
+      setNet(mode);
+      const r = await createRoom((c) => h.addConn(c as Conn<H2C>), mode);
+      if (cancelled) r.destroy();
+      else {
+        room = r;
+        setCode(r.code);
+      }
+    })().catch((e: Error) => !cancelled && setError(e.message));
     return () => {
       cancelled = true;
       room?.destroy();
@@ -48,7 +72,7 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
 
   if (!host) return null;
   const link = code ? `${location.origin}${location.pathname}#join=${code}` : '';
-  const copy = (text: string) => navigator.clipboard.writeText(text).then(() => notify('Скопировано'), () => notify('Не удалось скопировать'));
+  const copy = async (text: string) => notify((await copyText(text)) ? 'Скопировано' : 'Не удалось скопировать');
 
   if (host.game) {
     const view = host.viewFor(0)!;
@@ -80,7 +104,7 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
               <button className="btn btn-sm" onClick={() => copy(code)}><Copy size={14} /> Код</button>
               <button className="btn btn-sm" onClick={() => copy(link)}><Copy size={14} /> Ссылка-приглашение</button>
             </div>
-            <p className="mt-2 text-xs text-dim">Игроки могут быть в любой сети — соединение идёт напрямую через интернет.</p>
+            <div className="mt-2"><NetBadge mode={net} /></div>
           </>
         ) : (
           <p className="text-sm text-dim">Создаём комнату…</p>
@@ -98,10 +122,16 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
             <li key={m.token} className="flex items-center gap-2">
               {m.connected ? <Wifi size={14} className="text-ok" /> : <WifiOff size={14} className="text-danger" />}
               {m.name}{i === 0 && <span className="text-xs text-dim">(хост)</span>}
+              {i > 0 && (
+                <button className="ml-auto text-dim hover:text-danger" aria-label={`Исключить ${m.name}`} onClick={() => host.kick(i)}><UserX size={16} /></button>
+              )}
             </li>
           ))}
         </ul>
         <Stepper label="Мест в бункере (K)" value={Math.min(slots, Math.max(1, n - 1))} min={1} max={Math.max(1, n - 1)} onChange={(v) => { setSlots(v); host.setup = { ...host.setup, slots: v }; }} />
+        <button className="btn btn-sm" onClick={() => host.setLocked(!host.locked)}>
+          {host.locked ? <><Unlock size={14} /> Открыть комнату</> : <><Lock size={14} /> Закрыть комнату для новых игроков</>}
+        </button>
         <button className="btn btn-primary" disabled={n < 2 || !code} onClick={() => host.start()}>
           Начать игру ({n} игроков)
         </button>
@@ -119,9 +149,11 @@ export function Join({ initialCode }: { initialCode?: string }) {
   const [name, setName] = useState(readLS('shelter:name') ?? '');
   const [client, setClient] = useState<OnlineClient | null>(null);
   const [busy, setBusy] = useState(false);
+  const [net, setNet] = useState<NetMode | null>(null);
   const [error, setError] = useState<string | null>(null);
   useLive(client);
   useEffect(() => () => client?.destroy(), [client]);
+  useEffect(() => void probeLan().then((lan) => setNet(lan ? 'lan' : 'internet')), []);
 
   const connect = async () => {
     const c = normalizeCode(code);
@@ -130,13 +162,13 @@ export function Join({ initialCode }: { initialCode?: string }) {
     writeLS('shelter:name', n);
     let token = readLS(`shelter:token:${c}`);
     if (!token) {
-      token = crypto.randomUUID();
+      token = randomToken();
       writeLS(`shelter:token:${c}`, token);
     }
     setBusy(true);
     setError(null);
     try {
-      const { conn, destroy } = await joinRoom(c);
+      const { conn, destroy } = await joinRoom(c, net ?? 'internet');
       const cl = new OnlineClient(conn as Conn<C2H>, n, token);
       const orig = cl.destroy.bind(cl);
       cl.destroy = () => (orig(), destroy());
@@ -150,7 +182,17 @@ export function Join({ initialCode }: { initialCode?: string }) {
 
   const st = client?.state;
   if (client && st && (st.status === 'game')) {
-    return <OnlineGame view={st.view} me={st.me} send={(m) => client.send(m)} onExit={() => go({ name: 'home' })} />;
+    return (
+      <OnlineGame
+        view={st.view}
+        me={st.me}
+        send={(m) => client.send(m)}
+        onExit={() => {
+          removeLS(`shelter:token:${normalizeCode(code)}`); // токен переподключения больше не нужен
+          go({ name: 'home' });
+        }}
+      />
+    );
   }
 
   return (
@@ -170,7 +212,8 @@ export function Join({ initialCode }: { initialCode?: string }) {
             <span className="label">Ваше имя</span>
             <input className="input" maxLength={24} value={name} onChange={(e) => setName(e.target.value)} />
           </div>
-          <button className="btn btn-primary" disabled={busy || !isValidCode(normalizeCode(code)) || !name.trim()} onClick={() => { client?.destroy(); setClient(null); connect(); }}>
+          <NetBadge mode={net} />
+          <button className="btn btn-primary" disabled={busy || !net || !isValidCode(normalizeCode(code)) || !name.trim()} onClick={() => { client?.destroy(); setClient(null); connect(); }}>
             <LogIn size={18} /> {busy ? 'Подключаемся…' : st?.status === 'closed' ? 'Переподключиться' : 'Войти'}
           </button>
         </section>

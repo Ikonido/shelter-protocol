@@ -6,6 +6,7 @@ import { useStore } from '../store';
 import { rerollCard } from '../lib/generator';
 import { setEliminated } from '../lib/game';
 import { Verdict } from './Final';
+import { copyText } from '../ui/clipboard';
 
 /** Режим «генератор карточек»: раздаём персонажей на бумаге/в мессенджер, а исход считаем по отметкам выживших. */
 export default function Tabletop({ game }: { game: GameState }) {
@@ -14,10 +15,10 @@ export default function Tabletop({ game }: { game: GameState }) {
   const packs = allPacks.filter((p) => game.config.packIds.includes(p.id));
   const survivors = game.players.filter((p) => !p.isEliminated).length;
 
-  const copyText = (id: string) => {
+  const copyCard = (id: string) => {
     const p = game.players.find((x) => x.id === id)!;
     const text = `${p.name}\n` + CATEGORIES.map((c) => `${CATEGORY_LABEL[c]}: ${p.slots[c].card.title ? p.slots[c].card.title + '. ' : ''}${p.slots[c].card.description}`).join('\n');
-    navigator.clipboard?.writeText(text).then(() => notify('Карточка скопирована'), () => notify('Не удалось скопировать'));
+    copyText(text).then((ok) => notify(ok ? 'Карточка скопирована' : 'Не удалось скопировать'));
   };
 
   return (
@@ -38,7 +39,7 @@ export default function Tabletop({ game }: { game: GameState }) {
                 <button className="btn btn-sm no-print ml-auto" onClick={() => setShown((s) => ({ ...s, [p.id]: !visible }))}>
                   {visible ? <EyeOff size={14} /> : <Eye size={14} />}{visible ? 'Скрыть' : 'Показать'}
                 </button>
-                <button className="btn btn-sm no-print" onClick={() => copyText(p.id)}>Копир.</button>
+                <button className="btn btn-sm no-print" onClick={() => copyCard(p.id)}>Копир.</button>
               </div>
               <div className="flex flex-col gap-2">
                 {CATEGORIES.map((c) => (

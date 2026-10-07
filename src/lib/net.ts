@@ -19,7 +19,36 @@ function randomCode(): string {
   return Array.from(buf, (b) => ALPHABET[b % ALPHABET.length]).join('');
 }
 
-function peerOptions(): PeerOptions {
+export type NetMode = 'internet' | 'lan';
+
+/** Есть ли на этом же адресе LAN-сервер (`npm run lan`)? Тогда играем через него, без интернета и сторонних сервисов. */
+export async function probeLan(): Promise<boolean> {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 1500);
+  try {
+    const res = await fetch(new URL('peerjs/', location.origin + '/').toString(), { signal: ctl.signal, cache: 'no-store' });
+    const j = (await res.json()) as { name?: string };
+    return res.ok && j.name === 'PeerJS Server';
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+function lanOptions(): PeerOptions {
+  return {
+    host: location.hostname,
+    port: Number(location.port) || (location.protocol === 'https:' ? 443 : 80),
+    path: '/peerjs',
+    secure: location.protocol === 'https:',
+    config: { iceServers: [] }, // только локальные кандидаты: никаких запросов к STUN/внешним сервисам
+    debug: 0,
+  };
+}
+
+function peerOptions(mode: NetMode = 'internet'): PeerOptions {
+  if (mode === 'lan') return lanOptions();
   const iceServers: RTCIceServer[] = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun.cloudflare.com:3478' },
@@ -37,9 +66,9 @@ function peerOptions(): PeerOptions {
   return opts;
 }
 
-async function newPeer(id?: string): Promise<PeerT> {
+async function newPeer(mode: NetMode, id?: string): Promise<PeerT> {
   const { Peer } = await import('peerjs');
-  return id ? new Peer(id, peerOptions()) : new Peer(peerOptions());
+  return id ? new Peer(id, peerOptions(mode)) : new Peer(peerOptions(mode));
 }
 
 function wrap<Out>(dc: DataConnection): Conn<Out> {
@@ -67,10 +96,10 @@ export interface Room {
 }
 
 /** Хост: занимает случайный код комнаты и отдаёт каждое входящее соединение в `onConn`. */
-export async function createRoom(onConn: (c: Conn<unknown>) => void): Promise<Room> {
+export async function createRoom(onConn: (c: Conn<unknown>) => void, mode: NetMode = 'internet'): Promise<Room> {
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = randomCode();
-    const peer = await newPeer(ROOM_PREFIX + code);
+    const peer = await newPeer(mode, ROOM_PREFIX + code);
     try {
       await waitOpen(peer, 12000);
     } catch (e) {
@@ -87,8 +116,8 @@ export async function createRoom(onConn: (c: Conn<unknown>) => void): Promise<Ro
 }
 
 /** Гость: подключение к комнате по коду. */
-export async function joinRoom(code: string): Promise<{ conn: Conn<unknown>; destroy(): void }> {
-  const peer = await newPeer();
+export async function joinRoom(code: string, mode: NetMode = 'internet'): Promise<{ conn: Conn<unknown>; destroy(): void }> {
+  const peer = await newPeer(mode);
   try {
     await waitOpen(peer, 12000);
   } catch {

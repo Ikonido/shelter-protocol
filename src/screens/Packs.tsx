@@ -2,6 +2,7 @@ import { ArrowLeft, Copy, Download, FilePlus2, Link2, Pencil, Trash2, Upload } f
 import { useStore } from '../store';
 import { clonePack, emptyPack, exportPackFile, importPackFile, packStats, shareUrl } from '../lib/packs';
 import { uid } from '../lib/rng';
+import { copyText } from '../ui/clipboard';
 import type { CardPack } from '../types';
 
 export default function Packs() {
@@ -9,12 +10,9 @@ export default function Packs() {
 
   const share = async (p: CardPack) => {
     const url = shareUrl(p);
-    try {
-      await navigator.clipboard.writeText(url);
-      notify(url.length > 8000 ? 'Ссылка скопирована, но очень длинная — лучше передайте файлом' : 'Ссылка на пак скопирована');
-    } catch {
-      prompt('Скопируйте ссылку:', url);
-    }
+    if (!url) return notify('Пак слишком большой для ссылки — передайте его файлом (JSON)');
+    if (await copyText(url)) notify('Ссылка на пак скопирована');
+    else prompt('Скопируйте ссылку:', url);
   };
   const doImport = async () => {
     try {

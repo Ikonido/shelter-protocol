@@ -22,6 +22,8 @@ import {
   startVote,
 } from './game';
 import { newSeed } from './rng';
+import { LIMITS as L, clip } from './limits';
+import { sanitizeScenario } from './packs';
 
 /* ---------- Протокол ---------- */
 
@@ -36,7 +38,7 @@ export interface LobbyMember {
   connected: boolean;
 }
 export type H2C =
-  | { t: 'lobby'; members: LobbyMember[]; scenario: string; slots: number; you: number }
+  | { t: 'lobby'; members: LobbyMember[]; scenario: string; slots: number; you: number; locked?: boolean }
   | { t: 'view'; view: GameState; me: string }
   | { t: 'reject'; reason: string };
 
@@ -49,6 +51,9 @@ export interface Conn<Out> {
 }
 
 export const MAX_ONLINE_PLAYERS = 20;
+const MAX_PENDING = 40;
+const HANDSHAKE_MS = 10_000;
+const MAX_MSGS_PER_SEC = 30;
 
 /* ---------- Маскирование состояния ---------- */
 
@@ -64,10 +69,13 @@ export function viewFor(g: GameState, me: string, voting: VotingMode = g.config.
     ) as PlayerCharacter['slots'];
     return { ...p, slots };
   });
+  // Тайное голосование: во время голосования видно лишь кто уже проголосовал (и свой выбор), после — ничего.
   const votes =
-    voting === 'secret' && g.phase === 'vote'
-      ? Object.fromEntries(Object.keys(g.votes).map((v) => [v, v === me ? g.votes[v] : v]))
-      : g.votes;
+    voting !== 'secret'
+      ? g.votes
+      : g.phase === 'vote'
+        ? Object.fromEntries(Object.keys(g.votes).map((v) => [v, v === me ? g.votes[v] : v]))
+        : {};
   return { ...g, players, votes, seed: 0, config: { ...g.config, seed: 0 } };
 }
 
@@ -93,7 +101,11 @@ const cleanName = (v: unknown) => (typeof v === 'string' ? v.replace(/\s+/g, ' '
 export class OnlineHost {
   members: Member[];
   game: GameState | null = null;
+  /** Закрытая комната не принимает новых игроков (вернуться по токену можно). */
+  locked = false;
   private listeners = new Set<() => void>();
+  private pending = new Set<Conn<H2C>>();
+  private rate = new Map<Conn<H2C>, { t: number; n: number }>();
 
   constructor(
     public setup: HostSetup,
@@ -108,15 +120,57 @@ export class OnlineHost {
   }
 
   addConn(conn: Conn<H2C>) {
-    conn.onMessage((raw) => this.onRaw(conn, raw));
-    conn.onClose(() => {
-      const m = this.members.find((x) => x.conn === conn);
-      if (m) {
-        m.connected = false;
-        m.conn = null;
-        this.changed();
-      }
+    if (this.pending.size >= MAX_PENDING) return conn.close();
+    this.pending.add(conn);
+    // Соединение, не представившееся за HANDSHAKE_MS, отбрасываем — иначе слоты можно занять «пустыми» подключениями.
+    const timer = setTimeout(() => this.pending.has(conn) && this.drop(conn, true), HANDSHAKE_MS);
+    (timer as { unref?: () => void }).unref?.();
+    conn.onMessage((raw) => {
+      if (this.tooFast(conn)) return this.drop(conn, true);
+      this.onRaw(conn, raw);
     });
+    conn.onClose(() => this.drop(conn, false));
+  }
+
+  private tooFast(conn: Conn<H2C>): boolean {
+    const now = Date.now();
+    const w = this.rate.get(conn);
+    if (!w || now - w.t > 1000) {
+      this.rate.set(conn, { t: now, n: 1 });
+      return false;
+    }
+    return ++w.n > MAX_MSGS_PER_SEC;
+  }
+
+  private drop(conn: Conn<H2C>, close: boolean) {
+    this.pending.delete(conn);
+    this.rate.delete(conn);
+    const m = this.members.find((x) => x.conn === conn);
+    if (close) conn.close();
+    if (m) {
+      m.connected = false;
+      m.conn = null;
+      this.changed();
+    }
+  }
+
+  setLocked(v: boolean) {
+    this.locked = v;
+    this.changed();
+  }
+
+  /** Лобби: удалить игрока из комнаты. */
+  kick(index: number) {
+    const m = this.members[index];
+    if (this.game || index === 0 || !m) return;
+    m.conn?.send({ t: 'reject', reason: 'Хост исключил вас из комнаты' });
+    const conn = m.conn;
+    this.members.splice(index, 1);
+    if (conn) {
+      this.pending.delete(conn);
+      conn.close();
+    }
+    this.changed();
   }
 
   private onRaw(conn: Conn<H2C>, raw: unknown) {
@@ -126,18 +180,28 @@ export class OnlineHost {
       const token = typeof msg.token === 'string' ? msg.token.slice(0, 64) : '';
       const name = cleanName(msg.name);
       if (!token || !name || token === 'host') return conn.send({ t: 'reject', reason: 'Некорректные данные' });
+      // Одно соединение — один участник: повторный hello с другим токеном игнорируется.
+      const bound = this.members.find((m) => m.conn === conn);
+      if (bound) return bound.token === token ? this.changed() : undefined;
       const known = this.members.find((m) => m.token === token);
       if (known) {
-        known.conn?.close();
+        const old = known.conn;
         known.conn = conn;
         known.connected = true;
+        if (old && old !== conn) {
+          this.pending.delete(old);
+          old.close();
+        }
       } else if (this.game) {
         return conn.send({ t: 'reject', reason: 'Партия уже началась' });
+      } else if (this.locked) {
+        return conn.send({ t: 'reject', reason: 'Комната закрыта хостом' });
       } else if (this.members.length >= MAX_ONLINE_PLAYERS) {
         return conn.send({ t: 'reject', reason: 'Комната заполнена' });
       } else {
         this.members.push({ token, name, conn, connected: true });
       }
+      this.pending.delete(conn);
       return this.changed();
     }
     const member = this.members.find((m) => m.conn === conn);
@@ -254,6 +318,7 @@ export class OnlineHost {
           scenario: this.setup.scenario.title,
           slots: this.setup.slots,
           you: i,
+          locked: this.locked,
         });
     });
     this.listeners.forEach((cb) => cb());
@@ -315,7 +380,91 @@ export class OnlineClient {
     if (!raw || typeof raw !== 'object') return;
     const m = raw as Partial<H2C> & Record<string, unknown>;
     if (m.t === 'reject') this.set({ status: 'rejected', reason: typeof m.reason === 'string' ? m.reason.slice(0, 100) : 'Отказано' });
-    else if (m.t === 'lobby' && Array.isArray(m.members)) this.set({ status: 'lobby', members: m.members, scenario: String(m.scenario ?? ''), slots: Number(m.slots) || 0, you: Number(m.you) || 0 });
-    else if (m.t === 'view' && typeof m.me === 'string' && m.view && Array.isArray(m.view.players) && m.view.scenario) this.set({ status: 'game', view: m.view, me: m.me });
+    else if (m.t === 'lobby' && Array.isArray(m.members))
+      this.set({
+        status: 'lobby',
+        members: m.members.slice(0, MAX_ONLINE_PLAYERS).map((x) => ({ name: clip(String(x?.name ?? ''), 24), connected: !!x?.connected })),
+        scenario: clip(String(m.scenario ?? ''), L.scenarioTitle),
+        slots: Number(m.slots) || 0,
+        you: Number(m.you) || 0,
+      });
+    else if (m.t === 'view' && typeof m.me === 'string') {
+      const view = sanitizeView(m.view);
+      if (view && view.players.some((p) => p.id === m.me)) this.set({ status: 'game', view, me: m.me });
+    }
   }
+}
+
+/* ---------- Недоверенное состояние от хоста ---------- */
+
+const PHASES = ['reveal', 'debate', 'vote', 'result', 'final'];
+const MODS = ['positive', 'neutral', 'negative'];
+const text = (v: unknown, max: number) => (typeof v === 'string' ? clip(v, max) : '');
+const rec = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
+
+function cleanCard(raw: unknown, category: Category): Card | null {
+  const r = rec(raw);
+  if (typeof r.description !== 'string') return null;
+  const card: Card = { id: text(r.id, 60), category, description: text(r.description, L.cardDescription) };
+  if (typeof r.title === 'string') card.title = text(r.title, L.cardTitle);
+  if (MODS.includes(r.modifier as string)) card.modifier = r.modifier as Card['modifier'];
+  if (Array.isArray(r.tags)) card.tags = r.tags.slice(0, L.cardTags).map((t) => text(t, L.tagLen)).filter(Boolean);
+  return card;
+}
+
+/** Хост — внешний источник: заново собираем состояние только из проверенных полей и обрезаем строки по лимитам. */
+export function sanitizeView(raw: unknown): GameState | null {
+  const r = rec(raw);
+  if (!Array.isArray(r.players) || r.players.length < 1 || r.players.length > MAX_ONLINE_PLAYERS) return null;
+  const scenario = sanitizeScenario(r.scenario, 0);
+  if (!scenario || !PHASES.includes(r.phase as string)) return null;
+  const players: PlayerCharacter[] = [];
+  for (const rp of r.players) {
+    const p = rec(rp);
+    const slots = rec(p.slots);
+    const out: Partial<PlayerCharacter['slots']> = {};
+    for (const c of CATEGORIES) {
+      const slot = rec(slots[c]);
+      const card = cleanCard(slot.card, c);
+      if (!card) return null;
+      out[c] = { card, isRevealed: slot.isRevealed === true };
+    }
+    players.push({ id: text(p.id, 12), name: text(p.name, 24), isEliminated: p.isEliminated === true, slots: out as PlayerCharacter['slots'] });
+  }
+  const cfg = rec(r.config);
+  const int = (v: unknown, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(Number(v)) || lo));
+  const votes: Record<string, string> = {};
+  for (const [k, v] of Object.entries(rec(r.votes)).slice(0, MAX_ONLINE_PLAYERS)) votes[text(k, 12)] = text(v, 12);
+  const lr = rec(r.lastResult);
+  const tally: Record<string, number> = {};
+  for (const [k, v] of Object.entries(rec(lr.tally)).slice(0, MAX_ONLINE_PLAYERS)) tally[text(k, 12)] = int(v, 0, 99);
+  const game: GameState = {
+    config: {
+      scenarioId: scenario.id,
+      packIds: [],
+      playerCount: players.length,
+      shelterSlots: int(cfg.shelterSlots, 1, 19),
+      mode: 'online',
+      voting: cfg.voting === 'open' ? 'open' : 'secret',
+      names: players.map((p) => p.name),
+      seed: 0,
+    },
+    scenario,
+    players,
+    round: int(r.round, 1, 50),
+    schedule: Array.isArray(r.schedule) ? r.schedule.slice(0, 6).map((n) => int(n, 0, 19)) : [],
+    phase: r.phase as GameState['phase'],
+    revealedThisRound: Array.isArray(r.revealedThisRound) ? r.revealedThisRound.slice(0, MAX_ONLINE_PLAYERS).map((x) => text(x, 12)) : [],
+    votes,
+    log: Array.isArray(r.log) ? r.log.slice(-200).map((l) => ({ round: int(rec(l).round, 1, 50), text: text(rec(l).text, 400) })) : [],
+    seed: 0,
+  };
+  if (r.lastResult) {
+    game.lastResult = {
+      eliminated: Array.isArray(lr.eliminated) ? lr.eliminated.slice(0, MAX_ONLINE_PLAYERS).map((x) => text(x, 12)) : [],
+      tally,
+      tieBreak: lr.tieBreak === true,
+    };
+  }
+  return game;
 }
