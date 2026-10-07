@@ -30,10 +30,11 @@ const MOD_STYLE: Record<NonNullable<Card['modifier']>, string> = {
   neutral: 'border-edge text-dim',
   negative: 'border-danger/40 bg-danger/10 text-danger',
 };
+const MOD_HINT = { positive: 'Плюс: сильная сторона, помогает убежищу', neutral: 'Нейтрально: ни помогает, ни вредит', negative: 'Минус: слабость, снижает шансы убежища' } as const;
 const MOD_LABEL = { positive: 'плюс', neutral: 'нейтр.', negative: 'минус' } as const;
 
 export function ModBadge({ mod = 'neutral' }: { mod?: Card['modifier'] }) {
-  return <span className={`rounded-full border px-1.5 py-px text-[9px] font-bold uppercase tracking-widest ${MOD_STYLE[mod]}`} title={mod}>{MOD_LABEL[mod]}</span>;
+  return <span className={`rounded-full border px-1.5 py-px text-[9px] font-bold uppercase tracking-widest ${MOD_STYLE[mod]}`} title={MOD_HINT[mod]}>{MOD_LABEL[mod]}</span>;
 }
 
 /** Карта персонажа: цветная полоса и иконка категории, значок «плюс/минус», «переворот» при появлении. */

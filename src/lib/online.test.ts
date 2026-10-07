@@ -62,6 +62,23 @@ describe('online', () => {
     expect(host.game!.log.filter((l) => l.text.includes('применяет карту действия'))).toHaveLength(1);
   });
 
+  it('everyone learns who dropped out, and the list clears when they come back', async () => {
+    const { host, clients } = await setup(4);
+    host.start();
+    await tick();
+    const watcher = clients[1].c;
+    expect(watcher.state.status === 'game' && watcher.state.offline).toEqual([]);
+    clients[0].c.destroy();
+    await tick();
+    expect(watcher.state.status === 'game' && watcher.state.offline).toEqual(['Гость1']);
+    const back = pair();
+    host.addConn(back.hostSide);
+    const again = new OnlineClient(back.clientSide, 'Гость1', 'tok1');
+    await tick();
+    expect(watcher.state.status === 'game' && watcher.state.offline).toEqual([]);
+    again.destroy();
+  });
+
   it('plays a round: reveal → debate → secret vote → result; rejects bad input', async () => {
     const { host, clients } = await setup();
     host.start();

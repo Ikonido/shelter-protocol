@@ -13,6 +13,7 @@ import { CardFace, Stepper } from '../ui/bits';
 import { Board } from '../ui/Board';
 import { GameHud } from '../ui/GameHud';
 import { SpeechTimer } from '../ui/SpeechTimer';
+import { SkillsStrip } from '../ui/SkillsStrip';
 import { signal } from '../lib/feedback';
 import { ThreatsPanel } from '../ui/Threats';
 import { Avatar } from '../ui/Avatar';
@@ -232,6 +233,7 @@ export function Join({ initialCode, initialTicket }: { initialCode?: string; ini
       <OnlineGame
         view={st.view}
         me={st.me}
+        offline={st.offline}
         send={(m) => client.send(m)}
         onExit={() => {
           removeLS(`shelter:token:${normalizeCode(code)}`); // токен переподключения больше не нужен
@@ -296,7 +298,7 @@ export function Join({ initialCode, initialTicket }: { initialCode?: string; ini
 
 /* ---------- Общий игровой экран (хост и гости) ---------- */
 
-function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: string; send: Send; host?: OnlineHost; onExit: () => void }) {
+function OnlineGame({ view, me, send, host, onExit, offline = [] }: { view: GameState; me: string; send: Send; host?: OnlineHost; onExit: () => void; offline?: string[] }) {
   const player = view.players.find((p) => p.id === me)!;
   const living = alive(view);
   const [pick, setPick] = useState<Category | null>(null);
@@ -318,6 +320,7 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4 pb-6">
       <GameHud game={view} backLabel="Выйти" onBack={() => confirm('Выйти из партии?') && onExit()} />
+      {view.phase !== 'final' && <SkillsStrip scenario={view.scenario} />}
 
       {!live ? (
         <>
@@ -413,6 +416,11 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
               </section>
             )}
 
+            {!host && offline.length > 0 && (
+              <p className="panel border-danger/60 text-sm" role="status">
+                <WifiOff size={14} className="mr-1 inline text-danger" />Нет связи: <b>{offline.join(', ')}</b>. Они могут вернуться по тому же коду, а хост способен сделать ход за них.
+              </p>
+            )}
             {myRevealTurn && <p className="panel animate-pulse border-amber text-center text-sm font-bold uppercase tracking-widest text-amber" role="alert">Ваш ход: откройте карту</p>}
             {lastAction && <p className="panel border-[#e879f9]/60 text-sm" role="status"><Zap size={14} className="mr-1 inline text-[#e879f9]" />{lastAction.text}</p>}
             <section className="panel flex flex-col gap-2">
