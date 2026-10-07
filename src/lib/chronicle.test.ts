@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CLASSIC_PACK } from '../data/classicPack';
 import { createGame } from './game';
-import { buildChronicle, isolationMonths, plural, whenLabel } from './chronicle';
+import { buildChronicle, isolationDays, plural, whenLabel } from './chronicle';
 import type { GameState, Hazard, PlayerCharacter, SessionConfig } from '../types';
 
 const cfg = (n: number, k: number, difficulty: SessionConfig['difficulty'] = 'normal'): SessionConfig => ({
@@ -31,16 +31,20 @@ const leak = ship.hazards!.find((h) => h.id.endsWith('fl-leak'))!;
 const pirates = ship.hazards!.find((h) => h.id.endsWith('fl-pirates'))!;
 
 describe('chronicle helpers', () => {
+  const d = (months: number) => Math.round(months * 30.4375);
   it('russian plurals and time labels', () => {
     expect([1, 2, 5, 11, 21, 22, 25].map((n) => plural(n, ['месяц', 'месяца', 'месяцев']))).toEqual(['месяц', 'месяца', 'месяцев', 'месяцев', 'месяц', 'месяца', 'месяцев']);
     expect(whenLabel(0)).toBe('День 1');
-    expect(whenLabel(3)).toBe('Через 3 месяца');
-    expect(whenLabel(12)).toBe('Через 1 год');
-    expect(whenLabel(30)).toBe('Через 2 года и 6 месяцев');
-    expect(whenLabel(60)).toBe('Через 5 лет');
+    expect([1, 3, 5, 13].map(whenLabel)).toEqual(['Через 1 день', 'Через 3 дня', 'Через 5 дней', 'Через 13 дней']);
+    expect([14, 21, 30, 45].map(whenLabel)).toEqual(['Через 2 недели', 'Через 3 недели', 'Через 4 недели', 'Через 6 недель']);
+    expect(whenLabel(d(3))).toBe('Через 3 месяца');
+    expect(whenLabel(d(12))).toBe('Через 1 год');
+    expect(whenLabel(d(30))).toBe('Через 2 года и 6 месяцев');
+    expect(whenLabel(d(60))).toBe('Через 5 лет');
   });
   it('parses isolation durations', () => {
-    expect([isolationMonths('5 лет'), isolationMonths('2 года'), isolationMonths('18 месяцев'), isolationMonths('1 год'), isolationMonths('неизвестно')]).toEqual([60, 24, 18, 12, 36]);
+    expect([isolationDays('5 лет'), isolationDays('2 года'), isolationDays('18 месяцев'), isolationDays('1 год'), isolationDays('неизвестно')]).toEqual([d(60), d(24), d(18), d(12), d(36)]);
+    expect([isolationDays('2 недели'), isolationDays('10 дней'), isolationDays('3 суток'), isolationDays('1 неделя')]).toEqual([14, 10, 3, 7]);
   });
 });
 

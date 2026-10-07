@@ -48,7 +48,7 @@ export interface LobbyMember {
   connected: boolean;
 }
 export type H2C =
-  | { t: 'lobby'; members: LobbyMember[]; scenario: string; slots: number; you: number; locked?: boolean }
+  | { t: 'lobby'; members: LobbyMember[]; scenario: string; slots: number; you: number; locked?: boolean; adult?: boolean }
   | { t: 'view'; view: GameState; me: string }
   | { t: 'reject'; reason: string };
 
@@ -122,6 +122,7 @@ export interface HostSetup {
   hazardCount?: number; // факторов угрозы из пула сценария, по умолчанию 2
   difficulty?: Difficulty; // по умолчанию normal
   roundEvents?: boolean; // карта кризиса перед каждым раундом, по умолчанию да
+  adult?: boolean; // в комнате пак 18+: гостям показывается предупреждение до начала игры
   timeLimitMin?: number; // 0 — без лимита; по умолчанию 0
 }
 
@@ -415,6 +416,7 @@ export class OnlineHost {
           slots: this.setup.slots,
           you: i,
           locked: this.locked,
+          adult: this.setup.adult === true,
         });
     });
     this.listeners.forEach((cb) => cb());
@@ -434,7 +436,7 @@ function uniqueNames(names: string[]): string[] {
 
 export type ClientState =
   | { status: 'connecting' }
-  | { status: 'lobby'; members: LobbyMember[]; scenario: string; slots: number; you: number }
+  | { status: 'lobby'; members: LobbyMember[]; scenario: string; slots: number; you: number; adult: boolean }
   | { status: 'game'; view: GameState; me: string }
   | { status: 'closed' }
   | { status: 'rejected'; reason: string };
@@ -484,6 +486,7 @@ export class OnlineClient {
         scenario: clip(String(m.scenario ?? ''), L.scenarioTitle),
         slots: Number(m.slots) || 0,
         you: Number(m.you) || 0,
+        adult: m.adult === true,
       });
     else if (m.t === 'view' && typeof m.me === 'string') {
       const view = sanitizeView(m.view);

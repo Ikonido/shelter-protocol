@@ -1,4 +1,7 @@
 import type { Card, CardPack, Category, Hazard, Modifier } from '../types';
+import { MEDIEVAL_PACK } from './packMedieval';
+import { FANTASY_PACK } from './packFantasy';
+import { ADULT_PACK } from './packAdult';
 
 type Row = [description: string, modifier?: Modifier, tags?: string[], title?: string];
 
@@ -141,6 +144,8 @@ export const CLASSIC_PACK: CardPack = {
       ['Менеджер по продажам', 'neutral'],
       ['Санитарный врач-эпидемиолог', 'positive', ['санитария', 'медицина']],
       ['Дезинфектор: 15 лет выводил крыс и тараканов', 'positive', ['дератизация', 'санитария']],
+      ['Лаборант-микробиолог', 'positive', ['вирусология', 'медицина']],
+      ['Капитан речного буксира', 'positive', ['навигация']],
     ]),
     biology: make('biology', [
       ['Женщина, 28 лет, способна иметь детей', 'positive', ['потомство']],
@@ -223,6 +228,7 @@ export const CLASSIC_PACK: CardPack = {
       ['Пишет мемуары и требует внимания к себе', 'negative'],
       ['Выращивает грибы на балконе — знает, как ухаживать', 'positive', ['агрономия']],
       ['Работал на мусороперерабатывающем заводе — знает всё о санитарии', 'positive', ['санитария']],
+      ['Умеет читать карты и звёзды', 'positive', ['навигация']],
     ]),
     action: make('action', [
       ['Право вето: отмените один голос, поданный против вас в этом раунде.', 'positive', undefined, 'Вето'],
@@ -239,4 +245,4 @@ export const CLASSIC_PACK: CardPack = {
   },
 };
 
-export const BUILTIN_PACKS: CardPack[] = [CLASSIC_PACK];
+export const BUILTIN_PACKS: CardPack[] = [CLASSIC_PACK, MEDIEVAL_PACK, FANTASY_PACK, ADULT_PACK];

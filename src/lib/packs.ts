@@ -1,5 +1,5 @@
 import LZString from 'lz-string';
-import { CATEGORIES, type Card, type CardPack, type Category, type Hazard, type Modifier, type Scenario, type Severity } from '../types';
+import { CATEGORIES, type Card, type CardPack, type Category, type EventKind, type Hazard, type Modifier, type Scenario, type ScenarioEvent, type Severity } from '../types';
 import { uid } from './rng';
 import { LIMITS as L } from './limits';
 
@@ -24,6 +24,22 @@ function sanitizeCard(raw: unknown, category: Category, i: number): Card | null 
 }
 
 const SEVERITIES: Severity[] = ['critical', 'major', 'minor'];
+const EVENT_KINDS: EventKind[] = ['shrink', 'plague', 'volunteer', 'leak', 'silence', 'newHazard', 'relief', 'prompt'];
+const TONES: ScenarioEvent['tone'][] = ['good', 'bad', 'neutral'];
+
+function sanitizeEvent(raw: unknown, i: number): ScenarioEvent | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const title = str(r.title, L.eventTitle);
+  if (!title || !EVENT_KINDS.includes(r.kind as EventKind)) return null;
+  return {
+    id: str(r.id, 60) || `e${i}-${uid('ev')}`,
+    kind: r.kind as EventKind,
+    tone: TONES.includes(r.tone as ScenarioEvent['tone']) ? (r.tone as ScenarioEvent['tone']) : 'neutral',
+    title,
+    text: str(r.text, L.eventText),
+  };
+}
 
 export function sanitizeHazard(raw: unknown, i: number): Hazard | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -58,6 +74,9 @@ export function sanitizeScenario(raw: unknown, i: number): Scenario | null {
     hazards: (Array.isArray(r.hazards) ? (r.hazards as unknown[]).slice(0, L.hazards) : [])
       .map(sanitizeHazard)
       .filter((h): h is Hazard => !!h),
+    ...(Array.isArray(r.events) && r.events.length
+      ? { events: (r.events as unknown[]).slice(0, L.events).map(sanitizeEvent).filter((e): e is ScenarioEvent => !!e) }
+      : {}),
   };
 }
 
@@ -82,6 +101,7 @@ export function sanitizePack(raw: unknown): CardPack | null {
     name,
     description: str(r.description, L.packDescription),
     isCustom: true,
+    ...(r.adult === true ? { adult: true } : {}),
     scenarios,
     cards,
     ...cleanOverrides(rawCards, r.tagOverrides),

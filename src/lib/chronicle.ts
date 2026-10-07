@@ -34,19 +34,30 @@ export function plural(n: number, forms: [string, string, string]): string {
   return b === 1 ? forms[0] : forms[2];
 }
 
-/** «5 лет» → 60, «2 года» → 24, «18 месяцев» → 18; непонятное → 36. */
-export function isolationMonths(duration: string): number {
-  const m = /(\d+)\s*(лет|год|мес)/i.exec(duration);
-  if (!m) return 36;
+const DAYS_PER_MONTH = 30.4375;
+
+/** «5 лет» → 1826 дней, «2 недели» → 14, «10 дней» → 10, «18 месяцев» → 548; непонятное → 3 года. */
+export function isolationDays(duration: string): number {
+  const m = /(\d+)\s*(лет|год|мес|недел|дн|сут)/i.exec(duration);
+  if (!m) return Math.round(36 * DAYS_PER_MONTH);
   const n = Number(m[1]);
-  return Math.max(1, /мес/i.test(m[2]) ? n : n * 12);
+  const unit = m[2].toLowerCase();
+  const days = unit === 'мес' ? n * DAYS_PER_MONTH : unit === 'лет' || unit === 'год' ? n * 12 * DAYS_PER_MONTH : unit === 'недел' ? n * 7 : n;
+  return Math.max(1, Math.round(days));
 }
 
-export function whenLabel(month: number): string {
-  if (month <= 0) return 'День 1';
-  if (month < 12) return `Через ${month} ${plural(month, ['месяц', 'месяца', 'месяцев'])}`;
-  const y = Math.floor(month / 12);
-  const rest = month % 12;
+/** Подпись момента на шкале: «День 1», «Через 3 дня», «Через 2 недели», «Через 3 месяца», «Через 2 года и 6 месяцев». */
+export function whenLabel(day: number): string {
+  if (day <= 0) return 'День 1';
+  if (day < 14) return `Через ${day} ${plural(day, ['день', 'дня', 'дней'])}`;
+  if (day < 60) {
+    const w = Math.round(day / 7);
+    return `Через ${w} ${plural(w, ['неделю', 'недели', 'недель'])}`;
+  }
+  const months = Math.round(day / DAYS_PER_MONTH);
+  if (months < 12) return `Через ${months} ${plural(months, ['месяц', 'месяца', 'месяцев'])}`;
+  const y = Math.floor(months / 12);
+  const rest = months % 12;
   const years = `${y} ${plural(y, ['год', 'года', 'лет'])}`;
   return rest ? `Через ${years} и ${rest} ${plural(rest, ['месяц', 'месяца', 'месяцев'])}` : `Через ${years}`;
 }
@@ -74,7 +85,7 @@ export function buildChronicle(game: GameState): Chronicle {
   const slots = game.config.shelterSlots;
   const ev = evaluate(game.scenario, survivors, slots, game.hazards ?? [], game.config.difficulty);
   const rng = mulberry32(hash(game.scenario.id + game.players.map((p) => p.name).join('|')));
-  const total = isolationMonths(game.scenario.isolationDuration);
+  const total = isolationDays(game.scenario.isolationDuration);
   const isolation = game.scenario.isolationDuration || 'долгий срок';
 
   type Draft = Omit<ChronicleEntry, 'when'>;
@@ -127,9 +138,9 @@ export function buildChronicle(game: GameState): Chronicle {
 
   const inner = timeline.length - 1; // «День 1» — первая запись; остальные размазываем по сроку изоляции
   const entries: ChronicleEntry[] = timeline.map((d, i) => {
-    let month = i === 0 ? 0 : Math.max(i, Math.round((total * i) / inner));
-    if (!fatalEntry && i === timeline.length - 1) month = total;
-    return { ...d, when: whenLabel(month) };
+    let day = i === 0 ? 0 : Math.max(i, Math.round((total * i) / inner));
+    if (!fatalEntry && i === timeline.length - 1) day = total;
+    return { ...d, when: whenLabel(day) };
   });
 
   return { entries, epilogue: epilogue(game, survivors, outside, ev, isolation, !!fatalEntry), evaluation: ev, fatal: !!fatalEntry };

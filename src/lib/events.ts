@@ -1,15 +1,9 @@
-import type { ActiveEvent, EventKind, GameState } from '../types';
+import type { ActiveEvent, GameState, ScenarioEvent } from '../types';
 import { mulberry32 } from './rng';
 import { LIMITS } from './limits';
 
 /** Описание события: текст для игроков и «вес» по тону (на лёгкой чаще везёт, на «Кошмаре» чаще беды). */
-export interface EventDef {
-  id: string;
-  kind: EventKind;
-  tone: ActiveEvent['tone'];
-  title: string;
-  text: string;
-}
+export type EventDef = ScenarioEvent;
 
 export const EVENTS: EventDef[] = [
   { id: 'vent', kind: 'shrink', tone: 'bad', title: 'Отказ вентиляции', text: 'Фильтры забиты, воздуха хватит на одного меньше. Мест в бункере стало на 1 меньше, и в этом раунде уйдёт на одного больше.' },
@@ -74,7 +68,9 @@ export { hiddenForLeak };
 /** Выбор события без повторов, с учётом сложности и применимости. null — подходящих нет. */
 export function drawEvent(g: GameState): EventDef | null {
   const used = new Set(g.usedEvents ?? []);
-  const pool = EVENTS.filter((e) => !used.has(e.id) && isEligible(e, g));
+  // Сценарий может принести свои тематические события; иначе общие.
+  const source = g.scenario.events?.length ? g.scenario.events : EVENTS;
+  const pool = source.filter((e) => !used.has(e.id) && isEligible(e, g));
   if (!pool.length) return null;
   const w = TONE_WEIGHT[g.config.difficulty ?? 'normal'] ?? TONE_WEIGHT.normal;
   const weights = pool.map((e) => w[e.tone]);
