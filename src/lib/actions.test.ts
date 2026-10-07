@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUILTIN_PACKS, CLASSIC_PACK } from '../data/classicPack';
 import { ACTION_EFFECTS, type ActionEffect, type GameState, type SessionConfig } from '../types';
-import { canApply, runEffect } from './actions';
+import { canApply, effectiveVotes, runEffect } from './actions';
 import { ABSTAIN, castVote, createGame, playAction, resolveVote, startVote } from './game';
 import { sanitizePack } from './packs';
 import { viewFor } from './online';
@@ -202,6 +202,35 @@ describe('voting effects', () => {
     expect(g.log.at(-1)!.text).not.toContain('П2');
     g = resolveVote(voteAll(g, { p1: 'p4', p2: 'p3', p3: 'p4', p4: 'p1' }));
     expect(g.lastResult!.tally.p4).toBe(3); // p1, p3 и союзник p2 против p4
+  });
+
+  it('ally copies read the original votes, so chains do not depend on order', () => {
+    const g = startVote(fresh(4));
+    const r = { ...g, votes: { p1: 'p4', p2: 'p1', p3: 'p2', p4: 'p1' }, fx: { double: [], veto: [], immune: [], allies: [['p1', 'p2'], ['p2', 'p3']] as [string, string][] } };
+    const v = effectiveVotes(r as GameState);
+    expect(v.p2).toBe('p4'); // копия голоса p1
+    expect(v.p3).toBe('p1'); // p3 копирует исходный голос p2 (против p1), а не уже переписанный
+  });
+
+  it('a partner gets a copy from only one ally, the first in order', () => {
+    const g = startVote(fresh(5));
+    const r = { ...g, votes: { p1: 'p4', p2: 'p1', p3: 'p5', p4: 'p1', p5: 'p1' }, fx: { double: [], veto: [], immune: [], allies: [['p1', 'p2'], ['p3', 'p2']] as [string, string][] } };
+    expect(effectiveVotes(r as GameState).p2).toBe('p4');
+  });
+
+  it('veto cancels a vote chosen by a seeded draw, not by the first voter in order', () => {
+    const base = startVote(fresh(5));
+    const votes: Record<string, string> = { p1: 'p5', p2: 'p5', p3: 'p5', p4: 'p1', p5: 'p2' };
+    const picked = new Set<string>();
+    for (let seed = 1; seed <= 30; seed++) {
+      const g = { ...base, seed, votes, fx: { double: [], veto: ['p5'], immune: [], allies: [] } } as GameState;
+      const eff = effectiveVotes(g);
+      const cancelled = Object.keys(votes).filter((v) => !(v in eff));
+      expect(cancelled).toHaveLength(1);
+      expect(['p1', 'p2', 'p3']).toContain(cancelled[0]); // отменяется один из голосов против p5
+      picked.add(cancelled[0]);
+    }
+    expect(picked.size).toBeGreaterThan(1);
   });
 
   it('abstain majority still skips the round even with actions in play', () => {

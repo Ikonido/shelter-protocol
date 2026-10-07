@@ -38,3 +38,21 @@ describe('saved game validation', () => {
     expect(broken((g) => { g.scenario = { id: 'x' }; })).toBeNull();
   });
 });
+
+describe('saved game validation: deep checks', () => {
+  const broken = (mutate: (g: any) => void) => { const g = fresh(); mutate(g); return validateSavedGame(g); };
+  it('rejects malformed log, votes, schedule and fx', () => {
+    expect(broken((g) => { g.log = [{ round: 1 }]; })).toBeNull();
+    expect(broken((g) => { g.votes = { p1: 42 }; })).toBeNull();
+    expect(broken((g) => { g.schedule = ['x']; })).toBeNull();
+    expect(broken((g) => { g.fx = { double: 'p1', veto: [], immune: [], allies: [] }; })).toBeNull();
+    expect(broken((g) => { g.fx = { double: [], veto: [], immune: [], allies: [['p1']] }; })).toBeNull();
+  });
+  it('rejects a player with a wrong elimination flag or a broken card', () => {
+    expect(broken((g) => { g.players[0].isEliminated = 'yes'; })).toBeNull();
+    expect(broken((g) => { g.players[0].slots.health.card = null; })).toBeNull();
+  });
+  it('still accepts a valid game with allies and deadlines', () => {
+    expect(broken((g) => { g.fx = { double: ['p1'], veto: [], immune: [], allies: [['p1', 'p2']] }; g.deadline = Date.now() + 1000; })).not.toBeNull();
+  });
+});

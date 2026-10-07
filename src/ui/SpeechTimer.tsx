@@ -15,18 +15,22 @@ export function SpeechTimer({ endsAt, totalSec, mine = true }: { endsAt?: number
     buzzed.current = false;
     warned.current = false;
   }, [endsAt]);
+  const leftMs = endsAt ? Math.max(0, endsAt - now) : 0;
+  // Сигналы нужны тому, кто говорит (в онлайне у остальных телефон молчит): за 10 секунд и по окончании.
+  // Звук и вибрация — побочный эффект, поэтому здесь, а не в рендере.
+  useEffect(() => {
+    if (!endsAt) return;
+    if (mine && totalSec > 20 && leftMs > 0 && leftMs <= 10_000 && !warned.current) {
+      warned.current = true;
+      signal('warn');
+    }
+    if (leftMs === 0 && !buzzed.current) {
+      buzzed.current = true;
+      if (mine) signal('end');
+    }
+  }, [endsAt, leftMs, mine, totalSec]);
   if (!endsAt) {
     return <p className="text-center text-xs text-dim">Без таймера: когда закончите — нажмите «Следующий игрок».</p>;
-  }
-  const leftMs = Math.max(0, endsAt - now);
-  // Сигналы нужны тому, кто говорит (в онлайне у остальных телефон молчит): за 10 секунд и по окончании.
-  if (mine && totalSec > 20 && leftMs > 0 && leftMs <= 10_000 && !warned.current) {
-    warned.current = true;
-    signal('warn');
-  }
-  if (leftMs === 0 && !buzzed.current) {
-    buzzed.current = true;
-    if (mine) signal('end');
   }
   const frac = Math.min(1, leftMs / Math.max(1, totalSec * 1000));
   const s = Math.ceil(leftMs / 1000);

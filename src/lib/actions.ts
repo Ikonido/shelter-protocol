@@ -131,7 +131,8 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
 
   switch (effect) {
     case 'drawLuggage': {
-      const d = draw(n, 'luggage')!;
+      const d = draw(n, 'luggage');
+      if (!d) return g;
       const old = actor.slots.luggage;
       const keepNew = rank(d.card) > rank(old.card);
       let next = d.g;
@@ -151,7 +152,8 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
     }
     case 'giveLuggage': {
       const t = target!;
-      const d = draw(n, 'luggage')!;
+      const d = draw(n, 'luggage');
+      if (!d) return g;
       let next = withSlot(d.g, t.id, 'luggage', { card: d.card, isRevealed: t.slots.luggage.isRevealed });
       next = toDiscard(next, 'luggage', t.slots.luggage.card);
       return say(next, `${head}: у ${t.name} теперь другой багаж`);
@@ -190,7 +192,8 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
       return say(next, `${head}: ${a.name} и ${b.name} меняются картами «${CATEGORY_LABEL[cat]}»`);
     }
     case 'rerollHobby': {
-      const d = draw(n, 'hobby')!;
+      const d = draw(n, 'hobby');
+      if (!d) return g;
       let next = withSlot(d.g, actorId, 'hobby', { card: d.card, isRevealed: actor.slots.hobby.isRevealed });
       next = toDiscard(next, 'hobby', actor.slots.hobby.card);
       return say(next, `${head}: меняет хобби`);
@@ -228,14 +231,23 @@ export function effectiveVotes(g: GameState): Record<string, string> {
   const votes = { ...g.votes };
   const fx = g.fx;
   if (!fx) return votes;
+  // Союзники копируют голос актёра из исходных голосов, а не из уже переписанных: порядок союзов не влияет на итог.
+  // Голос партнёра может скопировать только один союзник (первый по порядку союза).
+  const original = g.votes;
+  const copied = new Set<string>();
   for (const [a, b] of fx.allies) {
-    const t = votes[a];
-    if (t && t !== IMMUNE_VOTE && !fx.immune.includes(b)) votes[b] = t === b ? 'abstain' : t;
+    const t = original[a];
+    if (!t || t === IMMUNE_VOTE || copied.has(b) || fx.immune.includes(b)) continue;
+    copied.add(b);
+    votes[b] = t === b ? 'abstain' : t;
   }
-  for (const id of fx.veto) {
-    const voter = Object.keys(votes).find((v) => votes[v] === id);
-    if (voter) delete votes[voter];
-  }
+  // Вето отменяет один голос против актёра. Какой именно, решает жребий от seed и раунда, а не порядок голосования.
+  fx.veto.forEach((id, i) => {
+    const against = Object.keys(votes).filter((v) => votes[v] === id);
+    if (against.length === 0) return;
+    const rng = mulberry32(g.seed ^ (g.round * 2654435761) ^ (i + 1) * 40503);
+    delete votes[against[Math.floor(rng() * against.length)]];
+  });
   return votes;
 }
 
