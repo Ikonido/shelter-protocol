@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Eye, Play, UserRound, Zap } from 'lucide-react';
+import { Eye, Play, UserRound, Zap } from 'lucide-react';
 import { CATEGORIES, CATEGORY_LABEL, type Category, type GameState, type PlayerCharacter } from '../types';
 import { useStore } from '../store';
 import {
@@ -24,6 +24,10 @@ import { CardFace, Modal } from '../ui/bits';
 import { MatchClock } from '../ui/MatchClock';
 import { SpeechTimer } from '../ui/SpeechTimer';
 import { ThreatsPanel } from '../ui/Threats';
+import { Board } from '../ui/Board';
+import { GameHud } from '../ui/GameHud';
+import { Avatar } from '../ui/Avatar';
+import { Tally } from '../ui/Tally';
 import { Gate } from '../ui/Gate';
 import Final from './Final';
 import Tabletop from './Tabletop';
@@ -51,22 +55,13 @@ export default function Game() {
     );
   }
   const update: Update = (fn) => setGame((g) => (g ? fn(g) : g));
-  const living = alive(game);
+
+  const speaker = currentSpeaker(game);
+  const live = game.config.mode !== 'tabletop' && game.phase !== 'final';
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-4 py-4">
-      <header className="no-print flex flex-wrap items-center gap-2">
-        <button className="btn btn-sm" onClick={() => go({ name: 'home' })}><ArrowLeft size={16} /> Меню</button>
-        <button className="btn btn-sm" onClick={() => setShowBrief(true)}>{game.scenario.title}</button>
-        <div className="ml-auto text-xs uppercase tracking-widest text-dim">
-          {game.config.mode === 'pass-and-play' && game.phase !== 'final' && <>Раунд {game.round}/{game.schedule.length} · вскрытие {stepOf(game)}/{perVote(game)} · </>}
-          В игре <b className="text-amber">{living.length}</b> · Мест <b className="text-amber">{game.config.shelterSlots}</b>
-        </div>
-      </header>
-
-      {timed && game.deadline && (
-        <MatchClock deadline={game.deadline} totalMin={game.config.timeLimitMin} onExtend={() => update((g) => extendDeadline(g, 5 * 60_000))} />
-      )}
+    <div className="mx-auto flex max-w-5xl flex-col gap-4 pb-6">
+      <GameHud game={game} onBack={() => go({ name: 'home' })} onTitle={() => setShowBrief(true)} />
 
       {showBrief && (
         <Modal title={game.scenario.title} onClose={() => setShowBrief(false)}>
@@ -81,43 +76,25 @@ export default function Game() {
         <Tabletop game={game} />
       ) : game.phase === 'final' ? (
         <Final game={game} />
-      ) : (
-        <>
-          <ThreatsPanel hazards={game.hazards ?? []} />
-          <Board game={game} />
-          {game.phase === 'reveal' && <RevealPhase game={game} update={update} />}
-          {game.phase === 'speech' && <SpeechPhase game={game} update={update} />}
-          {game.phase === 'vote' && <VotePhase game={game} update={update} />}
-          {game.phase === 'result' && <ResultPhase game={game} update={update} />}
-        </>
+      ) : null}
+
+      {live && (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+          <div className="anim-rise flex min-w-0 flex-col gap-4" key={`${game.round}-${stepOf(game)}-${game.phase}-${speaker?.id ?? ''}`}>
+            {timed && game.deadline && (
+              <MatchClock deadline={game.deadline} totalMin={game.config.timeLimitMin} onExtend={() => update((g) => extendDeadline(g, 5 * 60_000))} />
+            )}
+            {game.phase === 'reveal' && <RevealPhase game={game} update={update} />}
+            {game.phase === 'speech' && <SpeechPhase game={game} update={update} />}
+            {game.phase === 'vote' && <VotePhase game={game} update={update} />}
+            {game.phase === 'result' && <ResultPhase game={game} update={update} />}
+          </div>
+          <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-24">
+            <ThreatsPanel hazards={game.hazards ?? []} />
+            <Board game={game} speakerId={speaker?.id} side />
+          </aside>
+        </div>
       )}
-    </div>
-  );
-}
-
-/* ---------- Общая доска: открытые карты всех игроков ---------- */
-
-export function Board({ game }: { game: GameState }) {
-  return (
-    <div className="grid gap-2 sm:grid-cols-2">
-      {game.players.map((p) => {
-        const open = CATEGORIES.filter((c) => p.slots[c].isRevealed && c !== 'action');
-        return (
-          <details key={p.id} className={`panel p-3 ${p.isEliminated ? 'opacity-40' : ''}`}>
-            <summary className="cursor-pointer text-sm">
-              <b className={p.isEliminated ? 'line-through' : 'text-amber'}>{p.name}</b>
-              <span className="ml-2 text-xs text-dim">
-                {p.isEliminated ? 'исключён' : `открыто: ${open.length}/6`}
-                {p.slots.action.isRevealed && ' · действие использовано'}
-              </span>
-            </summary>
-            <div className="mt-2 flex flex-col gap-1">
-              {open.length === 0 && <span className="text-xs text-dim">Ничего не открыто</span>}
-              {open.map((c) => <CardFace key={c} card={p.slots[c].card} compact />)}
-            </div>
-          </details>
-        );
-      })}
     </div>
   );
 }
@@ -204,9 +181,10 @@ function RevealPhase({ game, update }: { game: GameState; update: Update }) {
   const done = game.revealedThisRound.length;
   return (
     <>
-      <section className="panel flex flex-col items-center gap-3 text-center">
+      <section className="panel hud flex flex-col items-center gap-3 text-center">
         <h2 className="h-hud">Раунд {game.round} · вскрытие {stepOf(game)} из {perVote(game)}</h2>
         <p className="text-xs text-dim">Игрок {done + 1} из {total}. Возьмите устройство, откройте карту и затем объясните, чем вы полезны убежищу.</p>
+        <Avatar id={speaker.id} name={speaker.name} size={72} ring />
         <p className="text-3xl font-bold text-amber">{speaker.name}</p>
         <button className="btn btn-primary w-full" onClick={() => setOpen(true)}><Eye size={18} /> Я — {speaker.name}: открыть карту</button>
       </section>
@@ -224,9 +202,9 @@ function SpeechPhase({ game, update }: { game: GameState; update: Update }) {
   const upNext = pendingReveal(game)[0];
   return (
     <>
-      <section className="panel flex flex-col gap-3">
-        <h2 className="h-hud flex items-center gap-2"><UserRound size={16} /> {speaker.name} объясняет пользу</h2>
-        <CardFace card={speaker.slots[cat].card} showMod />
+      <section className="panel hud flex flex-col gap-3">
+        <h2 className="h-hud flex items-center gap-3"><Avatar id={speaker.id} name={speaker.name} size={36} ring /> <span><UserRound size={14} className="mr-1 inline" />{speaker.name} объясняет пользу</span></h2>
+        <CardFace card={speaker.slots[cat].card} showMod flip />
         <SpeechTimer endsAt={game.speechEndsAt} totalSec={game.config.speechSec} />
         <p className="text-center text-xs text-dim">
           Почему именно вас нужно взять в убежище? {upNext ? `Затем ходит: ${upNext.name}.` : 'Это последняя речь вскрытия.'}
@@ -301,7 +279,7 @@ function VotePhase({ game, update }: { game: GameState; update: Update }) {
         <h2 className="h-hud">Открытое голосование</h2>
         {living.map((p) => (
           <label key={p.id} className="flex items-center gap-2 text-sm">
-            <span className="w-28 truncate text-amber">{p.name}</span>→
+            <Avatar id={p.id} name={p.name} size={28} /><span className="w-24 truncate text-amber">{p.name}</span>→
             <select className="input" value={game.votes[p.id] ?? ''} onChange={(e) => update((g) => castVote(g, p.id, e.target.value))}>
               <option value="" disabled>выберите…</option>
               <option value={ABSTAIN}>— воздержаться —</option>
@@ -320,8 +298,8 @@ function VotePhase({ game, update }: { game: GameState; update: Update }) {
         <section className="panel flex flex-col gap-2">
           <h2 className="h-hud">{voter.name}: против кого вы голосуете?</h2>
           {living.filter((t) => t.id !== voter.id).map((t) => (
-            <button key={t.id} className="btn" onClick={() => { update((g) => castVote(g, voter.id, t.id)); setVoterId(null); }}>
-              {t.name}
+            <button key={t.id} className="btn justify-start gap-3 normal-case" onClick={() => { update((g) => castVote(g, voter.id, t.id)); setVoterId(null); }}>
+              <Avatar id={t.id} name={t.name} size={28} /> {t.name}
             </button>
           ))}
           <button className="btn border-dashed" onClick={() => { update((g) => castVote(g, voter.id, ABSTAIN)); setVoterId(null); }}>Воздержаться</button>
@@ -337,8 +315,9 @@ function VotePhase({ game, update }: { game: GameState; update: Update }) {
       <p className="text-xs text-dim">Проголосовало {living.length - waiting.length} из {living.length}. Голос можно изменить до подсчёта. Воздержаться тоже можно: если таких больше половины, никто не уходит.</p>
       <div className="grid gap-2 sm:grid-cols-2">
         {living.map((p) => (
-          <button key={p.id} className="btn" onClick={() => setVoterId(p.id)}>
-            {game.votes[p.id] ? '✔ ' : ''}{p.name}
+          <button key={p.id} className={`btn justify-start gap-3 normal-case ${game.votes[p.id] ? 'border-ok/50 text-ok' : ''}`} onClick={() => setVoterId(p.id)}>
+            <Avatar id={p.id} name={p.name} size={28} /> {p.name}
+            {game.votes[p.id] && <span className="ml-auto text-xs uppercase tracking-widest">✔ проголосовал</span>}
           </button>
         ))}
       </div>
@@ -352,19 +331,11 @@ function VotePhase({ game, update }: { game: GameState; update: Update }) {
 function ResultPhase({ game, update }: { game: GameState; update: Update }) {
   const r = game.lastResult;
   if (!r) return null;
-  const sorted = Object.entries(r.tally).sort((a, b) => b[1] - a[1]);
-  const nameOf = (id: string) => game.players.find((p) => p.id === id)?.name ?? id;
   const finishing = alive(game).length <= game.config.shelterSlots || game.round >= game.schedule.length;
   return (
     <section className="panel flex flex-col gap-3">
       <h2 className="h-hud">Итоги раунда {game.round}</h2>
-      <ul className="text-sm">
-        {sorted.map(([id, v]) => (
-          <li key={id} className={r.eliminated.includes(id) ? 'text-danger' : ''}>
-            {nameOf(id)} — {v} гол. {r.eliminated.includes(id) && '← покидает игру'}
-          </li>
-        ))}
-      </ul>
+      <Tally players={game.players} result={r} />
       {r.skipped && <p className="text-sm text-amber">Большинство воздержалось ({r.abstained} из {alive(game).length}) — никто не покидает игру. Пропущенное исключение перенесено в дополнительный раунд.</p>}
       {!r.skipped && !!r.abstained && <p className="text-xs text-dim">Воздержались: {r.abstained}.</p>}
       {r.tieBreak && <p className="text-xs text-amber">Ничья на границе — решено жребием.</p>}

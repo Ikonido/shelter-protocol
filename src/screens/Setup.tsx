@@ -1,10 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Dices, Globe, Printer, Smartphone, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Dices, Eye, EyeOff, Flame, Gauge, Globe, Printer, Skull, Smartphone, Smile } from 'lucide-react';
 import { useStore } from '../store';
 import { Stepper } from '../ui/bits';
 import { clampConfig, createGame } from '../lib/game';
 import { newSeed } from '../lib/rng';
-import type { PlayMode, SessionConfig, VotingMode } from '../types';
+import type { Difficulty, PlayMode, SessionConfig, VotingMode } from '../types';
+import { DIFFICULTIES, DIFFICULTY_ORDER } from '../lib/difficulty';
+
+const DIFF_STYLE = {
+  easy: { Icon: Smile, tone: { text: 'text-ok', border: 'border-ok', bg: 'bg-ok/10 shadow-[0_0_22px_-10px_var(--color-ok)]' } },
+  normal: { Icon: Gauge, tone: { text: 'text-amber', border: 'border-amber', bg: 'bg-amber/10 shadow-[0_0_22px_-10px_var(--color-amber)]' } },
+  hard: { Icon: Flame, tone: { text: 'text-orange-400', border: 'border-orange-400', bg: 'bg-orange-400/10 shadow-[0_0_22px_-10px_#fb923c]' } },
+  nightmare: { Icon: Skull, tone: { text: 'text-danger', border: 'border-danger', bg: 'bg-danger/10 shadow-[0_0_22px_-10px_var(--color-danger)]' } },
+} as const;
 
 export default function Setup() {
   const { allPacks, go, setGame, notify } = useStore();
@@ -19,6 +27,15 @@ export default function Setup() {
   const [timeLimitMin, setTimeLimitMin] = useState(45);
   const [speechSec, setSpeechSec] = useState(45);
   const [hazardCount, setHazardCount] = useState(2);
+  const [difficulty, setDifficulty] = useState<Difficulty>('normal');
+  // Пресет подставляет рекомендуемые значения, после чего их можно поменять вручную.
+  const pickDifficulty = (d: Difficulty) => {
+    const r = DIFFICULTIES[d];
+    setDifficulty(d);
+    setHazardCount(r.hazardCount);
+    setSpeechSec(r.speechSec);
+    setTimeLimitMin(r.timeLimitMin);
+  };
 
   const activePacks = useMemo(() => allPacks.filter((p) => packIds.includes(p.id)), [allPacks, packIds]);
   const scenarios = useMemo(() => activePacks.flatMap((p) => p.scenarios), [activePacks]);
@@ -45,7 +62,7 @@ export default function Setup() {
   const start = () => {
     const chosen = scenario ?? scenarios[Math.floor(Math.random() * scenarios.length)];
     if (mode === 'online') {
-      go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting, revealsPerVote, speechSec, hazardCount, timeLimitMin } });
+      go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting, revealsPerVote, speechSec, hazardCount, difficulty, timeLimitMin } });
       return;
     }
     const config: SessionConfig = {
@@ -58,6 +75,7 @@ export default function Setup() {
       revealsPerVote,
       speechSec,
       hazardCount,
+      difficulty,
       timeLimitMin: mode === 'tabletop' ? 0 : timeLimitMin,
       names: Array.from({ length: n }, (_, i) => nameAt(i)),
       seed: newSeed(),
@@ -73,7 +91,7 @@ export default function Setup() {
       <h1 className="h-hud text-base">Настройка партии</h1>
 
       <section className="panel">
-        <h2 className="label">1. Паки карт</h2>
+        <h2 className="step-title">1 · Паки карт</h2>
         <div className="flex flex-col gap-2">
           {allPacks.map((p) => (
             <label key={p.id} className="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border border-edge p-2">
@@ -88,7 +106,7 @@ export default function Setup() {
       </section>
 
       <section className="panel">
-        <h2 className="label">2. Сценарий катастрофы</h2>
+        <h2 className="step-title">2 · Сценарий катастрофы</h2>
         <select className="input" value={scenarioId} onChange={(e) => setScenarioId(e.target.value)}>
           <option value="random">🎲 Случайный</option>
           {scenarios.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
@@ -107,7 +125,7 @@ export default function Setup() {
       </section>
 
       <section className="panel">
-        <h2 className="label">3. Игроки и места</h2>
+        <h2 className="step-title">3 · Игроки и места</h2>
         <div className="flex flex-wrap gap-8">
           {mode !== 'online' && <Stepper label="Игроков (N)" value={n} min={2} max={20} onChange={setPlayers} />}
           <Stepper label="Мест в бункере (K)" value={k} min={1} max={mode === 'online' ? 19 : n - 1} onChange={(v) => setK(mode === 'online' ? Math.min(19, Math.max(1, v)) : clampConfig(n, v).k)} />
@@ -131,7 +149,7 @@ export default function Setup() {
       </section>
 
       <section className="panel">
-        <h2 className="label">4. Режим</h2>
+        <h2 className="step-title">4 · Режим</h2>
         <div className="grid gap-2 sm:grid-cols-3">
           <button className={`btn ${mode === 'online' ? 'btn-primary' : ''}`} onClick={() => setMode('online')}>
             <Globe size={18} /> Онлайн (по коду)
@@ -156,6 +174,33 @@ export default function Setup() {
       </section>
 
       <section className="panel">
+        <h2 className="step-title">5 · Сложность</h2>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Сложность">
+          {DIFFICULTY_ORDER.map((d) => {
+            const { Icon, tone } = DIFF_STYLE[d];
+            const on = difficulty === d;
+            return (
+              <button
+                key={d}
+                role="radio"
+                aria-checked={on}
+                onClick={() => pickDifficulty(d)}
+                className={`flex flex-col items-center gap-1 rounded-lg border p-3 text-center transition active:scale-[.98] ${on ? `${tone.border} ${tone.bg}` : 'border-edge bg-bg hover:border-edge-hi'}`}
+              >
+                <Icon size={22} className={tone.text} />
+                <span className={`text-sm font-bold uppercase tracking-wider ${on ? tone.text : ''}`}>{DIFFICULTIES[d].label}</span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-3 text-sm text-ink/90">{DIFFICULTIES[difficulty].tagline}</p>
+        <ul className="mt-1 list-disc pl-5 text-xs text-dim">
+          {DIFFICULTIES[difficulty].details.map((t) => <li key={t}>{t}</li>)}
+        </ul>
+      </section>
+
+      <section className="panel">
+        <h2 className="step-title">6 · Угрозы</h2>
         <Stepper label="Факторы угрозы" value={hazardCount} min={0} max={4} onChange={setHazardCount} />
         <p className="mt-1 max-w-md text-xs text-dim">
           Случайные угрозы сценария (крысы и паразиты, течь, мародёры…). В финале каждую нужно нейтрализовать подходящим навыком или картой выживших: смертельная угроза без ответа губит убежище, остальные мешают полной победе.
@@ -163,7 +208,9 @@ export default function Setup() {
       </section>
 
       {mode !== 'tabletop' && (
-        <section className="panel flex flex-wrap items-end gap-x-8 gap-y-4">
+        <section className="panel">
+          <h2 className="step-title w-full">7 · Темп партии</h2>
+          <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
           <div>
             <Stepper label="Вскрытий до голосования" value={revealsPerVote} min={1} max={3} onChange={setRevealsPerVote} />
             <p className="mt-1 max-w-xs text-xs text-dim">Между голосованиями каждый по очереди открывает столько карт. Чем больше вскрытий, тем меньше раундов.</p>
@@ -183,6 +230,7 @@ export default function Setup() {
               {[15, 30, 45, 60, 90, 120].map((m) => <option key={m} value={m}>{m} мин</option>)}
             </select>
             <p className="mt-1 max-w-xs text-xs text-dim">Когда время выйдет, речи пропускаются, а карты открываются автоматически. Голосовать всё равно придётся самим.</p>
+          </div>
           </div>
         </section>
       )}

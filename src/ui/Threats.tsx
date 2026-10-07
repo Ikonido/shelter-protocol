@@ -12,6 +12,8 @@ const SEV: Record<Severity, { label: string; tone: string; Icon: typeof Skull }>
 export function ThreatsPanel({ hazards, results, defaultOpen = false }: { hazards: Hazard[]; results?: HazardResult[]; defaultOpen?: boolean }) {
   if (!hazards.length) return null;
   const byId = new Map(results?.map((r) => [r.hazard.id, r.by]));
+  const needById = new Map(results?.map((r) => [r.hazard.id, r.need]));
+  const okById = new Map(results?.map((r) => [r.hazard.id, r.ok]));
   return (
     <details className="panel p-3" open={defaultOpen || !!results}>
       <summary className="cursor-pointer text-xs uppercase tracking-widest text-amber">
@@ -21,6 +23,8 @@ export function ThreatsPanel({ hazards, results, defaultOpen = false }: { hazard
         {hazards.map((h) => {
           const { label, tone, Icon } = SEV[h.severity];
           const by = byId.get(h.id);
+          const need = needById.get(h.id) ?? 1;
+          const ok = okById.get(h.id);
           return (
             <li key={h.id} className="rounded-md border border-edge p-2 text-sm">
               <div className="flex items-center gap-2">
@@ -31,10 +35,11 @@ export function ThreatsPanel({ hazards, results, defaultOpen = false }: { hazard
               {h.description && <p className="mt-1 text-xs text-dim">{h.description}</p>}
               <p className="mt-1 text-xs">
                 Нейтрализуют: <span className="text-amber">{h.counters.join(', ') || '—'}</span>
+                {need > 1 && <span className="text-danger"> · нужно {need} чел.</span>}
               </p>
               {by && (
-                <p className={`mt-1 flex items-center gap-1 text-xs ${by.length ? 'text-ok' : 'text-danger'}`}>
-                  {by.length ? <><ShieldCheck size={14} /> убрана: {by.join(', ')}</> : <>✘ не нейтрализована{h.severity === 'critical' ? ' — убежище гибнет' : ''}</>}
+                <p className={`mt-1 flex items-center gap-1 text-xs ${ok ? 'text-ok' : 'text-danger'}`}>
+                  {ok ? <><ShieldCheck size={14} /> убрана: {by.join(', ')}</> : <>✘ не нейтрализована{by.length ? ` (${by.length} из ${need})` : ''}{h.severity === 'critical' ? ' — смертельная угроза' : ''}</>}
                 </p>
               )}
             </li>

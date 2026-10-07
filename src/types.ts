@@ -29,6 +29,8 @@ export const CATEGORY_LABEL: Record<Category, string> = {
 
 export type Modifier = 'positive' | 'neutral' | 'negative';
 
+export type Difficulty = 'easy' | 'normal' | 'hard' | 'nightmare';
+
 export type Severity = 'critical' | 'major' | 'minor';
 
 /** Фактор угрозы (крысы на корабле, течь, заражённая вода…): для победы его нужно нейтрализовать. */
@@ -99,6 +101,8 @@ export interface SessionConfig {
   revealsPerVote: number;
   /** Сколько факторов угрозы из пула сценария берётся в партию. */
   hazardCount: number;
+  /** Пресет сложности: влияет на пороги и штрафы финальной оценки (нет в старых сохранениях → normal). */
+  difficulty: Difficulty;
   /** Секунд на объяснение пользы после вскрытия, 0 — без таймера (только кнопка). */
   speechSec: number;
   /** Лимит времени на партию в минутах, 0 — без лимита. */

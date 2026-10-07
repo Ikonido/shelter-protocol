@@ -3,6 +3,7 @@ import {
   type Card,
   type CardPack,
   type Category,
+  type Difficulty,
   type GameState,
   type Hazard,
   type PlayerCharacter,
@@ -115,6 +116,7 @@ export interface HostSetup {
   revealsPerVote?: number; // по умолчанию 2
   speechSec?: number; // секунд на объяснение пользы, по умолчанию 45; 0 — без таймера
   hazardCount?: number; // факторов угрозы из пула сценария, по умолчанию 2
+  difficulty?: Difficulty; // по умолчанию normal
   timeLimitMin?: number; // 0 — без лимита; по умолчанию 0
 }
 
@@ -315,6 +317,7 @@ export class OnlineHost {
         revealsPerVote: Math.min(3, Math.max(1, this.setup.revealsPerVote ?? 2)),
         speechSec: Math.min(300, Math.max(0, this.setup.speechSec ?? 45)),
         hazardCount: Math.min(L.maxHazardsPerGame, Math.max(0, this.setup.hazardCount ?? 2)),
+        difficulty: this.setup.difficulty ?? 'normal',
         timeLimitMin: Math.min(180, Math.max(0, this.setup.timeLimitMin ?? 0)),
         names,
         seed: newSeed(),
@@ -530,6 +533,7 @@ export function sanitizeView(raw: unknown): GameState | null {
       revealsPerVote: int(cfg.revealsPerVote, 1, 3),
       speechSec: int(cfg.speechSec, 0, 300),
       hazardCount: int(cfg.hazardCount, 0, L.maxHazardsPerGame),
+      difficulty: (['easy', 'normal', 'hard', 'nightmare'] as const).find((d) => d === cfg.difficulty) ?? 'normal',
       timeLimitMin: int(cfg.timeLimitMin, 0, 180),
       names: players.map((p) => p.name),
       seed: 0,

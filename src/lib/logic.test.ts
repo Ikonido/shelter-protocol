@@ -6,9 +6,9 @@ import { evaluate } from './evaluate';
 import type { Hazard } from '../types';
 import { decodePack, encodePack, sanitizePack, sanitizeHazard } from './packs';
 
-const config = (n = 6, k = 3, revealsPerVote = 1, timeLimitMin = 0, speechSec = 0, hazardCount = 0): SessionConfig => ({
+const config = (n = 6, k = 3, revealsPerVote = 1, timeLimitMin = 0, speechSec = 0, hazardCount = 0, difficulty: SessionConfig['difficulty'] = 'normal'): SessionConfig => ({
   scenarioId: CLASSIC_PACK.scenarios[0].id, packIds: ['classic'], playerCount: n, shelterSlots: k,
-  mode: 'pass-and-play', voting: 'open', revealsPerVote, timeLimitMin, speechSec, hazardCount, names: Array.from({ length: n }, (_, i) => `P${i + 1}`), seed: 42,
+  mode: 'pass-and-play', voting: 'open', revealsPerVote, timeLimitMin, speechSec, hazardCount, difficulty, names: Array.from({ length: n }, (_, i) => `P${i + 1}`), seed: 42,
 });
 const newGame = (n = 6, k = 3, rpv = 1, limit = 0, speech = 0, hazards = 0, scenarioIdx = 0) =>
   createGame(config(n, k, rpv, limit, speech, hazards), CLASSIC_PACK.scenarios[scenarioIdx], [CLASSIC_PACK]);
@@ -320,5 +320,57 @@ describe('hazard data hygiene', () => {
   it('round-trips through the share link', () => {
     const back = decodePack(encodePack(CLASSIC_PACK));
     expect(back?.scenarios[2].hazards?.length).toBe(CLASSIC_PACK.scenarios[2].hazards!.length);
+  });
+});
+
+describe('difficulty', () => {
+  const g0 = newGame(8, 4);
+  const sc = { ...g0.scenario, requiredSkills: [] as string[] };
+  const crit: Hazard = { id: 'c', title: 'Течь', description: '', severity: 'critical', counters: ['инженерия'] };
+  const plain = (tags: string[][]) =>
+    g0.players.slice(0, tags.length).map((p, i) => ({
+      ...p,
+      slots: Object.fromEntries(Object.entries(p.slots).map(([c, sl]) => [c, ['profession', 'hobby', 'fact', 'luggage'].includes(c)
+        ? { ...sl, card: { ...sl.card, description: 'Обычный человек', title: undefined, tags: c === 'profession' ? tags[i] : [] } } : sl])) as typeof p.slots,
+    }));
+
+  it('presets are ordered from forgiving to harsh', async () => {
+    const { DIFFICULTIES, DIFFICULTY_ORDER, rulesFor } = await import('./difficulty');
+    const rs = DIFFICULTY_ORDER.map((d) => DIFFICULTIES[d]);
+    for (let i = 1; i < rs.length; i++) {
+      expect(rs[i].hazardCount).toBeGreaterThan(rs[i - 1].hazardCount);
+      expect(rs[i].winScore).toBeGreaterThan(rs[i - 1].winScore);
+      expect(rs[i].hazardPenalty.critical).toBeGreaterThan(rs[i - 1].hazardPenalty.critical);
+      expect(rs[i].speechSec).toBeLessThan(rs[i - 1].speechSec);
+    }
+    expect(rulesFor(undefined)).toBe(DIFFICULTIES.normal); // старые сохранения
+    expect(rulesFor('bogus' as never)).toBe(DIFFICULTIES.normal);
+  });
+
+  it('easy: one unremoved deadly threat is not fatal; normal: it is', () => {
+    const survivors = plain([[], [], [], []]);
+    expect(evaluate(sc, survivors, 4, [crit], 'normal').verdict).toBe('failed');
+    const easy = evaluate(sc, survivors, 4, [crit], 'easy');
+    expect(easy.verdict).toBe('fragile'); // не гибель, но и не победа
+    expect(easy.notes.join()).not.toContain('гибель');
+    expect(evaluate(sc, survivors, 4, [crit, { ...crit, id: 'c2' }], 'easy').verdict).toBe('failed'); // две — уже фатально
+  });
+
+  it('nightmare: a deadly threat needs two different survivors', () => {
+    const one = plain([['инженерия'], [], [], []]);
+    const two = plain([['инженерия'], ['инженерия'], [], []]);
+    expect(evaluate(sc, one, 4, [crit], 'hard').hazards[0]).toMatchObject({ need: 1, ok: true });
+    const bad = evaluate(sc, one, 4, [crit], 'nightmare');
+    expect(bad.hazards[0]).toMatchObject({ need: 2, ok: false });
+    expect(bad.verdict).toBe('failed');
+    expect(bad.notes.join()).toContain('нужно 2, есть 1');
+    expect(evaluate(sc, two, 4, [crit], 'nightmare').hazards[0].ok).toBe(true);
+  });
+
+  it('same survivors score lower on harder levels when threats are open', () => {
+    const survivors = plain([[], [], [], []]);
+    const major: Hazard = { ...crit, id: 'm', severity: 'major' };
+    const scores = (['easy', 'normal', 'hard', 'nightmare'] as const).map((d) => evaluate(sc, survivors, 4, [major], d).score);
+    for (let i = 1; i < scores.length; i++) expect(scores[i]).toBeLessThan(scores[i - 1]);
   });
 });

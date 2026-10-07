@@ -1,4 +1,5 @@
-import { CATEGORIES, type Card, type Hazard, type PlayerCharacter, type Scenario } from '../types';
+import { CATEGORIES, type Card, type Difficulty, type Hazard, type PlayerCharacter, type Scenario } from '../types';
+import { rulesFor } from './difficulty';
 
 export interface SkillCoverage {
   skill: string;
@@ -8,6 +9,8 @@ export interface SkillCoverage {
 export interface HazardResult {
   hazard: Hazard;
   by: string[]; // кто из выживших нейтрализует
+  need: number; // сколько человек нужно (на «Кошмаре» смертельную угрозу снимают двое)
+  ok: boolean;
 }
 
 export interface Evaluation {
@@ -38,17 +41,17 @@ export function cardMatchesSkill(card: Card, skill: string): boolean {
 /** Навыки засчитываются с карт профессии, хобби, факта и багажа; здоровье и биология дают штрафы, а не навыки. */
 const SKILL_CATEGORIES = ['profession', 'hobby', 'fact', 'luggage'] as const;
 
-const HAZARD_PENALTY = { critical: 25, major: 12, minor: 5 } as const;
-
-export function evaluate(scenario: Scenario, survivors: PlayerCharacter[], slots?: number, hazards: Hazard[] = []): Evaluation {
-  // Фактор угрозы нейтрализован, если хоть у одного выжившего есть подходящий навык/карта.
-  const hazardResults: HazardResult[] = hazards.map((hazard) => ({
-    hazard,
-    by: survivors
+export function evaluate(scenario: Scenario, survivors: PlayerCharacter[], slots?: number, hazards: Hazard[] = [], difficulty?: Difficulty): Evaluation {
+  const rules = rulesFor(difficulty);
+  // Угроза нейтрализована, если нужное число выживших (обычно один) имеет подходящий навык/карту.
+  const hazardResults: HazardResult[] = hazards.map((hazard) => {
+    const by = survivors
       .filter((p) => hazard.counters.some((sk) => SKILL_CATEGORIES.some((c) => cardMatchesSkill(p.slots[c].card, sk))))
-      .map((p) => p.name),
-  }));
-  const open = hazardResults.filter((r) => r.by.length === 0);
+      .map((p) => p.name);
+    const need = hazard.severity === 'critical' ? rules.criticalNeeds : 1;
+    return { hazard, by, need, ok: by.length >= need };
+  });
+  const open = hazardResults.filter((r) => !r.ok);
   const criticalOpen = open.filter((r) => r.hazard.severity === 'critical');
   const coverage: SkillCoverage[] = scenario.requiredSkills.map((skill) => ({
     skill,
@@ -82,12 +85,13 @@ export function evaluate(scenario: Scenario, survivors: PlayerCharacter[], slots
 
   // Переполненное убежище: ресурсы делятся на всех, и за каждого лишнего — штраф.
   const overcrowd = slots ? Math.max(0, survivors.length - slots) : 0;
-  const score = Math.max(0, Math.round(100 * (0.6 * skillRatio + 0.15 * health + 0.15 * resources + 0.1 * stability)) - overcrowd * 10 - open.reduce((sum, r) => sum + HAZARD_PENALTY[r.hazard.severity], 0));
+  const score = Math.max(0, Math.round(100 * (0.6 * skillRatio + 0.15 * health + 0.15 * resources + 0.1 * stability)) - overcrowd * rules.overcrowdPenalty - open.reduce((sum, r) => sum + rules.hazardPenalty[r.hazard.severity], 0));
   // Неснятая критическая угроза — это конец; для полной победы нужно убрать вообще все факторы угрозы.
+  const fatal = criticalOpen.length >= rules.fatalCriticals;
   const verdict =
-    criticalOpen.length || skillRatio < 0.5 || score < 45
+    fatal || skillRatio < rules.failSkill || score < rules.failScore
       ? 'failed'
-      : score >= 75 && skillRatio === 1 && open.length === 0
+      : score >= rules.winScore && skillRatio === 1 && open.length === 0
         ? 'survived'
         : 'fragile';
 
@@ -96,7 +100,10 @@ export function evaluate(scenario: Scenario, survivors: PlayerCharacter[], slots
   if (missing.length) notes.push(`Не хватило специалистов: ${missing.join(', ')}.`);
   if (badHealth) notes.push(`Проблемы со здоровьем у ${badHealth} из ${survivors.length} выживших.`);
   if (resources < 0.4) notes.push('Запасов и снаряжения мало — зимовка будет тяжёлой.');
-  for (const r of open) notes.push(`Угроза «${r.hazard.title}» не нейтрализована${r.hazard.severity === 'critical' ? ' — это гибель убежища' : ''}.`);
+  for (const r of open) {
+    const lack = r.by.length ? ` (нужно ${r.need}, есть ${r.by.length})` : '';
+    notes.push(`Угроза «${r.hazard.title}» не нейтрализована${lack}${r.hazard.severity === 'critical' && fatal ? ' — это гибель убежища' : ''}.`);
+  }
   if (overcrowd) notes.push(`Бункер переполнен: ${survivors.length} человек на ${slots} мест.`);
   if (!survivors.length) notes.push('В убежище никого не осталось.');
 
@@ -105,7 +112,7 @@ export function evaluate(scenario: Scenario, survivors: PlayerCharacter[], slots
       ? 'Убежище выстояло'
       : verdict === 'fragile'
         ? 'Колония на грани'
-        : criticalOpen.length
+        : fatal
           ? `Убежище погубила угроза: ${criticalOpen[0].hazard.title}`
           : 'Убежище не пережило катастрофу';
   return { hazards: hazardResults, coverage, coveredCount, health, resources, stability, score, verdict, headline, notes };

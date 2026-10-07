@@ -22,16 +22,17 @@ export const CATEGORY_ICON: Record<Category, LucideIcon> = {
 };
 
 const MOD_STYLE: Record<NonNullable<Card['modifier']>, string> = {
-  positive: 'text-ok',
-  neutral: 'text-dim',
-  negative: 'text-danger',
+  positive: 'border-ok/40 bg-ok/10 text-ok',
+  neutral: 'border-edge text-dim',
+  negative: 'border-danger/40 bg-danger/10 text-danger',
 };
-const MOD_LABEL = { positive: '+', neutral: '·', negative: '−' } as const;
+const MOD_LABEL = { positive: 'плюс', neutral: 'нейтр.', negative: 'минус' } as const;
 
 export function ModBadge({ mod = 'neutral' }: { mod?: Card['modifier'] }) {
-  return <span className={`font-bold ${MOD_STYLE[mod]}`} title={mod}>{MOD_LABEL[mod]}</span>;
+  return <span className={`rounded-full border px-1.5 py-px text-[9px] font-bold uppercase tracking-widest ${MOD_STYLE[mod]}`} title={mod}>{MOD_LABEL[mod]}</span>;
 }
 
+/** Карта персонажа: цветная полоса и иконка категории, значок «плюс/минус», «переворот» при появлении. */
 export function CardFace({
   card,
   hidden = false,
@@ -40,6 +41,7 @@ export function CardFace({
   onClick,
   selected,
   extra,
+  flip = false,
 }: {
   card: Card;
   hidden?: boolean;
@@ -48,25 +50,29 @@ export function CardFace({
   onClick?: () => void;
   selected?: boolean;
   extra?: ReactNode;
+  flip?: boolean;
 }) {
   const Icon = CATEGORY_ICON[card.category];
   const Tag = onClick ? 'button' : 'div';
   return (
     <Tag
       onClick={onClick}
-      className={`print-card flex w-full flex-col gap-1 rounded-md border p-3 text-left ${
-        selected ? 'border-amber bg-amber/10' : 'border-edge bg-bg'
-      } ${onClick ? 'cursor-pointer hover:border-amber' : ''} ${compact ? 'min-h-0' : 'min-h-20'}`}
+      className={`print-card cat-${card.category} relative flex w-full flex-col gap-1.5 overflow-hidden rounded-md border py-2.5 pl-4 pr-3 text-left transition ${flip ? 'anim-flip' : ''} ${
+        selected
+          ? 'border-[var(--c)] bg-[color-mix(in_srgb,var(--c)_14%,var(--color-bg))] shadow-[0_0_24px_-8px_var(--c)]'
+          : 'border-edge bg-bg hover:border-[color-mix(in_srgb,var(--c)_55%,var(--color-edge))]'
+      } ${onClick ? 'cursor-pointer active:scale-[.99]' : ''} ${compact ? 'min-h-0' : 'min-h-20'}`}
     >
-      <span className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-dim">
+      <span aria-hidden className="absolute inset-y-0 left-0 w-1.5 bg-[var(--c)]" style={{ opacity: hidden ? 0.35 : 1 }} />
+      <span className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-[var(--c)]">
         <Icon size={14} /> {CATEGORY_LABEL[card.category]}
         {showMod && !hidden && <span className="ml-auto"><ModBadge mod={card.modifier} /></span>}
       </span>
       {hidden ? (
-        <span className="text-sm tracking-widest text-dim">▓▓▓▓▓ СКРЫТО ▓▓▓▓▓</span>
+        <span className="text-sm tracking-[.3em] text-dim">▓▓▓▓▓▓▓▓</span>
       ) : (
-        <span className="text-sm leading-snug">
-          {card.title && <b className="mr-1 text-amber">{card.title}.</b>}
+        <span className="text-sm leading-snug text-ink">
+          {card.title && <b className="mr-1 text-[var(--c)]">{card.title}.</b>}
           {card.description}
         </span>
       )}
@@ -77,8 +83,8 @@ export function CardFace({
 
 export function Modal({ children, onClose, title }: { children: ReactNode; onClose?: () => void; title?: string }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 sm:items-center sm:p-4" role="dialog" aria-modal>
-      <div className="panel max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-b-none sm:rounded-b-lg">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal>
+      <div className="panel hud anim-rise max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-b-none sm:rounded-b-lg">
         {title && <h2 className="h-hud mb-3">{title}</h2>}
         {children}
         {onClose && (

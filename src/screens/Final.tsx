@@ -4,6 +4,8 @@ import { CATEGORIES } from '../types';
 import { evaluate } from '../lib/evaluate';
 import { CardFace } from '../ui/bits';
 import { ThreatsPanel } from '../ui/Threats';
+import { ScoreRing } from '../ui/ScoreRing';
+import { rulesFor } from '../lib/difficulty';
 import { useStore } from '../store';
 
 function Meter({ label, value }: { label: string; value: number }) {
@@ -19,15 +21,18 @@ function Meter({ label, value }: { label: string; value: number }) {
 
 export function Verdict({ game }: { game: GameState }) {
   const survivors = game.players.filter((p) => !p.isEliminated);
-  const ev = evaluate(game.scenario, survivors, game.config.shelterSlots, game.hazards ?? []);
+  const ev = evaluate(game.scenario, survivors, game.config.shelterSlots, game.hazards ?? [], game.config.difficulty);
   const Icon = ev.verdict === 'survived' ? CheckCircle2 : ev.verdict === 'fragile' ? TriangleAlert : Skull;
   const tone = ev.verdict === 'survived' ? 'text-ok' : ev.verdict === 'fragile' ? 'text-amber' : 'text-danger';
   return (
     <div className="flex flex-col gap-4">
-      <div className="panel text-center">
-        <Icon className={`mx-auto mb-2 ${tone}`} size={48} />
+      <div className={`panel hud anim-rise text-center ${ev.verdict === 'survived' ? 'border-ok/60' : ev.verdict === 'fragile' ? 'border-amber/60' : 'border-danger/60'}`}>
+        <Icon className={`mx-auto mb-2 ${tone}`} size={32} />
         <h2 className={`text-xl font-bold uppercase tracking-widest ${tone}`}>{ev.headline}</h2>
-        <p className="mt-1 text-sm text-dim">Индекс выживаемости: <b className={tone}>{ev.score}</b> / 100</p>
+        <p className="mb-4 mt-1 text-xs uppercase tracking-widest text-dim">
+          {rulesFor(game.config.difficulty).label} сложность · нужно {rulesFor(game.config.difficulty).winScore}+ для победы
+        </p>
+        <ScoreRing score={ev.score} tone={ev.verdict === 'survived' ? 'ok' : ev.verdict === 'fragile' ? 'amber' : 'danger'} />
       </div>
 
       <div className="panel">

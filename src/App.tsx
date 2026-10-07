@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useStore } from './store';
 import Home from './screens/Home';
 import Setup from './screens/Setup';
@@ -12,8 +13,11 @@ import { packStats } from './lib/packs';
 
 export default function App() {
   const { screen, toast, incoming, acceptIncoming, dismissIncoming } = useStore();
+  // Новый экран всегда открывается сверху, а не на прежней прокрутке.
+  useEffect(() => window.scrollTo(0, 0), [screen.name]);
   return (
     <main className="mx-auto min-h-dvh max-w-5xl px-4 pb-[env(safe-area-inset-bottom)]">
+      <div key={screen.name} className="anim-rise">
       {screen.name === 'home' && <Home />}
       {screen.name === 'setup' && <Setup />}
       {screen.name === 'game' && <Game />}
@@ -23,6 +27,7 @@ export default function App() {
       {screen.name === 'install' && <Install />}
       {screen.name === 'lobby' && <Lobby draft={screen.draft} />}
       {screen.name === 'join' && <Join initialCode={screen.code} initialTicket={screen.ticket} />}
+      </div>
 
       {incoming && (
         <Modal title="Получен пак по ссылке">
@@ -37,7 +42,7 @@ export default function App() {
         </Modal>
       )}
       {toast && (
-        <div role="status" className="fixed inset-x-4 bottom-4 z-[60] mx-auto max-w-sm rounded-md border border-amber bg-panel px-4 py-3 text-center text-sm text-amber shadow-lg">
+        <div role="status" className="anim-rise fixed inset-x-4 top-4 z-[60] mx-auto max-w-sm rounded-md border border-amber bg-panel/95 px-4 py-3 text-center text-sm text-amber shadow-[0_8px_30px_-6px_rgba(0,0,0,.8)] backdrop-blur-md">
           {toast}
         </div>
       )}
