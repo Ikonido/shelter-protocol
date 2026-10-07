@@ -500,3 +500,78 @@ describe('round events', () => {
     expect(['vote', 'result']).toContain(late.phase);
   });
 });
+
+import { HAZARD_TEMPLATES, SCENARIO_TEMPLATES } from '../data/templates';
+import { cardsWithSkill, skillCards, skillVocabulary, validateScenario } from './vocab';
+import { mergePools } from './generator';
+import type { CardPack } from '../types';
+
+describe('scenario builder logic', () => {
+  const classic = CLASSIC_PACK;
+  const customWith = (over: Partial<CardPack>): CardPack => ({ id: 'mine', name: 'Мои', description: '', isCustom: true, scenarios: [], cards: { profession: [], biology: [], health: [], hobby: [], luggage: [], fact: [], action: [] }, ...over });
+
+  it('tag overrides teach a built-in card a new ability, only when the pack is selected', () => {
+    const doc = classic.cards.profession.find((c) => c.description === 'Хирург')!;
+    const without = mergePools([classic]).profession.find((c) => c.id === doc.id)!;
+    expect(without.tags).toEqual(['медицина']);
+    const mine = customWith({ tagOverrides: { [doc.id]: ['медицина', 'призраки'] } });
+    expect(mergePools([classic, mine]).profession.find((c) => c.id === doc.id)!.tags).toEqual(['медицина', 'призраки']);
+    expect(mergePools([classic]).profession.find((c) => c.id === doc.id)!.tags).toEqual(['медицина']); // оригинал не тронут
+    const wipe = customWith({ tagOverrides: { [doc.id]: [] } });
+    expect(mergePools([classic, wipe]).profession.find((c) => c.id === doc.id)!.tags).toBeUndefined();
+  });
+
+  it('an overridden ability really neutralizes a hazard in the final evaluation', () => {
+    const ghost: Hazard = { id: 'g', title: 'Призраки', description: '', severity: 'critical', counters: ['призраки'], };
+    const priest = { id: 'priest', category: 'profession' as const, description: 'Священник', tags: ['призраки'] };
+    const mine = customWith({ cards: { ...customWith({}).cards, profession: [priest] } });
+    const pool = mergePools([classic, mine]).profession;
+    expect(pool.some((c) => c.id === 'priest' && c.tags?.includes('призраки'))).toBe(true);
+    const g = newGame(6, 3);
+    const survivors = g.players.slice(0, 3).map((p, i) => ({ ...p, slots: { ...p.slots, profession: { ...p.slots.profession, card: i === 0 ? priest : { ...p.slots.profession.card, description: 'Обычный', tags: [] } }, hobby: { ...p.slots.hobby, card: { ...p.slots.hobby.card, description: 'Х', tags: [] } }, fact: { ...p.slots.fact, card: { ...p.slots.fact.card, description: 'Ф', tags: [] } }, luggage: { ...p.slots.luggage, card: { ...p.slots.luggage.card, description: 'Б', tags: [] } } } }));
+    expect(evaluate({ ...g.scenario, requiredSkills: [] }, survivors, 3, [ghost]).hazards[0].ok).toBe(true);
+    expect(evaluate({ ...g.scenario, requiredSkills: [] }, survivors.slice(1), 3, [ghost]).hazards[0].ok).toBe(false);
+  });
+
+  it('vocabulary lists skills with card counts, and finds the cards behind a skill', () => {
+    const vocab = skillVocabulary([classic], ['свой навык']);
+    expect(vocab.find((v) => v.skill === 'медицина')!.count).toBeGreaterThanOrEqual(3);
+    expect(vocab.find((v) => v.skill === 'свой навык')!.count).toBe(0);
+    expect(new Set(vocab.map((v) => v.skill.toLowerCase())).size).toBe(vocab.length); // без дублей
+    const names = cardsWithSkill(skillCards([classic]), 'дератизация').map((c) => c.description);
+    expect(names.join()).toContain('Дезинфектор');
+  });
+
+  it('validation flags unwinnable scenarios and missing names', () => {
+    const base = { id: 's', title: 'Т', description: '', shelterSlots: 4, isolationDuration: '1 год', requiredSkills: ['медицина'], threats: [], hazards: [] as Hazard[] };
+    expect(validateScenario(base, [classic]).filter((p) => p.level === 'error')).toEqual([]);
+    expect(validateScenario({ ...base, title: ' ' }, [classic]).some((p) => p.level === 'error')).toBe(true);
+    const bad = validateScenario({ ...base, requiredSkills: ['телепортация'], hazards: [{ id: 'h', title: 'Х', description: '', severity: 'critical', counters: ['магия'] }, { id: 'h2', title: 'Y', description: '', severity: 'minor', counters: [] }] }, [classic]);
+    expect(bad.filter((p) => p.level === 'warn').map((p) => p.text).join(' ')).toContain('телепортация');
+    expect(bad.some((p) => p.text.includes('«Х» не может снять'))).toBe(true);
+    expect(bad.some((p) => p.text.includes('«Y» ничто не нейтрализует'))).toBe(true);
+    // после «обучения» карты предупреждение исчезает
+    const taught = customWith({ tagOverrides: { [classic.cards.profession[0].id]: ['магия'] } });
+    expect(validateScenario({ ...base, hazards: [{ id: 'h', title: 'Х', description: '', severity: 'critical', counters: ['магия'] }] }, [classic, taught]).some((p) => p.text.includes('«Х»'))).toBe(false);
+  });
+
+  it('every built-in template can be won with the built-in deck', () => {
+    for (const [key, t] of Object.entries(SCENARIO_TEMPLATES)) {
+      const sc = { ...t, id: key, hazards: t.hazards.map((h, i) => ({ ...h, id: `${key}${i}` })) };
+      expect(validateScenario(sc, [classic]).filter((p) => p.level === 'warn' && !p.text.startsWith('Угроз нет')), key).toEqual([]);
+      expect(sc.hazards.length, key).toBeGreaterThanOrEqual(3);
+    }
+    for (const h of HAZARD_TEMPLATES) expect(h.counters.some((s) => cardsWithSkill(skillCards([classic]), s).length > 0), h.title).toBe(true);
+  });
+
+  it('overrides survive sanitizing and a share link, and are clamped', () => {
+    const p = sanitizePack({ name: 'x', tagOverrides: { a: ['t1', 't2', 't3', 't4', 't5', 't6', 'x'.repeat(99)], '': ['no'], b: 'not-a-list', __proto__: ['evil'] } })!;
+    expect(p.tagOverrides!.a).toHaveLength(5);
+    expect(p.tagOverrides!.a[0]).toBe('t1');
+    expect(p.tagOverrides!['']).toBeUndefined();
+    expect(Object.keys(p.tagOverrides!)).toEqual(expect.arrayContaining(['a', 'b']));
+    expect(({} as Record<string, unknown>).evil).toBeUndefined();
+    const back = decodePack(encodePack({ ...customWith({}), tagOverrides: { z: ['q'] } }));
+    expect(back?.tagOverrides).toEqual({ z: ['q'] });
+  });
+});

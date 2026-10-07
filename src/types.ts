@@ -77,6 +77,11 @@ export interface CardPack {
   isCustom?: boolean;
   scenarios: Scenario[];
   cards: Record<Category, Card[]>;
+  /**
+   * Переопределение способностей карт: id карты (в том числе из другого пака) → теги, которые она даёт.
+   * Так в конструкторе можно «научить» встроенную профессию нейтрализовать новую угрозу.
+   */
+  tagOverrides?: Record<string, string[]>;
 }
 
 export interface PlayerSlot {

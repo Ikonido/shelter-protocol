@@ -84,7 +84,19 @@ export function sanitizePack(raw: unknown): CardPack | null {
     isCustom: true,
     scenarios,
     cards,
+    ...cleanOverrides(rawCards, r.tagOverrides),
   };
+}
+
+function cleanOverrides(_cards: unknown, raw: unknown): { tagOverrides?: Record<string, string[]> } {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out: Record<string, string[]> = Object.create(null);
+  for (const [id, tags] of Object.entries(raw as Record<string, unknown>).slice(0, L.tagOverrides)) {
+    const key = str(id, 60);
+    if (!key) continue;
+    out[key] = strList(tags, L.cardTags, L.tagLen);
+  }
+  return Object.keys(out).length ? { tagOverrides: { ...out } } : {};
 }
 
 export function emptyPack(): CardPack {

@@ -15,6 +15,19 @@ export function mergePools(packs: CardPack[]): Record<Category, Card[]> {
       }
     }
   }
+  // Переопределения способностей из выбранных паков (конструктор сценариев): позднейший пак главнее.
+  for (const pack of packs) {
+    const ov = pack.tagOverrides;
+    if (!ov) continue;
+    for (const cat of CATEGORIES) {
+      pools[cat] = pools[cat].map((c) => {
+        const tags = ov[c.id];
+        if (!tags) return c;
+        const { tags: _old, ...rest } = c;
+        return tags.length ? { ...rest, tags: tags.slice() } : rest;
+      });
+    }
+  }
   return pools;
 }
 
