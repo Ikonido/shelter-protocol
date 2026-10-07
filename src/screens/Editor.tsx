@@ -5,14 +5,28 @@ import { CATEGORIES, CATEGORY_LABEL, type Card, type CardPack, type Category, ty
 import { exportPackFile, shareUrl } from '../lib/packs';
 import { uid } from '../lib/rng';
 import { CATEGORY_ICON } from '../ui/bits';
+import { LIMITS as L, clip, clipList } from '../lib/limits';
+
+const Counter = ({ v, max }: { v: string; max: number }) => (
+  <span className={`mt-1 block text-right text-[10px] ${v.length >= max ? 'text-amber' : 'text-dim'}`}>{v.length}/{max}</span>
+);
 
 /** Поле «список через запятую/строки»: фиксирует значение на blur, чтобы курсор не прыгал при вводе. */
-function ListInput({ value, onCommit, multiline = false, placeholder }: { value: string[]; onCommit: (v: string[]) => void; multiline?: boolean; placeholder?: string }) {
+function ListInput({ value, onCommit, multiline = false, placeholder, maxItems, maxLen }: { value: string[]; onCommit: (v: string[]) => void; multiline?: boolean; placeholder?: string; maxItems: number; maxLen: number }) {
   const sep = multiline ? '\n' : ', ';
   const [text, setText] = useState(value.join(sep));
-  const commit = () => onCommit(text.split(multiline ? /\n/ : /[,;]/).map((s) => s.trim()).filter(Boolean));
+  const commit = () => {
+    const next = clipList(text.split(multiline ? /\n/ : /[,;]/), maxItems, maxLen);
+    onCommit(next);
+    setText(next.join(sep));
+  };
   const props = { value: text, placeholder, className: 'input', onChange: (e: { target: { value: string } }) => setText(e.target.value), onBlur: commit };
-  return multiline ? <textarea rows={3} {...props} /> : <input {...props} />;
+  return (
+    <>
+      {multiline ? <textarea rows={3} {...props} /> : <input {...props} />}
+      <span className="mt-1 block text-right text-[10px] text-dim">до {maxItems} шт. по {maxLen} симв.</span>
+    </>
+  );
 }
 
 const MOD_OPTIONS: [Modifier, string][] = [['positive', '+ полезная'], ['neutral', '· нейтральная'], ['negative', '− вредная']];
@@ -35,9 +49,9 @@ export default function Editor({ packId }: { packId: string }) {
     const added: Card[] = bulk.split('\n').map((l) => l.trim()).filter(Boolean).map((line) => {
       const [desc, mod, tags] = line.split('|').map((s) => s.trim());
       const modifier: Modifier = mod === '+' ? 'positive' : mod === '-' || mod === '−' ? 'negative' : 'neutral';
-      return { id: uid('c'), category: cat, description: desc.slice(0, 600), modifier, ...(tags ? { tags: tags.split(/[,;]/).map((t) => t.trim()).filter(Boolean) } : {}) };
+      return { id: uid('c'), category: cat, description: clip(desc ?? '', L.cardDescription), modifier, ...(tags ? { tags: clipList(tags.split(/[,;]/), L.cardTags, L.tagLen) } : {}) };
     });
-    setCards(cat, [...pack.cards[cat], ...added]);
+    setCards(cat, [...pack.cards[cat], ...added.filter((c) => c.description)].slice(0, L.cardsPerCategory));
     setBulk('');
     notify(`Добавлено карт: ${added.length}`);
   };
@@ -64,8 +78,8 @@ export default function Editor({ packId }: { packId: string }) {
 
       {tab === 'info' && (
         <div className="panel flex flex-col gap-3">
-          <div><span className="label">Название</span><input className="input" maxLength={120} value={pack.name} onChange={(e) => save({ ...pack, name: e.target.value })} /></div>
-          <div><span className="label">Описание</span><textarea rows={3} className="input" value={pack.description} onChange={(e) => save({ ...pack, description: e.target.value })} /></div>
+          <div><span className="label">Название</span><input className="input" maxLength={L.packName} value={pack.name} onChange={(e) => save({ ...pack, name: e.target.value })} /><Counter v={pack.name} max={L.packName} /></div>
+          <div><span className="label">Описание</span><textarea rows={3} maxLength={L.packDescription} className="input" value={pack.description} onChange={(e) => save({ ...pack, description: e.target.value })} /><Counter v={pack.description} max={L.packDescription} /></div>
         </div>
       )}
 
@@ -74,19 +88,19 @@ export default function Editor({ packId }: { packId: string }) {
           {pack.scenarios.map((s) => (
             <div key={s.id} className="panel flex flex-col gap-3">
               <div className="flex gap-2">
-                <input className="input font-bold" placeholder="Название катастрофы" value={s.title} onChange={(e) => setScenario(s.id, { title: e.target.value })} />
+                <input className="input font-bold" maxLength={L.scenarioTitle} placeholder="Название катастрофы" value={s.title} onChange={(e) => setScenario(s.id, { title: e.target.value })} />
                 <button className="btn btn-danger btn-sm" aria-label="удалить" onClick={() => confirm('Удалить сценарий?') && save({ ...pack, scenarios: pack.scenarios.filter((x) => x.id !== s.id) })}><Trash2 size={14} /></button>
               </div>
-              <textarea rows={3} className="input" placeholder="Описание" value={s.description} onChange={(e) => setScenario(s.id, { description: e.target.value })} />
+              <div><textarea rows={3} maxLength={L.scenarioDescription} className="input" placeholder="Описание" value={s.description} onChange={(e) => setScenario(s.id, { description: e.target.value })} /><Counter v={s.description} max={L.scenarioDescription} /></div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div><span className="label">Мест по умолчанию</span><input type="number" min={1} max={19} className="input" value={s.shelterSlots} onChange={(e) => setScenario(s.id, { shelterSlots: Math.min(19, Math.max(1, Number(e.target.value) || 1)) })} /></div>
-                <div><span className="label">Срок изоляции</span><input className="input" placeholder="например, 3 года" value={s.isolationDuration} onChange={(e) => setScenario(s.id, { isolationDuration: e.target.value })} /></div>
+                <div><span className="label">Срок изоляции</span><input className="input" maxLength={L.scenarioDuration} placeholder="например, 3 года" value={s.isolationDuration} onChange={(e) => setScenario(s.id, { isolationDuration: e.target.value })} /></div>
               </div>
-              <div><span className="label">Требуемые навыки (через запятую)</span><ListInput value={s.requiredSkills} onCommit={(v) => setScenario(s.id, { requiredSkills: v })} placeholder="медицина, агрономия" /></div>
-              <div><span className="label">Угрозы (по одной в строке)</span><ListInput multiline value={s.threats} onCommit={(v) => setScenario(s.id, { threats: v })} /></div>
+              <div><span className="label">Требуемые навыки (через запятую)</span><ListInput value={s.requiredSkills} onCommit={(v) => setScenario(s.id, { requiredSkills: v })} placeholder="медицина, агрономия" maxItems={L.skills} maxLen={L.skillLen} /></div>
+              <div><span className="label">Угрозы (по одной в строке)</span><ListInput multiline value={s.threats} onCommit={(v) => setScenario(s.id, { threats: v })} maxItems={L.threats} maxLen={L.threatLen} /></div>
             </div>
           ))}
-          <button className="btn" onClick={() => save({ ...pack, scenarios: [...pack.scenarios, { id: uid('sc'), title: 'Новая катастрофа', description: '', shelterSlots: 4, isolationDuration: '1 год', requiredSkills: [], threats: [] }] })}><Plus size={16} /> Добавить сценарий</button>
+          <button className="btn" disabled={pack.scenarios.length >= L.scenarios} onClick={() => save({ ...pack, scenarios: [...pack.scenarios, { id: uid('sc'), title: 'Новая катастрофа', description: '', shelterSlots: 4, isolationDuration: '1 год', requiredSkills: [], threats: [] }] })}><Plus size={16} /> Добавить сценарий ({pack.scenarios.length}/{L.scenarios})</button>
         </div>
       )}
 
@@ -100,19 +114,19 @@ export default function Editor({ packId }: { packId: string }) {
               const patch = (p: Partial<Card>) => setCards(cat, pack.cards[cat].map((x) => (x.id === c.id ? { ...x, ...p } : x)));
               return (
                 <div key={c.id} className="panel flex flex-col gap-2 p-3">
-                  {cat === 'action' && <input className="input" placeholder="Название действия" value={c.title ?? ''} onChange={(e) => patch({ title: e.target.value })} />}
-                  <textarea rows={2} className="input" placeholder="Описание карты" value={c.description} onChange={(e) => patch({ description: e.target.value })} />
+                  {cat === 'action' && <input className="input" maxLength={L.cardTitle} placeholder="Название действия" value={c.title ?? ''} onChange={(e) => patch({ title: e.target.value })} />}
+                  <div><textarea rows={2} maxLength={L.cardDescription} className="input" placeholder="Описание карты" value={c.description} onChange={(e) => patch({ description: e.target.value })} /><Counter v={c.description} max={L.cardDescription} /></div>
                   <div className="grid gap-2 sm:grid-cols-[10rem_1fr_auto]">
                     <select className="input" value={c.modifier ?? 'neutral'} onChange={(e) => patch({ modifier: e.target.value as Modifier })}>
                       {MOD_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
-                    <ListInput value={c.tags ?? []} onCommit={(v) => patch({ tags: v.length ? v : undefined })} placeholder="теги-навыки: медицина, связь" />
+                    <ListInput value={c.tags ?? []} onCommit={(v) => patch({ tags: v.length ? v : undefined })} placeholder="теги-навыки: медицина, связь" maxItems={L.cardTags} maxLen={L.tagLen} />
                     <button className="btn btn-danger btn-sm" aria-label="удалить" onClick={() => setCards(cat, pack.cards[cat].filter((x) => x.id !== c.id))}><Trash2 size={14} /></button>
                   </div>
                 </div>
               );
             })}
-            <button className="btn" onClick={() => setCards(cat, [...pack.cards[cat], { id: uid('c'), category: cat, description: '', modifier: 'neutral' }])}><Plus size={16} /> Добавить карту</button>
+            <button className="btn" disabled={pack.cards[cat].length >= L.cardsPerCategory} onClick={() => setCards(cat, [...pack.cards[cat], { id: uid('c'), category: cat, description: '', modifier: 'neutral' }])}><Plus size={16} /> Добавить карту ({pack.cards[cat].length}/{L.cardsPerCategory})</button>
             <details className="panel p-3">
               <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">Массовое добавление</summary>
               <p className="my-2 text-xs text-dim">По карте в строке: <code>Текст | + | тег1, тег2</code> (знак «+», «-» или пусто; теги необязательны).</p>

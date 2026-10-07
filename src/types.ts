@@ -70,7 +70,7 @@ export interface PlayerCharacter {
   slots: Record<Category, PlayerSlot>;
 }
 
-export type PlayMode = 'pass-and-play' | 'tabletop';
+export type PlayMode = 'pass-and-play' | 'tabletop' | 'online';
 export type VotingMode = 'secret' | 'open';
 
 export interface SessionConfig {

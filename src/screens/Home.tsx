@@ -1,4 +1,4 @@
-import { BookOpen, Library, Play, RotateCcw, ShieldAlert } from 'lucide-react';
+import { BookOpen, Globe, Library, Play, RotateCcw, ShieldAlert } from 'lucide-react';
 import { useStore } from '../store';
 
 export default function Home() {
@@ -21,6 +21,9 @@ export default function Home() {
         )}
         <button className="btn btn-primary" onClick={() => go({ name: 'setup' })}>
           <Play size={18} /> Новая игра
+        </button>
+        <button className="btn" onClick={() => go({ name: 'join' })}>
+          <Globe size={18} /> Войти в онлайн-комнату
         </button>
         {game && game.phase === 'final' && (
           <button className="btn" onClick={() => go({ name: 'game' })}>

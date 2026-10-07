@@ -1,9 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { CardPack, GameState } from './types';
+import type { CardPack, GameState, Scenario, VotingMode } from './types';
 import { BUILTIN_PACKS } from './data/classicPack';
 import { loadGame, loadPacks, saveGame, savePacks } from './lib/storage';
 import { packFromHash } from './lib/packs';
 import { uid } from './lib/rng';
+
+export interface OnlineDraft {
+  scenario: Scenario;
+  packs: CardPack[];
+  slots: number;
+  voting: VotingMode;
+}
 
 export type Screen =
   | { name: 'home' }
@@ -11,7 +18,9 @@ export type Screen =
   | { name: 'game' }
   | { name: 'packs' }
   | { name: 'editor'; packId: string }
-  | { name: 'rules' };
+  | { name: 'rules' }
+  | { name: 'lobby'; draft: OnlineDraft }
+  | { name: 'join'; code?: string };
 
 interface Store {
   screen: Screen;
@@ -51,6 +60,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Ссылка-шеринг: #pack=... → предложение добавить пак.
   useEffect(() => {
     const check = () => {
+      const join = /^#join=([A-Za-z0-9]{5})$/.exec(window.location.hash);
+      if (join) {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+        go({ name: 'join', code: join[1].toUpperCase() });
+        return;
+      }
       if (!window.location.hash.startsWith('#pack=')) return;
       const pack = packFromHash(window.location.hash);
       history.replaceState(null, '', window.location.pathname + window.location.search);

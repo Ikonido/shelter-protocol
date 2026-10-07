@@ -1,25 +1,24 @@
 import LZString from 'lz-string';
 import { CATEGORIES, type Card, type CardPack, type Category, type Modifier, type Scenario } from '../types';
 import { uid } from './rng';
+import { LIMITS as L } from './limits';
 
-const MAX_TEXT = 600;
-const MAX_ITEMS = 500;
 
-const str = (v: unknown, max = MAX_TEXT): string => (typeof v === 'string' ? v.slice(0, max).trim() : '');
-const strList = (v: unknown, max = 20): string[] =>
-  Array.isArray(v) ? v.map((x) => str(x, 80)).filter(Boolean).slice(0, max) : [];
+const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.slice(0, max).trim() : '');
+const strList = (v: unknown, maxItems: number, maxLen: number): string[] =>
+  Array.isArray(v) ? v.map((x) => str(x, maxLen)).filter(Boolean).slice(0, maxItems) : [];
 const MODS: Modifier[] = ['positive', 'neutral', 'negative'];
 
 function sanitizeCard(raw: unknown, category: Category, i: number): Card | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
-  const description = str(r.description);
+  const description = str(r.description, L.cardDescription);
   if (!description) return null;
   const card: Card = { id: str(r.id, 60) || `c${i}-${uid('card')}`, category, description };
-  const title = str(r.title, 100);
+  const title = str(r.title, L.cardTitle);
   if (title) card.title = title;
   if (MODS.includes(r.modifier as Modifier)) card.modifier = r.modifier as Modifier;
-  const tags = strList(r.tags);
+  const tags = strList(r.tags, L.cardTags, L.tagLen);
   if (tags.length) card.tags = tags;
   return card;
 }
@@ -27,17 +26,17 @@ function sanitizeCard(raw: unknown, category: Category, i: number): Card | null 
 function sanitizeScenario(raw: unknown, i: number): Scenario | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
-  const title = str(r.title, 120);
+  const title = str(r.title, L.scenarioTitle);
   if (!title) return null;
   const slots = Number(r.shelterSlots);
   return {
     id: str(r.id, 60) || `s${i}-${uid('sc')}`,
     title,
-    description: str(r.description, 1500),
+    description: str(r.description, L.scenarioDescription),
     shelterSlots: Number.isFinite(slots) ? Math.min(19, Math.max(1, Math.round(slots))) : 4,
-    isolationDuration: str(r.isolationDuration, 80),
-    requiredSkills: strList(r.requiredSkills),
-    threats: strList(r.threats, 30),
+    isolationDuration: str(r.isolationDuration, L.scenarioDuration),
+    requiredSkills: strList(r.requiredSkills, L.skills, L.skillLen),
+    threats: strList(r.threats, L.threats, L.threatLen),
   };
 }
 
@@ -45,22 +44,22 @@ function sanitizeScenario(raw: unknown, i: number): Scenario | null {
 export function sanitizePack(raw: unknown): CardPack | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
-  const name = str(r.name, 120);
+  const name = str(r.name, L.packName);
   if (!name) return null;
   const rawCards = (r.cards && typeof r.cards === 'object' ? r.cards : {}) as Record<string, unknown>;
   const cards = Object.fromEntries(
     CATEGORIES.map((cat) => {
-      const list = Array.isArray(rawCards[cat]) ? (rawCards[cat] as unknown[]).slice(0, MAX_ITEMS) : [];
+      const list = Array.isArray(rawCards[cat]) ? (rawCards[cat] as unknown[]).slice(0, L.cardsPerCategory) : [];
       return [cat, list.map((c, i) => sanitizeCard(c, cat, i)).filter((c): c is Card => !!c)];
     }),
   ) as Record<Category, Card[]>;
-  const scenarios = (Array.isArray(r.scenarios) ? (r.scenarios as unknown[]).slice(0, 50) : [])
+  const scenarios = (Array.isArray(r.scenarios) ? (r.scenarios as unknown[]).slice(0, L.scenarios) : [])
     .map(sanitizeScenario)
     .filter((s): s is Scenario => !!s);
   return {
     id: str(r.id, 60) || uid('pack'),
     name,
-    description: str(r.description, 1500),
+    description: str(r.description, L.packDescription),
     isCustom: true,
     scenarios,
     cards,

@@ -5,6 +5,7 @@ import Game from './screens/Game';
 import Packs from './screens/Packs';
 import Editor from './screens/Editor';
 import Rules from './screens/Rules';
+import { Join, Lobby } from './screens/Online';
 import { Modal } from './ui/bits';
 import { packStats } from './lib/packs';
 
@@ -18,6 +19,8 @@ export default function App() {
       {screen.name === 'packs' && <Packs />}
       {screen.name === 'editor' && <Editor packId={screen.packId} />}
       {screen.name === 'rules' && <Rules />}
+      {screen.name === 'lobby' && <Lobby draft={screen.draft} />}
+      {screen.name === 'join' && <Join initialCode={screen.code} />}
 
       {incoming && (
         <Modal title="Получен пак по ссылке">

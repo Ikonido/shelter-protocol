@@ -75,7 +75,7 @@ export default function Game() {
 
 /* ---------- Общая доска: открытые карты всех игроков ---------- */
 
-function Board({ game }: { game: GameState }) {
+export function Board({ game }: { game: GameState }) {
   return (
     <div className="grid gap-2 sm:grid-cols-2">
       {game.players.map((p) => {
@@ -102,7 +102,7 @@ function Board({ game }: { game: GameState }) {
 
 /* ---------- Приватное досье игрока ---------- */
 
-function Dossier({
+export function Dossier({
   game,
   player,
   mode,
@@ -193,7 +193,7 @@ function RevealPhase({ game, update }: { game: GameState; update: Update }) {
 
 /* ---------- Фаза 2: дебаты ---------- */
 
-function DebateTimer() {
+export function DebateTimer() {
   const [left, setLeft] = useState(0);
   const [running, setRunning] = useState(false);
   useEffect(() => {

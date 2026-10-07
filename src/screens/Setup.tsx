@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Dices, Printer, Smartphone, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Dices, Globe, Printer, Smartphone, Eye, EyeOff } from 'lucide-react';
 import { useStore } from '../store';
 import { Stepper } from '../ui/bits';
 import { clampConfig, createGame } from '../lib/game';
@@ -40,6 +40,10 @@ export default function Setup() {
   const canStart = scenarios.length > 0 && activePacks.some((p) => Object.values(p.cards).some((c) => c.length));
   const start = () => {
     const chosen = scenario ?? scenarios[Math.floor(Math.random() * scenarios.length)];
+    if (mode === 'online') {
+      go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting } });
+      return;
+    }
     const config: SessionConfig = {
       scenarioId: chosen.id,
       packIds,
@@ -97,10 +101,11 @@ export default function Setup() {
       <section className="panel">
         <h2 className="label">3. Игроки и места</h2>
         <div className="flex flex-wrap gap-8">
-          <Stepper label="Игроков (N)" value={n} min={2} max={20} onChange={setPlayers} />
-          <Stepper label="Мест в бункере (K)" value={k} min={1} max={n - 1} onChange={(v) => setK(clampConfig(n, v).k)} />
+          {mode !== 'online' && <Stepper label="Игроков (N)" value={n} min={2} max={20} onChange={setPlayers} />}
+          <Stepper label="Мест в бункере (K)" value={k} min={1} max={mode === 'online' ? 19 : n - 1} onChange={(v) => setK(mode === 'online' ? Math.min(19, Math.max(1, v)) : clampConfig(n, v).k)} />
         </div>
-        <details className="mt-4">
+        {mode === 'online' && <p className="mt-2 text-xs text-dim">Число игроков определится по тем, кто подключился к комнате.</p>}
+        <details className={`mt-4 ${mode === 'online' ? 'hidden' : ''}`}>
           <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">Имена игроков</summary>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {Array.from({ length: n }, (_, i) => (
@@ -119,7 +124,10 @@ export default function Setup() {
 
       <section className="panel">
         <h2 className="label">4. Режим</h2>
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-2 sm:grid-cols-3">
+          <button className={`btn ${mode === 'online' ? 'btn-primary' : ''}`} onClick={() => setMode('online')}>
+            <Globe size={18} /> Онлайн (по коду)
+          </button>
           <button className={`btn ${mode === 'pass-and-play' ? 'btn-primary' : ''}`} onClick={() => setMode('pass-and-play')}>
             <Smartphone size={18} /> Pass-and-Play
           </button>
@@ -127,7 +135,7 @@ export default function Setup() {
             <Printer size={18} /> Настольный (карточки)
           </button>
         </div>
-        {mode === 'pass-and-play' && (
+        {mode !== 'tabletop' && (
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <button className={`btn btn-sm ${voting === 'secret' ? 'btn-primary' : ''}`} onClick={() => setVoting('secret')}>
               <EyeOff size={16} /> Тайное голосование
@@ -140,7 +148,7 @@ export default function Setup() {
       </section>
 
       <button className="btn btn-primary" disabled={!canStart} onClick={start}>
-        <Dices size={18} /> Сгенерировать персонажей и начать
+        <Dices size={18} /> {mode === 'online' ? 'Создать комнату' : 'Сгенерировать персонажей и начать'}
       </button>
     </div>
   );
