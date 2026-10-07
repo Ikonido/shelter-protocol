@@ -83,6 +83,16 @@ describe('built-in packs', () => {
     });
   }
 
+  it('no feast / toast style events (they were cut on purpose)', () => {
+    const FEAST = /тост|застол|пир на|за кубком|рюмк|шашлык|выпить|чокн/i;
+    const events = [...EVENTS, ...BUILTIN_PACKS.flatMap((p) => p.scenarios.flatMap((s) => s.events ?? []))];
+    expect(events.filter((e) => FEAST.test(`${e.title} ${e.text}`)).map((e) => e.id)).toEqual([]);
+    for (const pack of BUILTIN_PACKS) for (const sc of pack.scenarios) {
+      const ids = (sc.events ?? []).map((e) => e.id);
+      expect(new Set(ids).size, sc.id).toBe(ids.length);
+    }
+  });
+
   it('fantasy races carry real abilities and count towards the final evaluation', () => {
     const fantasy = BUILTIN_PACKS.find((p) => p.id === 'fantasy')!;
     const orc = fantasy.cards.biology.find((c) => c.description.startsWith('Полуорк'))!;
