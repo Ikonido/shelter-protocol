@@ -80,15 +80,18 @@ export interface SessionConfig {
   shelterSlots: number; // K < N
   mode: PlayMode;
   voting: VotingMode;
-  /** Сколько вскрытий (с дебатами) проходит между голосованиями. */
+  /** Сколько вскрытий (у каждого — карта и речь) проходит между голосованиями. */
   revealsPerVote: number;
+  /** Секунд на объяснение пользы после вскрытия, 0 — без таймера (только кнопка). */
+  speechSec: number;
   /** Лимит времени на партию в минутах, 0 — без лимита. */
   timeLimitMin: number;
   names: string[];
   seed: number;
 }
 
-export type Phase = 'reveal' | 'debate' | 'vote' | 'result' | 'final';
+/** reveal — ходящий открывает карту; speech — он объясняет пользу (таймер); затем следующий игрок. */
+export type Phase = 'reveal' | 'speech' | 'vote' | 'result' | 'final';
 
 export interface LogEntry {
   round: number;
@@ -114,6 +117,12 @@ export interface GameState {
   phase: Phase;
   /** Кто уже открыл карту в текущем вскрытии (шаге раунда). */
   revealedThisRound: string[];
+  /** Что открыто последним (показываем во время объяснения). */
+  lastReveal?: { playerId: string; category: Category };
+  /** Когда закончится речь ходящего (мс, часы хоста). */
+  speechEndsAt?: number;
+  /** Только в «видах» для онлайн-клиентов: сколько осталось на речь. */
+  speechLeftMs?: number;
   /** Номер вскрытия внутри раунда, с 1 (нет в старых сохранениях → 1). */
   revealStep?: number;
   /** Момент окончания партии (мс, часы хоста); нет — без лимита. */

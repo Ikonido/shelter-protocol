@@ -14,7 +14,7 @@ function pair() {
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 async function setup(n = 3) {
-  const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[0], packs: [CLASSIC_PACK], slots: 1, voting: 'secret', revealsPerVote: 1 }, 'Хост');
+  const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[0], packs: [CLASSIC_PACK], slots: 1, voting: 'secret', revealsPerVote: 1, speechSec: 0 }, 'Хост');
   const clients = [] as { c: OnlineClient; p: ReturnType<typeof pair> }[];
   for (let i = 1; i < n; i++) {
     const p = pair();
@@ -46,17 +46,17 @@ describe('online', () => {
     const { host, clients } = await setup();
     host.start();
     await tick();
-    clients.forEach(({ c }) => c.send({ t: 'reveal', category: 'health' })); // не биология в 1-м раунде — игнор
+    clients.forEach(({ c }) => c.send({ t: 'reveal', category: 'health' })); // не биология в 1-м раунде и не их очередь — игнор
+    clients[0].c.send({ t: 'reveal', category: 'biology' }); // очередь хоста (p1), а не гостя
+    clients[0].c.send({ t: 'vote', target: 'p1' }); // голос вне фазы — игнор
     await tick();
     expect(host.game!.phase).toBe('reveal');
+    expect(host.game!.revealedThisRound).toEqual([]);
+    expect(host.game!.votes).toEqual({});
     host.actAsHost({ t: 'reveal', category: 'biology' });
     clients.forEach(({ c }) => c.send({ t: 'reveal', category: 'biology' }));
     await tick();
-    expect(host.game!.phase).toBe('debate');
-    clients[0].c.send({ t: 'vote', target: 'p1' }); // голос вне фазы — игнор
-    await tick();
-    expect(host.game!.votes).toEqual({});
-    host.endDebate();
+    expect(host.game!.phase).toBe('vote'); // все сходили, вскрытие одно -> голосование
     host.actAsHost({ t: 'vote', target: 'p3' });
     clients[0].c.send({ t: 'vote', target: 'p1' });
     clients[0].c.send({ t: 'vote', target: 'ghost' }); // нет такого игрока
@@ -94,6 +94,9 @@ describe('online', () => {
     back.destroy();
     await tick();
     host.autofillDisconnected();
+    expect(host.game!.revealedThisRound).toEqual([]); // сейчас очередь хоста — за него автоход не делается
+    host.actAsHost({ t: 'reveal', category: 'biology' });
+    host.autofillDisconnected(); // очередь p2, а он отключён
     expect(host.game!.revealedThisRound).toContain('p2');
   });
 
@@ -115,7 +118,6 @@ describe('security', () => {
     host.actAsHost({ t: 'reveal', category: 'biology' });
     clients.forEach(({ c }) => c.send({ t: 'reveal', category: 'biology' }));
     await tick();
-    host.endDebate();
     host.actAsHost({ t: 'vote', target: 'p3' });
     clients[0].c.send({ t: 'vote', target: 'p3' });
     clients[1].c.send({ t: 'vote', target: 'p1' });
@@ -188,7 +190,6 @@ describe('abstain, steps and timer online', () => {
     host.actAsHost({ t: 'reveal', category: 'biology' });
     clients.forEach(({ c }) => c.send({ t: 'reveal', category: 'biology' }));
     await tick();
-    host.endDebate();
     host.actAsHost({ t: 'vote', target: 'abstain' });
     clients[0].c.send({ t: 'vote', target: 'abstain' });
     clients[1].c.send({ t: 'vote', target: 'p1' });
@@ -216,12 +217,54 @@ describe('abstain, steps and timer online', () => {
     expect(st.view.deadline).toBeGreaterThan(Date.now() + 9 * 60_000);
     expect(st.view.deadline).toBeLessThan(Date.now() + 10 * 60_000 + 1000);
     host.actAsHost({ t: 'reveal', category: 'biology' });
+    expect(host.game!.phase).toBe('speech');
+    host.skipSpeech();
     c.send({ t: 'reveal', category: 'biology' });
     await tick();
-    host.endDebate();
+    host.skipSpeech();
     expect(host.game!.phase).toBe('reveal'); // второе вскрытие
     expect(host.game!.revealStep).toBe(2);
     host.tick(host.game!.deadline! + 1); // время вышло
+    expect(host.game!.phase).toBe('vote');
+  });
+});
+
+describe('speech turns online', () => {
+  it('speaker explains with a timer, anyone else cannot skip it, timeout/“done”/host skip move on', async () => {
+    const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[0], packs: [CLASSIC_PACK], slots: 1, voting: 'open', revealsPerVote: 1, speechSec: 30 }, 'Хост');
+    const clients = [] as OnlineClient[];
+    for (let i = 1; i <= 2; i++) {
+      const p = pair();
+      host.addConn(p.hostSide);
+      clients.push(new OnlineClient(p.clientSide, `Гость${i}`, `t${i}`));
+    }
+    await tick();
+    host.start();
+    await tick();
+    host.actAsHost({ t: 'reveal', category: 'biology' });
+    await tick();
+    const st = clients[0].state;
+    if (st.status !== 'game') throw new Error('no view');
+    expect(st.view.phase).toBe('speech');
+    expect(st.view.lastReveal).toEqual({ playerId: 'p1', category: 'biology' });
+    expect(st.view.speechEndsAt!).toBeGreaterThan(Date.now() + 29_000); // клиент получает «осталось», а не часы хоста
+    expect(st.view.speechEndsAt!).toBeLessThan(Date.now() + 31_000);
+    clients[0].send({ t: 'done' }); // не его речь — игнор
+    await tick();
+    expect(host.game!.phase).toBe('speech');
+    host.tick(Date.now() + 1000); // рано
+    expect(host.game!.phase).toBe('speech');
+    host.tick(host.game!.speechEndsAt! + 1); // таймер -> ходит p2
+    expect(host.game!.phase).toBe('reveal');
+    clients[0].send({ t: 'reveal', category: 'biology' });
+    await tick();
+    expect(host.game!.phase).toBe('speech');
+    clients[0].send({ t: 'done' }); // сам закончил раньше времени -> ходит p3
+    await tick();
+    expect(host.game!.phase).toBe('reveal');
+    clients[1].send({ t: 'reveal', category: 'biology' });
+    await tick();
+    host.skipSpeech(); // хост пропустил последнюю речь -> голосование
     expect(host.game!.phase).toBe('vote');
   });
 });

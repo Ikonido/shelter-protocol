@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { CLASSIC_PACK } from '../data/classicPack';
 import { CATEGORIES, type SessionConfig } from '../types';
-import { ABSTAIN, alive, applyOvertime, buildSchedule, castVote, createGame, finishDebate, maxRoundsFor, nextRound, pendingReveal, resolveVote, revealCard, revealOptions, startVote, suggestedDebateSec } from './game';
+import { ABSTAIN, alive, applyOvertime, buildSchedule, castVote, createGame, currentSpeaker, endSpeech, maxRoundsFor, nextRound, pendingReveal, resolveVote, revealCard, revealOptions, startVote, tickGame } from './game';
 import { evaluate } from './evaluate';
 import { decodePack, encodePack, sanitizePack } from './packs';
 
-const config = (n = 6, k = 3, revealsPerVote = 1, timeLimitMin = 0): SessionConfig => ({
+const config = (n = 6, k = 3, revealsPerVote = 1, timeLimitMin = 0, speechSec = 0): SessionConfig => ({
   scenarioId: CLASSIC_PACK.scenarios[0].id, packIds: ['classic'], playerCount: n, shelterSlots: k,
-  mode: 'pass-and-play', voting: 'open', revealsPerVote, timeLimitMin, names: Array.from({ length: n }, (_, i) => `P${i + 1}`), seed: 42,
+  mode: 'pass-and-play', voting: 'open', revealsPerVote, timeLimitMin, speechSec, names: Array.from({ length: n }, (_, i) => `P${i + 1}`), seed: 42,
 });
-const newGame = (n = 6, k = 3, rpv = 1, limit = 0) => createGame(config(n, k, rpv, limit), CLASSIC_PACK.scenarios[0], [CLASSIC_PACK]);
+const newGame = (n = 6, k = 3, rpv = 1, limit = 0, speech = 0) => createGame(config(n, k, rpv, limit, speech), CLASSIC_PACK.scenarios[0], [CLASSIC_PACK]);
 
 describe('schedule', () => {
   it('sums to N-K and caps rounds', () => {
@@ -36,15 +36,25 @@ describe('generation', () => {
   });
 });
 
+/** Проходит одно вскрытие целиком: каждый по очереди открывает карту (и, если есть речь, её заканчивает). */
+const revealAll = (g: ReturnType<typeof newGame>, cat?: Parameters<typeof revealCard>[2]) => {
+  const step = g.revealStep, round = g.round;
+  for (let i = 0; i < 50 && g.phase !== 'vote' && g.revealStep === step && g.round === round; i++) {
+    const p = currentSpeaker(g)!;
+    g = revealCard(g, p.id, cat && revealOptions(g, p).includes(cat) ? cat : revealOptions(g, p)[0]);
+    g = endSpeech(g);
+  }
+  return g;
+};
+
 describe('round flow', () => {
-  it('forces biology (sex & age) in round 1, then moves to debate, vote, result', () => {
+  it('forces biology (sex & age) in round 1, then reveals one by one, then vote and result', () => {
     let g = newGame();
     expect(revealOptions(g, g.players[0])).toEqual(['biology']);
-    for (const p of g.players) g = revealCard(g, p.id, 'biology');
-    expect(g.phase).toBe('debate');
+    g = revealAll(g);
+    expect(g.phase).toBe('vote');
     expect(pendingReveal(g)).toHaveLength(0);
-    g = startVote(g);
-    for (const p of g.players) g = castVote(g, p.id, g.players.find((x) => x.id !== p.id && x.id === 'p1')?.id ?? 'p2');
+    for (const p of g.players) g = castVote(g, p.id, p.id === 'p1' ? 'p2' : 'p1');
     g = resolveVote(g);
     expect(g.phase).toBe('result');
     expect(alive(g)).toHaveLength(5);
@@ -53,19 +63,54 @@ describe('round flow', () => {
     expect(g.round).toBe(2);
     expect(g.phase).toBe('reveal');
   });
+  it('players go strictly in turn', () => {
+    const g = newGame();
+    expect(currentSpeaker(g)!.id).toBe('p1');
+    expect(revealCard(g, 'p2', 'biology')).toBe(g); // не его очередь
+    const r = revealCard(g, 'p1', 'biology');
+    expect(revealCard(r, 'p1', 'biology')).toBe(r); // дважды нельзя
+    expect(currentSpeaker(r)!.id).toBe('p2');
+  });
   it('after the forced sex/age reveal, later rounds are free choice', () => {
     let g = newGame();
-    for (const p of g.players) g = revealCard(g, p.id, 'biology');
-    g = resolveVote(Object.assign(startVote(g), {}));
+    g = revealAll(g);
+    g = startVote(g);
+    g = resolveVote(g);
     g = nextRound(g);
     const opts = revealOptions(g, g.players.find((p) => !p.isEliminated)!);
     expect(opts).toEqual(['profession', 'health', 'hobby', 'luggage', 'fact']); // biology уже открыта, action — не открывается
   });
-  it('rejects self votes and double reveal', () => {
-    const g = newGame();
-    expect(castVote(g, 'p1', 'p1').votes).toEqual({});
-    const r = revealCard(g, 'p1', 'biology');
-    expect(revealCard(r, 'p1', 'biology')).toBe(r);
+  it('rejects self votes', () => {
+    expect(castVote(newGame(), 'p1', 'p1').votes).toEqual({});
+  });
+});
+
+describe('speech after each reveal', () => {
+  it('reveal starts a timed speech, then the next player is up', () => {
+    const g = revealCard(newGame(6, 3, 1, 0, 45), 'p1', 'biology');
+    expect(g.phase).toBe('speech');
+    expect(currentSpeaker(g)!.id).toBe('p1');
+    expect(g.lastReveal).toEqual({ playerId: 'p1', category: 'biology' });
+    expect(g.speechEndsAt!).toBeGreaterThan(Date.now() + 44_000);
+    const next = endSpeech(g);
+    expect(next.phase).toBe('reveal');
+    expect(currentSpeaker(next)!.id).toBe('p2');
+    expect(endSpeech(next)).toBe(next); // вне речи ничего не делает
+  });
+  it('speechSec = 0 means no speech phase', () => {
+    expect(revealCard(newGame(), 'p1', 'biology').phase).toBe('reveal');
+  });
+  it('tick ends the speech when the timer is over, not before', () => {
+    const g = revealCard(newGame(6, 3, 1, 0, 30), 'p1', 'biology');
+    expect(tickGame(g, g.speechEndsAt! - 1000)).toBe(g);
+    const after = tickGame(g, g.speechEndsAt! + 1);
+    expect(after.phase).toBe('reveal');
+    expect(currentSpeaker(after)!.id).toBe('p2');
+  });
+  it('the last speech of the last reveal leads to the vote', () => {
+    let g = newGame(3, 1, 1, 0, 30);
+    for (const id of ['p1', 'p2', 'p3']) g = tickGame(revealCard(g, id, 'biology'), Date.now() + 31_000);
+    expect(g.phase).toBe('vote');
   });
 });
 
@@ -102,23 +147,17 @@ describe('packs', () => {
   });
 });
 
-const revealAll = (g: ReturnType<typeof newGame>, cat?: Parameters<typeof revealCard>[2]) => {
-  for (const p of pendingReveal(g)) g = revealCard(g, p.id, cat ?? revealOptions(g, p)[0]);
-  return g;
-};
 
 describe('voting every N reveals', () => {
-  it('two reveals (with debates) happen before each vote', () => {
-    let g = newGame(6, 3, 2);
+  it('two reveals (each player explains after theirs) happen before each vote', () => {
+    let g = newGame(6, 3, 2, 0, 30);
     expect(g.phase).toBe('reveal');
-    g = revealAll(g);                       // 1-е вскрытие: биология
-    expect(g.phase).toBe('debate');
-    g = finishDebate(g);                    // не голосование, а второе вскрытие
-    expect(g.phase).toBe('reveal');
+    for (const p of g.players) { g = revealCard(g, p.id, 'biology'); expect(g.phase).toBe('speech'); g = endSpeech(g); }
+    expect(g.phase).toBe('reveal'); // не голосование, а второе вскрытие
     expect(g.revealStep).toBe(2);
+    expect(currentSpeaker(g)!.id).toBe('p1'); // очередь заново с первого
     expect(revealOptions(g, g.players[0])).toEqual(['profession', 'health', 'hobby', 'luggage', 'fact']); // дальше по желанию
-    g = revealAll(g, 'hobby');
-    g = finishDebate(g);
+    for (const p of g.players) g = endSpeech(revealCard(g, p.id, 'hobby'));
     expect(g.phase).toBe('vote');
     expect(g.players.every((p) => p.slots.biology.isRevealed && p.slots.hobby.isRevealed)).toBe(true);
   });
@@ -133,8 +172,8 @@ describe('voting every N reveals', () => {
 
   it('next round starts again from the first reveal', () => {
     let g = newGame(6, 3, 2);
-    g = finishDebate(revealAll(g)); g = finishDebate(revealAll(g));
-    g = startVote(g);
+    g = revealAll(revealAll(g));
+    expect(g.phase).toBe('vote');
     for (const p of g.players) g = castVote(g, p.id, p.id === 'p1' ? 'p2' : 'p1');
     g = nextRound(resolveVote(g));
     expect(g.round).toBe(2);
@@ -167,7 +206,7 @@ describe('abstain', () => {
   it('cannot extend rounds forever', () => {
     let g = newGame(6, 3);
     for (let i = 0; i < 12 && g.phase !== 'final'; i++) {
-      g = startVote({ ...g, phase: 'debate' });
+      g = startVote({ ...g, phase: 'reveal' });
       for (const p of alive(g)) g = castVote(g, p.id, ABSTAIN);
       g = nextRound(resolveVote(g));
     }
@@ -181,24 +220,15 @@ describe('match timer', () => {
     const g = newGame();
     expect(g.deadline).toBeUndefined();
     expect(applyOvertime(g, Date.now() + 1e9)).toBe(g);
-    expect(suggestedDebateSec(g)).toBeNull();
   });
-  it('before the deadline nothing happens; after it debates are skipped and cards auto-revealed, vote stays manual', () => {
-    const g = newGame(6, 3, 2, 30);
+  it('before the deadline nothing happens; after it speeches are skipped and cards auto-revealed, vote stays manual', () => {
+    const g = newGame(6, 3, 2, 30, 45);
     const t0 = g.deadline! - 30 * 60_000;
     expect(applyOvertime(g, t0 + 60_000)).toBe(g);
     const late = applyOvertime(g, g.deadline! + 1);
     expect(late.phase).toBe('vote');
     expect(late.votes).toEqual({});
     expect(late.players.every((p) => ['biology', 'profession', 'health', 'hobby', 'luggage', 'fact'].filter((c) => p.slots[c as 'biology'].isRevealed).length === 2)).toBe(true);
-  });
-  it('suggests shorter debates when time is short, within bounds', () => {
-    const g = { ...newGame(6, 3, 2, 30), phase: 'debate' as const };
-    const roomy = suggestedDebateSec(g, g.deadline! - 30 * 60_000)!;
-    const tight = suggestedDebateSec(g, g.deadline! - 2 * 60_000)!;
-    expect(roomy).toBeGreaterThan(tight);
-    expect(tight).toBeGreaterThanOrEqual(20);
-    expect(roomy).toBeLessThanOrEqual(240);
   });
   it('overcrowded shelter is penalised', () => {
     const g = newGame(6, 3);

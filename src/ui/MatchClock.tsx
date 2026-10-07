@@ -20,7 +20,7 @@ export function MatchClock({ deadline, totalMin, onExtend }: { deadline: number;
       <div className="flex items-center gap-2">
         <Hourglass size={16} className={`${tone} ${frac < 0.15 && !over ? 'animate-pulse' : ''}`} />
         <span className={`text-lg font-bold tabular-nums ${tone}`}>{over ? 'Время вышло' : label}</span>
-        <span className="text-xs text-dim">{over ? '— дебаты пропускаются, решайте быстрее' : frac < 0.15 ? '— торопитесь!' : 'до конца партии'}</span>
+        <span className="text-xs text-dim">{over ? '— речи пропускаются, решайте быстрее' : frac < 0.15 ? '— торопитесь!' : 'до конца партии'}</span>
         {onExtend && (
           <button className="btn btn-sm ml-auto" onClick={onExtend}><Plus size={14} /> 5 мин</button>
         )}

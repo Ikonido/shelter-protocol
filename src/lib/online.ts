@@ -14,15 +14,15 @@ import {
   castVote,
   createGame,
   nextRound,
-  pendingReveal,
   playAction,
   resolveVote,
   revealCard,
   revealOptions,
   ABSTAIN,
-  applyOvertime,
+  currentSpeaker,
+  endSpeech,
   extendDeadline,
-  finishDebate,
+  tickGame,
   } from './game';
 import { newSeed, randomCode } from './rng';
 import { LIMITS as L, clip } from './limits';
@@ -34,7 +34,8 @@ export type C2H =
   | { t: 'hello'; name: string; token: string; ticket?: string }
   | { t: 'reveal'; category: Category }
   | { t: 'action' }
-  | { t: 'vote'; target: string };
+  | { t: 'vote'; target: string }
+  | { t: 'done' }; // ходящий закончил речь раньше времени
 
 export interface LobbyMember {
   name: string;
@@ -83,8 +84,16 @@ export function viewFor(g: GameState, me: string, voting: VotingMode = g.config.
         ? Object.fromEntries(Object.keys(g.votes).map((v) => [v, v === me ? g.votes[v] : v]))
         : {};
   // Часы хоста клиентам не нужны (у телефонов они расходятся): передаём «сколько осталось» на момент отправки.
-  const { deadline, ...rest } = g;
-  return { ...rest, players, votes, seed: 0, config: { ...g.config, seed: 0 }, ...(deadline ? { timeLeftMs: Math.max(0, deadline - Date.now()) } : {}) };
+  const { deadline, speechEndsAt, ...rest } = g;
+  return {
+    ...rest,
+    players,
+    votes,
+    seed: 0,
+    config: { ...g.config, seed: 0 },
+    ...(deadline ? { timeLeftMs: Math.max(0, deadline - Date.now()) } : {}),
+    ...(speechEndsAt ? { speechLeftMs: Math.max(0, speechEndsAt - Date.now()) } : {}),
+  };
 }
 
 /* ---------- Хост ---------- */
@@ -103,6 +112,7 @@ export interface HostSetup {
   slots: number;
   voting: VotingMode;
   revealsPerVote?: number; // по умолчанию 2
+  speechSec?: number; // секунд на объяснение пользы, по умолчанию 45; 0 — без таймера
   timeLimitMin?: number; // 0 — без лимита; по умолчанию 0
 }
 
@@ -254,6 +264,7 @@ export class OnlineHost {
     if (!member) return;
     if (msg.t === 'reveal' && CATEGORIES.includes(msg.category as Category)) this.act(member, { t: 'reveal', category: msg.category as Category });
     else if (msg.t === 'action') this.act(member, { t: 'action' });
+    else if (msg.t === 'done') this.act(member, { t: 'done' });
     else if (msg.t === 'vote' && typeof msg.target === 'string') this.act(member, { t: 'vote', target: msg.target });
   }
 
@@ -267,7 +278,9 @@ export class OnlineHost {
     let next = g;
     if (msg.t === 'reveal') next = revealCard(g, id, msg.category);
     else if (msg.t === 'action') {
-      if (g.phase === 'reveal' || g.phase === 'debate') next = playAction(g, id);
+      if (g.phase === 'reveal' || g.phase === 'speech') next = playAction(g, id);
+    } else if (msg.t === 'done') {
+      if (g.phase === 'speech' && currentSpeaker(g)?.id === id) next = endSpeech(g);
     } else if (msg.t === 'vote' && g.phase === 'vote') {
       const target = msg.target === ABSTAIN ? { id: ABSTAIN } : alive(g).find((p) => p.id === msg.target);
       if (target) next = castVote(g, id, target.id);
@@ -298,6 +311,7 @@ export class OnlineHost {
         mode: 'online',
         voting: this.setup.voting,
         revealsPerVote: Math.min(3, Math.max(1, this.setup.revealsPerVote ?? 2)),
+        speechSec: Math.min(300, Math.max(0, this.setup.speechSec ?? 45)),
         timeLimitMin: Math.min(180, Math.max(0, this.setup.timeLimitMin ?? 0)),
         names,
         seed: newSeed(),
@@ -311,14 +325,14 @@ export class OnlineHost {
   }
 
   /* Управление раундом — только у хоста */
-  /** Закончить дебаты: следующее вскрытие или голосование. */
-  endDebate() {
-    if (this.game?.phase === 'debate') this.setGame(finishDebate(this.game));
+  /** Хост может прервать чужую речь («Следующий игрок»). */
+  skipSpeech() {
+    if (this.game?.phase === 'speech') this.setGame(endSpeech(this.game));
   }
-  /** Вызывается раз в секунду: по истечении времени пропускает дебаты и открывает карты за медлительных. */
+  /** Раз в секунду: кончилась речь → ходит следующий; вышло время партии → овертайм. */
   tick(now = Date.now()) {
     if (!this.game) return;
-    const next = applyOvertime(this.game, now);
+    const next = tickGame(this.game, now);
     if (next !== this.game) this.setGame(next);
   }
   extendTime(ms: number) {
@@ -327,20 +341,25 @@ export class OnlineHost {
   next() {
     if (this.game?.phase === 'result') this.setGame(nextRound(this.game));
   }
-  /** Автоход за отключившихся: открыть первую доступную карту / отдать голос за случайного, чтобы партия не зависла. */
+  /**
+   * Автоход за отключившихся, чтобы партия не зависла: если сейчас очередь отключённого игрока — открываем
+   * ему первую доступную карту и пропускаем речь; отсутствующие голосуют за случайного игрока.
+   */
   autofillDisconnected() {
     let g = this.game;
     if (!g) return;
+    const absent = (playerId?: string) => this.members.some((m) => m.playerId === playerId && !m.connected);
+    for (let i = 0; i < 100; i++) {
+      const sp = currentSpeaker(g);
+      if (!sp || !absent(sp.id)) break;
+      g = g.phase === 'reveal' ? revealCard(g, sp.id, revealOptions(g, sp)[0]) : endSpeech(g);
+    }
     for (const m of this.members) {
-      if (m.connected || !m.playerId) continue;
+      if (m.connected || !m.playerId || g.phase !== 'vote') continue;
       const p = g.players.find((x) => x.id === m.playerId);
-      if (!p || p.isEliminated) continue;
-      if (g.phase === 'reveal' && pendingReveal(g).some((x) => x.id === p.id)) {
-        g = revealCard(g, p.id, revealOptions(g, p)[0]);
-      } else if (g.phase === 'vote' && !g.votes[p.id]) {
-        const others = alive(g).filter((x) => x.id !== p.id);
-        if (others.length) g = castVote(g, p.id, others[Math.floor(Math.random() * others.length)].id);
-      }
+      if (!p || p.isEliminated || g.votes[p.id]) continue;
+      const others = alive(g).filter((x) => x.id !== p.id);
+      if (others.length) g = castVote(g, p.id, others[Math.floor(Math.random() * others.length)].id);
     }
     if (g.phase === 'vote' && allVoted(g)) g = resolveVote(g);
     if (g !== this.game) this.setGame(g);
@@ -456,7 +475,7 @@ export class OnlineClient {
 
 /* ---------- Недоверенное состояние от хоста ---------- */
 
-const PHASES = ['reveal', 'debate', 'vote', 'result', 'final'];
+const PHASES = ['reveal', 'speech', 'vote', 'result', 'final'];
 const MODS = ['positive', 'neutral', 'negative'];
 const text = (v: unknown, max: number) => (typeof v === 'string' ? clip(v, max) : '');
 const rec = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -506,6 +525,7 @@ export function sanitizeView(raw: unknown): GameState | null {
       mode: 'online',
       voting: cfg.voting === 'open' ? 'open' : 'secret',
       revealsPerVote: int(cfg.revealsPerVote, 1, 3),
+      speechSec: int(cfg.speechSec, 0, 300),
       timeLimitMin: int(cfg.timeLimitMin, 0, 180),
       names: players.map((p) => p.name),
       seed: 0,
@@ -517,6 +537,10 @@ export function sanitizeView(raw: unknown): GameState | null {
     phase: r.phase as GameState['phase'],
     revealStep: int(r.revealStep, 1, 3),
     ...(r.timeLeftMs !== undefined ? { deadline: Date.now() + int(r.timeLeftMs, 0, 180 * 60_000) } : {}),
+    ...(r.speechLeftMs !== undefined ? { speechEndsAt: Date.now() + int(r.speechLeftMs, 0, 300_000) } : {}),
+    ...(rec(r.lastReveal).playerId !== undefined && CATEGORIES.includes(rec(r.lastReveal).category as Category)
+      ? { lastReveal: { playerId: text(rec(r.lastReveal).playerId, 12), category: rec(r.lastReveal).category as Category } }
+      : {}),
     revealedThisRound: Array.isArray(r.revealedThisRound) ? r.revealedThisRound.slice(0, MAX_ONLINE_PLAYERS).map((x) => text(x, 12)) : [],
     votes,
     log: Array.isArray(r.log) ? r.log.slice(-200).map((l) => ({ round: int(rec(l).round, 1, 50), text: text(rec(l).text, 400) })) : [],

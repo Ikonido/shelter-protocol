@@ -11,6 +11,7 @@ export interface OnlineDraft {
   slots: number;
   voting: VotingMode;
   revealsPerVote: number;
+  speechSec: number;
   timeLimitMin: number;
 }
 

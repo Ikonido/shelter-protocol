@@ -74,10 +74,21 @@ export function pendingReveal(g: GameState): PlayerCharacter[] {
   return alive(g).filter((p) => !g.revealedThisRound.includes(p.id) && revealOptions(g, p).length > 0);
 }
 
+/** Чей сейчас ход: в фазе reveal — первый, кто ещё не открывал карту; в фазе speech — тот, кто только что открыл. */
+export function currentSpeaker(g: GameState): PlayerCharacter | undefined {
+  if (g.phase === 'reveal') return pendingReveal(g)[0];
+  if (g.phase === 'speech') {
+    const id = g.revealedThisRound[g.revealedThisRound.length - 1];
+    return g.players.find((p) => p.id === id);
+  }
+  return undefined;
+}
+
+/** Игроки идут строго по очереди: открыть карту может только тот, чей сейчас ход. */
 export function revealCard(g: GameState, playerId: string, category: Category): GameState {
   const p = g.players.find((x) => x.id === playerId);
   if (!p || p.isEliminated || g.phase !== 'reveal') return g;
-  if (g.revealedThisRound.includes(playerId) || !revealOptions(g, p).includes(category)) return g;
+  if (pendingReveal(g)[0]?.id !== playerId || !revealOptions(g, p).includes(category)) return g;
   const players = g.players.map((x) =>
     x.id === playerId ? { ...x, slots: { ...x.slots, [category]: { ...x.slots[category], isRevealed: true } } } : x,
   );
@@ -85,12 +96,15 @@ export function revealCard(g: GameState, playerId: string, category: Category): 
     ...g,
     players,
     revealedThisRound: [...g.revealedThisRound, playerId],
+    lastReveal: { playerId, category },
     log: [
       ...g.log,
       { round: g.round, text: `${p.name} открывает «${CATEGORY_LABEL[category]}»: ${p.slots[category].card.description}` },
     ],
   };
-  return pendingReveal(next).length === 0 ? { ...next, phase: 'debate' } : next;
+  const sec = g.config.speechSec ?? 0;
+  if (sec > 0) return { ...next, phase: 'speech', speechEndsAt: Date.now() + sec * 1000 };
+  return afterTurn(next);
 }
 
 export function playAction(g: GameState, playerId: string): GameState {
@@ -162,27 +176,36 @@ export function resolveVote(g: GameState): GameState {
   };
 }
 
-/** Начало вскрытия: если открывать уже нечего (карты кончились), сразу к дебатам. */
-function enterReveal(g: GameState): GameState {
-  const next: GameState = { ...g, phase: 'reveal', revealedThisRound: [] };
-  return pendingReveal(next).length === 0 ? { ...next, phase: 'debate' } : next;
+/** Ход закончен: следующий игрок этого вскрытия или конец вскрытия. */
+function afterTurn(g: GameState): GameState {
+  if (pendingReveal(g).length > 0) return { ...g, phase: 'reveal', speechEndsAt: undefined };
+  return finishStep({ ...g, speechEndsAt: undefined });
 }
 
-/** Конец дебатов: следующее вскрытие этого раунда или, если вскрытий набралось достаточно, голосование. */
-export function finishDebate(g: GameState): GameState {
-  if (g.phase !== 'debate') return g;
-  const step = stepOf(g);
-  if (step < perVote(g)) {
-    const next = enterReveal({ ...g, revealStep: step + 1 });
-    if (next.phase === 'reveal') return next;
+/** Начало вскрытия: сброс очереди; если открывать уже нечего (карты кончились) — пропускаем шаг. */
+function startStep(g: GameState): GameState {
+  let cur: GameState = { ...g, phase: 'reveal', revealedThisRound: [], speechEndsAt: undefined, lastReveal: undefined };
+  while (pendingReveal(cur).length === 0) {
+    if (stepOf(cur) < perVote(cur)) cur = { ...cur, revealStep: stepOf(cur) + 1 };
+    else return startVote(cur);
   }
-  return startVote(g);
+  return cur;
+}
+
+/** Все сходили: следующее вскрытие раунда или, если вскрытий набралось достаточно, голосование. */
+function finishStep(g: GameState): GameState {
+  return stepOf(g) < perVote(g) ? startStep({ ...g, revealStep: stepOf(g) + 1 }) : startVote(g);
+}
+
+/** Закончить речь (по таймеру или кнопкой «Следующий игрок»). */
+export function endSpeech(g: GameState): GameState {
+  return g.phase === 'speech' ? afterTurn(g) : g;
 }
 
 export function nextRound(g: GameState): GameState {
   const done = alive(g).length <= g.config.shelterSlots || g.round >= g.schedule.length;
   if (done) return { ...g, phase: 'final' };
-  return enterReveal({ ...g, round: g.round + 1, revealStep: 1, votes: {} });
+  return startStep({ ...g, round: g.round + 1, revealStep: 1, votes: {} });
 }
 
 /* ---------- Время партии ---------- */
@@ -194,17 +217,18 @@ export function extendDeadline(g: GameState, ms: number, now = Date.now()): Game
 }
 
 /**
- * Время вышло: дебаты пропускаются, неоткрытые карты открываются автоматически. Голосование не трогаем —
- * решение о том, кто уйдёт, остаётся за игроками.
+ * Время партии вышло: речи пропускаются, карты за тех, чья очередь, открываются автоматически.
+ * Голосование не трогаем — решение о том, кто уйдёт, остаётся за игроками.
  */
 export function applyOvertime(g: GameState, now = Date.now()): GameState {
   if (!g.deadline || now < g.deadline) return g;
   let cur = g;
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 400; i++) {
     let next = cur;
-    if (cur.phase === 'debate') next = finishDebate(cur);
+    if (cur.phase === 'speech') next = endSpeech(cur);
     else if (cur.phase === 'reveal') {
-      for (const p of pendingReveal(cur)) next = revealCard(next, p.id, revealOptions(next, p)[0]);
+      const p = pendingReveal(cur)[0];
+      if (p) next = revealCard(cur, p.id, revealOptions(cur, p)[0]);
     }
     if (next === cur) break;
     cur = next;
@@ -212,13 +236,11 @@ export function applyOvertime(g: GameState, now = Date.now()): GameState {
   return cur;
 }
 
-/** Сколько секунд дебатов можно позволить, чтобы уложиться во время: поровну на все оставшиеся дебаты, с запасом 30%. */
-export function suggestedDebateSec(g: GameState, now = Date.now()): number | null {
-  const left = timeLeftMs(g, now);
-  if (left === null) return null;
-  const debatesLeft = Math.max(1, perVote(g) - stepOf(g) + 1 + Math.max(0, g.schedule.length - g.round) * perVote(g));
-  const sec = (left / 1000) * 0.7 / debatesLeft;
-  return Math.min(240, Math.max(20, Math.round(sec / 10) * 10));
+/** Секундный «тик» игры: закончилась речь → следующий игрок; вышло время партии → овертайм. */
+export function tickGame(g: GameState, now = Date.now()): GameState {
+  let cur = g;
+  if (cur.phase === 'speech' && cur.speechEndsAt && now >= cur.speechEndsAt) cur = endSpeech(cur);
+  return applyOvertime(cur, now);
 }
 
 export function setEliminated(g: GameState, playerId: string, eliminated: boolean): GameState {

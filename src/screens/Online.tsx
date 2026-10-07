@@ -1,15 +1,16 @@
 import { useEffect, useReducer, useState } from 'react';
-import { ArrowLeft, Copy, Gavel, Lock, LogIn, RefreshCw, Unlock, UserX, Users, Wifi, WifiOff, Zap } from 'lucide-react';
+import { ArrowLeft, Copy, Lock, LogIn, RefreshCw, Unlock, UserX, Users, Wifi, WifiOff, Zap } from 'lucide-react';
 import { useStore, type OnlineDraft } from '../store';
 import { OnlineClient, OnlineHost, type C2H, type Conn, type H2C } from '../lib/online';
 import { createRoom, isValidCode, isValidTicket, joinRoom, normalizeCode, probeLan, shareOrigin, type NetMode } from '../lib/net';
 import { randomToken } from '../lib/rng';
 import { copyText } from '../ui/clipboard';
 import { QR } from '../ui/QR';
-import { ABSTAIN, alive, perVote, quotaThisRound, revealOptions, stepOf, suggestedDebateSec } from '../lib/game';
+import { ABSTAIN, alive, currentSpeaker, perVote, revealOptions, stepOf } from '../lib/game';
 import { CATEGORIES, CATEGORY_LABEL, type Category, type GameState } from '../types';
 import { CardFace, Stepper } from '../ui/bits';
-import { Board, DebateTimer } from './Game';
+import { Board } from './Game';
+import { SpeechTimer } from '../ui/SpeechTimer';
 import { MatchClock } from '../ui/MatchClock';
 import { Verdict } from './Final';
 
@@ -53,7 +54,7 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
   useEffect(() => {
     const t = setInterval(() => {
       setNow(Date.now());
-      host?.tick(); // время вышло -> дебаты пропускаются, карты открываются автоматически
+      host?.tick(); // кончилась речь -> ходит следующий; вышло время партии -> овертайм
     }, 1000);
     return () => clearInterval(t);
   }, [host]);
@@ -273,9 +274,10 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
   const living = alive(view);
   const [pick, setPick] = useState<Category | null>(null);
   const nameOf = (id: string) => view.players.find((p) => p.id === id)?.name ?? id;
-  const iRevealed = view.revealedThisRound.includes(me);
-  const options = view.phase === 'reveal' && !player.isEliminated && !iRevealed ? revealOptions(view, player) : [];
-  const canAction = (view.phase === 'reveal' || view.phase === 'debate') && !player.isEliminated && !player.slots.action.isRevealed;
+  const speaker = currentSpeaker(view);
+  const myTurn = speaker?.id === me;
+  const options = view.phase === 'reveal' && myTurn && !player.isEliminated ? revealOptions(view, player) : [];
+  const canAction = (view.phase === 'reveal' || view.phase === 'speech') && !player.isEliminated && !player.slots.action.isRevealed;
   const lonely = options.length === 1 ? options[0] : null;
   const chosen = pick && (options.includes(pick) || (pick === 'action' && canAction)) ? pick : lonely;
 
@@ -329,23 +331,23 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
             )}
           </section>
 
-          {view.phase === 'reveal' && (
-            <p className="panel text-sm text-dim">
-              Раунд {view.round}, вскрытие {stepOf(view)} из {perVote(view)}. {iRevealed ? 'Вы открыли карту. ' : ''}Ждём:{' '}
-              {living.filter((p) => !view.revealedThisRound.includes(p.id) && revealOptions(view, p).length).map((p) => p.name).join(', ') || '—'}
+          {view.phase === 'reveal' && speaker && (
+            <p className={`panel text-sm ${myTurn ? 'border-amber text-amber' : 'text-dim'}`}>
+              Раунд {view.round}, вскрытие {stepOf(view)} из {perVote(view)}.{' '}
+              {myTurn ? 'Ваш ход: выберите карту выше и откройте её всем, затем объясните, чем вы полезны.' : <>Ходит: <b className="text-amber">{speaker.name}</b></>}
             </p>
           )}
 
-          {view.phase === 'debate' && (
+          {view.phase === 'speech' && speaker && view.lastReveal && (
             <section className="panel flex flex-col gap-3">
-              <h2 className="h-hud">Дебаты</h2>
-              <p className="text-xs text-dim">Обсуждайте голосом или в чате. В этом раунде уйдёт: {quotaThisRound(view)}.</p>
-              <DebateTimer suggested={suggestedDebateSec(view)} />
-              {host ? (
-                <button className="btn btn-primary" onClick={() => host.endDebate()}><Gavel size={18} /> {stepOf(view) < perVote(view) && view.players.some((p) => !p.isEliminated && revealOptions({ ...view, revealStep: stepOf(view) + 1 }, p).length) ? 'К следующему вскрытию' : 'К голосованию'}</button>
-              ) : (
-                <p className="text-xs text-dim">Дальше ведёт хост.</p>
-              )}
+              <h2 className="h-hud">{myTurn ? 'Объясните, чем вы полезны убежищу' : `${speaker.name} объясняет пользу`}</h2>
+              <CardFace card={speaker.slots[view.lastReveal.category].card} showMod />
+              <SpeechTimer endsAt={view.speechEndsAt} totalSec={view.config.speechSec} />
+              {myTurn ? (
+                <button className="btn btn-primary" onClick={() => send({ t: 'done' })}>Закончил — следующий игрок</button>
+              ) : host ? (
+                <button className="btn btn-sm" onClick={() => host.skipSpeech()}>Пропустить речь (хост)</button>
+              ) : null}
             </section>
           )}
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Eye, Gavel, Play, Timer, Zap } from 'lucide-react';
+import { ArrowLeft, Eye, Play, UserRound, Zap } from 'lucide-react';
 import { CATEGORIES, CATEGORY_LABEL, type Category, type GameState, type PlayerCharacter } from '../types';
 import { useStore } from '../store';
 import {
@@ -8,21 +8,21 @@ import {
   castVote,
   nextRound,
   pendingReveal,
-  quotaThisRound,
   resolveVote,
   revealCard,
   revealOptions,
   ABSTAIN,
-  applyOvertime,
+  currentSpeaker,
+  endSpeech,
   extendDeadline,
-  finishDebate,
   perVote,
   stepOf,
-  suggestedDebateSec,
+  tickGame,
   playAction as applyAction,
 } from '../lib/game';
 import { CardFace, Modal } from '../ui/bits';
 import { MatchClock } from '../ui/MatchClock';
+import { SpeechTimer } from '../ui/SpeechTimer';
 import { Gate } from '../ui/Gate';
 import Final from './Final';
 import Tabletop from './Tabletop';
@@ -33,12 +33,14 @@ export default function Game() {
   const { game, setGame, go } = useStore();
   const [showBrief, setShowBrief] = useState(false);
   const timed = !!game?.deadline && game.config.mode === 'pass-and-play' && game.phase !== 'final';
-  // Время вышло: дебаты пропускаются, карты открываются сами. applyOvertime возвращает тот же объект, пока ничего не изменилось.
+  // Раз в секунду: кончилась речь → ходит следующий; вышло время партии → овертайм.
+  // tickGame возвращает тот же объект, пока ничего не изменилось, поэтому лишних перерисовок нет.
+  const ticking = game?.config.mode === 'pass-and-play' && (timed || game.phase === 'speech');
   useEffect(() => {
-    if (!timed) return;
-    const t = setInterval(() => setGame((g) => (g ? applyOvertime(g) : g)), 1000);
+    if (!ticking) return;
+    const t = setInterval(() => setGame((g) => (g ? tickGame(g) : g)), 500);
     return () => clearInterval(t);
-  }, [timed, setGame]);
+  }, [ticking, setGame]);
   if (!game) {
     return (
       <div className="py-10 text-center">
@@ -82,7 +84,7 @@ export default function Game() {
         <>
           <Board game={game} />
           {game.phase === 'reveal' && <RevealPhase game={game} update={update} />}
-          {game.phase === 'debate' && <DebatePhase game={game} update={update} />}
+          {game.phase === 'speech' && <SpeechPhase game={game} update={update} />}
           {game.phase === 'vote' && <VotePhase game={game} update={update} />}
           {game.phase === 'result' && <ResultPhase game={game} update={update} />}
         </>
@@ -174,93 +176,90 @@ export function Dossier({
   );
 }
 
-/* ---------- Фаза 1: открытие карт ---------- */
+/* ---------- Фаза 1: ход игрока — открывает карту ---------- */
 
 function RevealPhase({ game, update }: { game: GameState; update: Update }) {
-  const [current, setCurrent] = useState<string | null>(null);
-  const pending = pendingReveal(game);
-  const player = pending.find((p) => p.id === current);
-  if (player) {
+  const [open, setOpen] = useState(false);
+  const speaker = currentSpeaker(game);
+  if (!speaker) return null;
+  if (open) {
     return (
-      <Gate name={player.name}>
+      <Gate name={speaker.name}>
         <Dossier
           game={game}
-          player={player}
+          player={speaker}
           mode="reveal"
-          onCancel={() => setCurrent(null)}
+          onCancel={() => setOpen(false)}
           onDone={(c) => {
-            if (c) update((g) => revealCard(g, player.id, c));
-            setCurrent(null);
+            if (c) update((g) => revealCard(g, speaker.id, c));
+            setOpen(false);
           }}
         />
       </Gate>
     );
   }
+  const total = alive(game).filter((p) => revealOptions(game, p).length > 0).length;
+  const done = game.revealedThisRound.length;
   return (
-    <section className="panel">
-      <h2 className="h-hud mb-1">Раунд {game.round} · вскрытие {stepOf(game)} из {perVote(game)}</h2>
-      <p className="mb-3 text-xs text-dim">Каждый по очереди берёт устройство и открывает одну карту. Осталось: {pending.length}.</p>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {pending.map((p) => (
-          <button key={p.id} className="btn" onClick={() => setCurrent(p.id)}><Eye size={16} /> {p.name}</button>
-        ))}
-      </div>
-    </section>
+    <>
+      <section className="panel flex flex-col items-center gap-3 text-center">
+        <h2 className="h-hud">Раунд {game.round} · вскрытие {stepOf(game)} из {perVote(game)}</h2>
+        <p className="text-xs text-dim">Игрок {done + 1} из {total}. Возьмите устройство, откройте карту и затем объясните, чем вы полезны убежищу.</p>
+        <p className="text-3xl font-bold text-amber">{speaker.name}</p>
+        <button className="btn btn-primary w-full" onClick={() => setOpen(true)}><Eye size={18} /> Я — {speaker.name}: открыть карту</button>
+      </section>
+      <ActionsPanel game={game} update={update} />
+    </>
   );
 }
 
-/* ---------- Фаза 2: дебаты ---------- */
+/* ---------- Фаза 2: речь — игрок объясняет пользу, затем ходит следующий ---------- */
 
-export function DebateTimer({ suggested }: { suggested?: number | null }) {
-  const [left, setLeft] = useState(0);
-  const [running, setRunning] = useState(false);
-  useEffect(() => {
-    if (!running) return;
-    const t = setInterval(() => setLeft((l) => (l <= 1 ? (setRunning(false), 0) : l - 1)), 1000);
-    return () => clearInterval(t);
-  }, [running]);
-  const start = (s: number) => { setLeft(s); setRunning(true); };
-  const fmt = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+function SpeechPhase({ game, update }: { game: GameState; update: Update }) {
+  const speaker = currentSpeaker(game);
+  const cat = game.lastReveal?.category;
+  if (!speaker || !cat) return null;
+  const upNext = pendingReveal(game)[0];
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Timer size={18} className="text-amber" />
-      <span className={`w-16 text-2xl ${running && left <= 10 ? 'text-danger' : 'text-amber'}`}>{fmt}</span>
-      {suggested ? <button className="btn btn-sm btn-primary" onClick={() => start(suggested)}>Рекомендуем {Math.floor(suggested / 60)}:{String(suggested % 60).padStart(2, '0')}</button> : null}
-      {[60, 120, 180].map((s) => <button key={s} className="btn btn-sm" onClick={() => start(s)}>{s / 60} мин</button>)}
-      {running && <button className="btn btn-sm" onClick={() => setRunning(false)}>Стоп</button>}
-    </div>
+    <>
+      <section className="panel flex flex-col gap-3">
+        <h2 className="h-hud flex items-center gap-2"><UserRound size={16} /> {speaker.name} объясняет пользу</h2>
+        <CardFace card={speaker.slots[cat].card} showMod />
+        <SpeechTimer endsAt={game.speechEndsAt} totalSec={game.config.speechSec} />
+        <p className="text-center text-xs text-dim">
+          Почему именно вас нужно взять в убежище? {upNext ? `Затем ходит: ${upNext.name}.` : 'Это последняя речь вскрытия.'}
+        </p>
+        <button className="btn btn-primary" onClick={() => update(endSpeech)}><Play size={18} /> {upNext ? 'Следующий игрок' : 'Дальше'}</button>
+      </section>
+      <ActionsPanel game={game} update={update} />
+    </>
   );
 }
 
-function DebatePhase({ game, update }: { game: GameState; update: Update }) {
+/* ---------- Карты действий и просмотр своего досье (в любой момент вскрытий) ---------- */
+
+function ActionsPanel({ game, update }: { game: GameState; update: Update }) {
   const [actor, setActor] = useState<string | null>(null);
   const [peek, setPeek] = useState<string | null>(null);
   const living = alive(game);
-  const moreReveals = stepOf(game) < perVote(game) && living.some((p) => revealOptions({ ...game, revealStep: stepOf(game) + 1 }, p).length > 0);
   const actorP = living.find((p) => p.id === actor);
   const peekP = living.find((p) => p.id === peek);
   return (
     <>
-      <section className="panel flex flex-col gap-3">
-        <h2 className="h-hud">Дебаты</h2>
-        <p className="text-xs text-dim">Обсудите, кто нужнее убежищу. В этом раунде уйдёт: {quotaThisRound(game)}.</p>
-        <DebateTimer suggested={suggestedDebateSec(game)} />
-        <div className="flex flex-wrap gap-2">
+      <details className="panel p-3">
+        <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">Карты действий и своё досье</summary>
+        <div className="mt-3 flex flex-wrap gap-2">
           {living.map((p) => (
             <button key={p.id} className="btn btn-sm" disabled={p.slots.action.isRevealed} onClick={() => setActor(p.id)}>
               <Zap size={14} /> {p.name}
             </button>
           ))}
         </div>
-        <p className="text-[10px] uppercase tracking-widest text-dim">↑ применить карту действия (один раз за партию)</p>
-        <details>
-          <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">Посмотреть своё досье</summary>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {living.map((p) => <button key={p.id} className="btn btn-sm" onClick={() => setPeek(p.id)}>{p.name}</button>)}
-          </div>
-        </details>
-        <button className="btn btn-primary" onClick={() => update(finishDebate)}><Gavel size={18} /> {moreReveals ? 'К следующему вскрытию' : 'К голосованию'}</button>
-      </section>
+        <p className="mt-1 text-[10px] uppercase tracking-widest text-dim">↑ применить карту действия (один раз за партию)</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {living.map((p) => <button key={p.id} className="btn btn-sm" onClick={() => setPeek(p.id)}>Досье: {p.name}</button>)}
+        </div>
+      </details>
       {actorP && (
         <Modal>
           <Gate name={actorP.name}>

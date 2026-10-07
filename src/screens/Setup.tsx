@@ -17,6 +17,7 @@ export default function Setup() {
   const [names, setNames] = useState<string[]>([]);
   const [revealsPerVote, setRevealsPerVote] = useState(2);
   const [timeLimitMin, setTimeLimitMin] = useState(45);
+  const [speechSec, setSpeechSec] = useState(45);
 
   const activePacks = useMemo(() => allPacks.filter((p) => packIds.includes(p.id)), [allPacks, packIds]);
   const scenarios = useMemo(() => activePacks.flatMap((p) => p.scenarios), [activePacks]);
@@ -43,7 +44,7 @@ export default function Setup() {
   const start = () => {
     const chosen = scenario ?? scenarios[Math.floor(Math.random() * scenarios.length)];
     if (mode === 'online') {
-      go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting, revealsPerVote, timeLimitMin } });
+      go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting, revealsPerVote, speechSec, timeLimitMin } });
       return;
     }
     const config: SessionConfig = {
@@ -54,6 +55,7 @@ export default function Setup() {
       mode,
       voting,
       revealsPerVote,
+      speechSec,
       timeLimitMin: mode === 'tabletop' ? 0 : timeLimitMin,
       names: Array.from({ length: n }, (_, i) => nameAt(i)),
       seed: newSeed(),
@@ -155,7 +157,15 @@ export default function Setup() {
         <section className="panel flex flex-wrap items-end gap-x-8 gap-y-4">
           <div>
             <Stepper label="Вскрытий до голосования" value={revealsPerVote} min={1} max={3} onChange={setRevealsPerVote} />
-            <p className="mt-1 max-w-xs text-xs text-dim">Между голосованиями каждый открывает столько карт (с дебатами после каждой). Чем больше вскрытий, тем меньше раундов.</p>
+            <p className="mt-1 max-w-xs text-xs text-dim">Между голосованиями каждый по очереди открывает столько карт. Чем больше вскрытий, тем меньше раундов.</p>
+          </div>
+          <div>
+            <label className="label" htmlFor="sp">Время на объяснение пользы</label>
+            <select id="sp" className="input" value={speechSec} onChange={(e) => setSpeechSec(Number(e.target.value))}>
+              <option value={0}>Без таймера</option>
+              {[20, 30, 45, 60, 90].map((m) => <option key={m} value={m}>{m} сек</option>)}
+            </select>
+            <p className="mt-1 max-w-xs text-xs text-dim">После вскрытия игрок объясняет, чем полезен убежищу; по таймеру ход переходит к следующему.</p>
           </div>
           <div>
             <label className="label" htmlFor="tl">Время на партию</label>
@@ -163,7 +173,7 @@ export default function Setup() {
               <option value={0}>Без лимита</option>
               {[15, 30, 45, 60, 90, 120].map((m) => <option key={m} value={m}>{m} мин</option>)}
             </select>
-            <p className="mt-1 max-w-xs text-xs text-dim">Когда время выйдет, дебаты пропускаются, а карты открываются автоматически. Решение о голосовании остаётся за игроками.</p>
+            <p className="mt-1 max-w-xs text-xs text-dim">Когда время выйдет, речи пропускаются, а карты открываются автоматически. Голосовать всё равно придётся самим.</p>
           </div>
         </section>
       )}
