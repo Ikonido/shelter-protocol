@@ -1,5 +1,6 @@
-import { BookOpen, ChevronRight, Globe, Library, Play, QrCode, RotateCcw, Smartphone, Wand2, type LucideIcon } from 'lucide-react';
+import { Zap, BookOpen, Settings as SettingsIcon, ChevronRight, Globe, Library, Play, QrCode, RotateCcw, Smartphone, Wand2, type LucideIcon } from 'lucide-react';
 import { useStore, type Screen } from '../store';
+import { buildQuickGame, loadLastSetup } from '../lib/quick';
 import { Emblem } from '../ui/Emblem';
 import { isStandalone } from '../lib/pwa';
 import { UpdateBanner, UpdateButton } from '../ui/UpdateButton';
@@ -18,7 +19,14 @@ function MenuItem({ icon: Icon, title, hint, onClick }: { icon: LucideIcon; titl
 }
 
 export default function Home() {
-  const { go, game, setGame } = useStore();
+  const { go, game, setGame, allPacks, notify } = useStore();
+  const quick = () => {
+    const g = buildQuickGame(allPacks, loadLastSetup());
+    if (!g) return notify('Не удалось собрать быструю игру: нет сценариев');
+    setGame(g);
+    notify(`Быстрая игра: ${g.scenario.title}`);
+    go({ name: 'game' });
+  };
   const to = (s: Screen) => () => go(s);
   const resumable = game && game.phase !== 'final';
   return (
@@ -48,6 +56,9 @@ export default function Home() {
         <button className={`btn min-h-14 ${resumable ? '' : 'btn-primary hud'}`} onClick={to({ name: 'setup' })}>
           <Play size={18} /> Новая игра
         </button>
+        <button className="btn min-h-12" onClick={quick}>
+          <Zap size={18} /> Быстрая игра <span className="hidden text-[10px] opacity-70 sm:inline">прошлые настройки и игроки, случайный сценарий</span>
+        </button>
         <button className="btn min-h-12 border-amber/50 text-amber" onClick={to({ name: 'setup', mode: 'online' })}>
           <QrCode size={18} /> Создать онлайн-комнату <span className="hidden text-[10px] opacity-70 sm:inline">код и QR для друзей</span>
         </button>
@@ -56,6 +67,7 @@ export default function Home() {
           <MenuItem icon={Wand2} title="Свой сценарий" hint="конструктор: угрозы и способности карт" onClick={to({ name: 'builder' })} />
           <MenuItem icon={Library} title="Паки" hint="файлы, ссылки, расширенный редактор" onClick={to({ name: 'packs' })} />
           {!isStandalone() && <MenuItem icon={Smartphone} title="На телефон" hint="установить, работает офлайн" onClick={to({ name: 'install' })} />}
+          <MenuItem icon={SettingsIcon} title="Настройки" hint="звук, вибрация, тема, размер текста" onClick={to({ name: 'settings' })} />
           <MenuItem icon={BookOpen} title="Правила" hint="разберётесь за минуту" onClick={to({ name: 'rules' })} />
           {game && game.phase === 'final' && <MenuItem icon={RotateCcw} title="Итоги" hint="прошлой партии" onClick={to({ name: 'game' })} />}
         </div>

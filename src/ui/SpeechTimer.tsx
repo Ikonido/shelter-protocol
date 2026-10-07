@@ -1,28 +1,32 @@
 import { useEffect, useRef, useState } from 'react';
 import { Mic } from 'lucide-react';
+import { signal } from '../lib/feedback';
 
 /** Обратный отсчёт речи ходящего игрока. Когда время выходит, телефон коротко вибрирует (если умеет). */
-export function SpeechTimer({ endsAt, totalSec }: { endsAt?: number; totalSec: number }) {
+export function SpeechTimer({ endsAt, totalSec, mine = true }: { endsAt?: number; totalSec: number; mine?: boolean }) {
   const [now, setNow] = useState(Date.now());
   const buzzed = useRef(false);
+  const warned = useRef(false);
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(t);
   }, []);
   useEffect(() => {
     buzzed.current = false;
+    warned.current = false;
   }, [endsAt]);
   if (!endsAt) {
     return <p className="text-center text-xs text-dim">Без таймера: когда закончите — нажмите «Следующий игрок».</p>;
   }
   const leftMs = Math.max(0, endsAt - now);
+  // Сигналы нужны тому, кто говорит (в онлайне у остальных телефон молчит): за 10 секунд и по окончании.
+  if (mine && totalSec > 20 && leftMs > 0 && leftMs <= 10_000 && !warned.current) {
+    warned.current = true;
+    signal('warn');
+  }
   if (leftMs === 0 && !buzzed.current) {
     buzzed.current = true;
-    try {
-      navigator.vibrate?.(250);
-    } catch {
-      /* не критично */
-    }
+    if (mine) signal('end');
   }
   const frac = Math.min(1, leftMs / Math.max(1, totalSec * 1000));
   const s = Math.ceil(leftMs / 1000);

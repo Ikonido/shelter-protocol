@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Eye, Play, UserRound, Zap } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Eye, Play, Undo2, UserRound, Zap } from 'lucide-react';
 import { CATEGORIES, CATEGORY_LABEL, type Category, type GameState, type PlayerCharacter } from '../types';
 import { useStore } from '../store';
 import {
@@ -37,10 +37,26 @@ import Final from './Final';
 import Tabletop from './Tabletop';
 
 type Update = (fn: (g: GameState) => GameState) => void;
+interface Undo { name: string; run: () => void }
+
+/** Кнопка «отменить» последнее вскрытие: случайно открыли не ту карту. Живёт, пока не началось голосование. */
+function UndoButton({ undo }: { undo?: Undo }) {
+  if (!undo) return null;
+  return <button className="btn btn-sm self-center" onClick={undo.run}><Undo2 size={14} /> Отменить вскрытие ({undo.name})</button>;
+}
 
 export default function Game() {
   const { game, setGame, go } = useStore();
   const [showBrief, setShowBrief] = useState(false);
+  // Снимок состояния до последнего вскрытия: нужен для кнопки «отменить».
+  const prevRef = useRef<GameState | null>(null);
+  const [undoSnap, setUndoSnap] = useState<GameState | null>(null);
+  useEffect(() => {
+    const p = prevRef.current;
+    if (!game || game.phase === 'vote' || game.phase === 'result' || game.phase === 'final' || game.phase === 'event') setUndoSnap(null);
+    else if (p && p.phase === 'reveal' && game.lastReveal && game.lastReveal !== p.lastReveal && game.round === p.round) setUndoSnap(p);
+    prevRef.current = game;
+  }, [game]);
   const timed = !!game?.deadline && game.config.mode === 'pass-and-play' && game.phase !== 'final';
   // Раз в секунду: кончилась речь → ходит следующий; вышло время партии → овертайм.
   // tickGame возвращает тот же объект, пока ничего не изменилось, поэтому лишних перерисовок нет.
@@ -59,6 +75,10 @@ export default function Game() {
     );
   }
   const update: Update = (fn) => setGame((g) => (g ? fn(g) : g));
+  const undo: Undo | undefined =
+    undoSnap && game.config.mode === 'pass-and-play' && (game.phase === 'speech' || game.phase === 'reveal')
+      ? { name: game.players.find((p) => p.id === game.lastReveal?.playerId)?.name ?? '', run: () => { setGame(undoSnap); setUndoSnap(null); } }
+      : undefined;
 
   const speaker = currentSpeaker(game);
   const live = game.config.mode !== 'tabletop' && game.phase !== 'final';
@@ -89,8 +109,8 @@ export default function Game() {
               <MatchClock deadline={game.deadline} totalMin={game.config.timeLimitMin} onExtend={() => update((g) => extendDeadline(g, 5 * 60_000))} />
             )}
             {game.phase === 'event' && <EventPhase game={game} update={update} />}
-            {game.phase === 'reveal' && <RevealPhase game={game} update={update} />}
-            {game.phase === 'speech' && <SpeechPhase game={game} update={update} />}
+            {game.phase === 'reveal' && <RevealPhase game={game} update={update} undo={undo} />}
+            {game.phase === 'speech' && <SpeechPhase game={game} update={update} undo={undo} />}
             {game.phase === 'vote' && <VotePhase game={game} update={update} />}
             {game.phase === 'result' && <ResultPhase game={game} update={update} />}
           </div>
@@ -177,7 +197,7 @@ function EventPhase({ game, update }: { game: GameState; update: Update }) {
 
 /* ---------- Фаза 1: ход игрока — открывает карту ---------- */
 
-function RevealPhase({ game, update }: { game: GameState; update: Update }) {
+function RevealPhase({ game, update, undo }: { game: GameState; update: Update; undo?: Undo }) {
   const [open, setOpen] = useState(false);
   const speaker = currentSpeaker(game);
   if (!speaker) return null;
@@ -207,6 +227,7 @@ function RevealPhase({ game, update }: { game: GameState; update: Update }) {
         <Avatar id={speaker.id} name={speaker.name} size={72} ring />
         <p className="text-3xl font-bold text-amber">{speaker.name}</p>
         <button className="btn btn-primary w-full" onClick={() => setOpen(true)}><Eye size={18} /> Я — {speaker.name}: открыть карту</button>
+        <UndoButton undo={undo} />
       </section>
       <ActionsPanel game={game} update={update} />
     </>
@@ -215,7 +236,7 @@ function RevealPhase({ game, update }: { game: GameState; update: Update }) {
 
 /* ---------- Фаза 2: речь — игрок объясняет пользу, затем ходит следующий ---------- */
 
-function SpeechPhase({ game, update }: { game: GameState; update: Update }) {
+function SpeechPhase({ game, update, undo }: { game: GameState; update: Update; undo?: Undo }) {
   const speaker = currentSpeaker(game);
   const cat = game.lastReveal?.category;
   if (!speaker || !cat) return null;
@@ -230,6 +251,7 @@ function SpeechPhase({ game, update }: { game: GameState; update: Update }) {
           Почему именно вас нужно взять в убежище? {upNext ? `Затем ходит: ${upNext.name}.` : 'Это последняя речь вскрытия.'}
         </p>
         <button className="btn btn-primary" onClick={() => update(endSpeech)}><Play size={18} /> {upNext ? 'Следующий игрок' : 'Дальше'}</button>
+        <UndoButton undo={undo} />
       </section>
       <ActionsPanel game={game} update={update} />
     </>

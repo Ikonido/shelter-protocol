@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Home, Newspaper, RotateCcw, Skull, TriangleAlert } from 'lucide-react';
+import { CheckCircle2, Home, Newspaper, Repeat, RotateCcw, Skull, TriangleAlert } from 'lucide-react';
 import type { GameState } from '../types';
 import { CATEGORIES } from '../types';
 import { evaluate } from '../lib/evaluate';
@@ -8,6 +8,7 @@ import { ThreatsPanel } from '../ui/Threats';
 import { ChroniclePlayer } from '../ui/ChroniclePlayer';
 import { ScoreRing } from '../ui/ScoreRing';
 import { rulesFor } from '../lib/difficulty';
+import { replayGame } from '../lib/quick';
 import { useStore } from '../store';
 
 function Meter({ label, value }: { label: string; value: number }) {
@@ -101,7 +102,7 @@ export function FinalReport({ game, auto = true, onStoryChange }: { game: GameSt
 }
 
 export default function Final({ game }: { game: GameState }) {
-  const { go, setGame } = useStore();
+  const { go, setGame, allPacks, notify } = useStore();
   const [playing, setPlaying] = useState(true);
   return (
     <div className="flex flex-col gap-4">
@@ -114,7 +115,21 @@ export default function Final({ game }: { game: GameState }) {
         </ol>
       </details>
       <div className="grid gap-2 sm:grid-cols-2">
-        <button className="btn btn-primary" onClick={() => go({ name: 'setup' })}><RotateCcw size={18} /> Новая партия</button>
+        {game.config.mode !== 'online' && (
+          <button
+            className="btn btn-primary sm:col-span-2"
+            onClick={() => {
+              const g = replayGame(game, allPacks);
+              if (!g) return notify('Не удалось начать заново');
+              setGame(g);
+              notify('Новая раздача, те же игроки');
+              go({ name: 'game' });
+            }}
+          >
+            <Repeat size={18} /> Сыграть ещё раз тем же составом
+          </button>
+        )}
+        <button className="btn" onClick={() => go({ name: 'setup' })}><RotateCcw size={18} /> Новая партия</button>
         <button className="btn" onClick={() => { setGame(null); go({ name: 'home' }); }}><Home size={18} /> В меню</button>
       </div>
       </>)}
