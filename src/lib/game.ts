@@ -3,6 +3,7 @@ import {
   CATEGORY_LABEL,
   type Category,
   type GameState,
+  type Hazard,
   type PlayerCharacter,
   type RoundResult,
   type Scenario,
@@ -47,11 +48,19 @@ export function createGame(config: SessionConfig, scenario: Scenario, packs: Car
     phase: config.mode === 'tabletop' ? 'final' : 'reveal',
     revealedThisRound: [],
     revealStep: 1,
+    hazards: pickHazards(scenario, config.hazardCount ?? 0, config.seed),
     ...(config.timeLimitMin > 0 ? { deadline: Date.now() + config.timeLimitMin * 60_000 } : {}),
     votes: {},
     log: [],
     seed: config.seed,
   };
+}
+
+/** Случайный (но воспроизводимый по seed) набор факторов угрозы из пула сценария. */
+export function pickHazards(scenario: Scenario, count: number, seed: number): Hazard[] {
+  const pool = scenario.hazards ?? [];
+  const n = Math.max(0, Math.min(count, pool.length));
+  return n === 0 ? [] : shuffle(pool, mulberry32(seed ^ 0x5bd1e995)).slice(0, n);
 }
 
 export const perVote = (g: GameState) => Math.max(1, g.config.revealsPerVote ?? 1);

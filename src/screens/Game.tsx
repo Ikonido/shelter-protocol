@@ -23,6 +23,7 @@ import {
 import { CardFace, Modal } from '../ui/bits';
 import { MatchClock } from '../ui/MatchClock';
 import { SpeechTimer } from '../ui/SpeechTimer';
+import { ThreatsPanel } from '../ui/Threats';
 import { Gate } from '../ui/Gate';
 import Final from './Final';
 import Tabletop from './Tabletop';
@@ -82,6 +83,7 @@ export default function Game() {
         <Final game={game} />
       ) : (
         <>
+          <ThreatsPanel hazards={game.hazards ?? []} />
           <Board game={game} />
           {game.phase === 'reveal' && <RevealPhase game={game} update={update} />}
           {game.phase === 'speech' && <SpeechPhase game={game} update={update} />}

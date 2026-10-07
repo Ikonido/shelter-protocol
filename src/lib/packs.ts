@@ -1,5 +1,5 @@
 import LZString from 'lz-string';
-import { CATEGORIES, type Card, type CardPack, type Category, type Modifier, type Scenario } from '../types';
+import { CATEGORIES, type Card, type CardPack, type Category, type Hazard, type Modifier, type Scenario, type Severity } from '../types';
 import { uid } from './rng';
 import { LIMITS as L } from './limits';
 
@@ -23,6 +23,22 @@ function sanitizeCard(raw: unknown, category: Category, i: number): Card | null 
   return card;
 }
 
+const SEVERITIES: Severity[] = ['critical', 'major', 'minor'];
+
+export function sanitizeHazard(raw: unknown, i: number): Hazard | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const title = str(r.title, L.hazardTitle);
+  if (!title) return null;
+  return {
+    id: str(r.id, 60) || `h${i}-${uid('hz')}`,
+    title,
+    description: str(r.description, L.hazardDescription),
+    counters: strList(r.counters, L.hazardCounters, L.tagLen),
+    severity: SEVERITIES.includes(r.severity as Severity) ? (r.severity as Severity) : 'major',
+  };
+}
+
 export function sanitizeScenario(raw: unknown, i: number): Scenario | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
@@ -37,6 +53,9 @@ export function sanitizeScenario(raw: unknown, i: number): Scenario | null {
     isolationDuration: str(r.isolationDuration, L.scenarioDuration),
     requiredSkills: strList(r.requiredSkills, L.skills, L.skillLen),
     threats: strList(r.threats, L.threats, L.threatLen),
+    hazards: (Array.isArray(r.hazards) ? (r.hazards as unknown[]).slice(0, L.hazards) : [])
+      .map(sanitizeHazard)
+      .filter((h): h is Hazard => !!h),
   };
 }
 

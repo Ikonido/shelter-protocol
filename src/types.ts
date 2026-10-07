@@ -29,6 +29,19 @@ export const CATEGORY_LABEL: Record<Category, string> = {
 
 export type Modifier = 'positive' | 'neutral' | 'negative';
 
+export type Severity = 'critical' | 'major' | 'minor';
+
+/** Фактор угрозы (крысы на корабле, течь, заражённая вода…): для победы его нужно нейтрализовать. */
+export interface Hazard {
+  id: string;
+  title: string;
+  description: string;
+  /** Навыки/теги карт выживших, которые нейтрализуют угрозу (достаточно одного совпадения). */
+  counters: string[];
+  /** critical — без нейтрализации убежище гибнет; major/minor — снижают шансы и мешают полной победе. */
+  severity: Severity;
+}
+
 export interface Scenario {
   id: string;
   title: string;
@@ -37,6 +50,8 @@ export interface Scenario {
   isolationDuration: string;
   requiredSkills: string[]; // ключевые требования (например, медицина, агрономия)
   threats: string[];
+  /** Пул факторов угрозы; на партию выбирается случайный набор. */
+  hazards?: Hazard[];
 }
 
 export interface Card {
@@ -82,6 +97,8 @@ export interface SessionConfig {
   voting: VotingMode;
   /** Сколько вскрытий (у каждого — карта и речь) проходит между голосованиями. */
   revealsPerVote: number;
+  /** Сколько факторов угрозы из пула сценария берётся в партию. */
+  hazardCount: number;
   /** Секунд на объяснение пользы после вскрытия, 0 — без таймера (только кнопка). */
   speechSec: number;
   /** Лимит времени на партию в минутах, 0 — без лимита. */
@@ -117,6 +134,8 @@ export interface GameState {
   phase: Phase;
   /** Кто уже открыл карту в текущем вскрытии (шаге раунда). */
   revealedThisRound: string[];
+  /** Активные факторы угрозы этой партии (нет в старых сохранениях → пусто). */
+  hazards?: Hazard[];
   /** Что открыто последним (показываем во время объяснения). */
   lastReveal?: { playerId: string; category: Category };
   /** Когда закончится речь ходящего (мс, часы хоста). */

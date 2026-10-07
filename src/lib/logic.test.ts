@@ -3,13 +3,15 @@ import { CLASSIC_PACK } from '../data/classicPack';
 import { CATEGORIES, type SessionConfig } from '../types';
 import { ABSTAIN, alive, applyOvertime, buildSchedule, castVote, createGame, currentSpeaker, endSpeech, maxRoundsFor, nextRound, pendingReveal, resolveVote, revealCard, revealOptions, startVote, tickGame } from './game';
 import { evaluate } from './evaluate';
-import { decodePack, encodePack, sanitizePack } from './packs';
+import type { Hazard } from '../types';
+import { decodePack, encodePack, sanitizePack, sanitizeHazard } from './packs';
 
-const config = (n = 6, k = 3, revealsPerVote = 1, timeLimitMin = 0, speechSec = 0): SessionConfig => ({
+const config = (n = 6, k = 3, revealsPerVote = 1, timeLimitMin = 0, speechSec = 0, hazardCount = 0): SessionConfig => ({
   scenarioId: CLASSIC_PACK.scenarios[0].id, packIds: ['classic'], playerCount: n, shelterSlots: k,
-  mode: 'pass-and-play', voting: 'open', revealsPerVote, timeLimitMin, speechSec, names: Array.from({ length: n }, (_, i) => `P${i + 1}`), seed: 42,
+  mode: 'pass-and-play', voting: 'open', revealsPerVote, timeLimitMin, speechSec, hazardCount, names: Array.from({ length: n }, (_, i) => `P${i + 1}`), seed: 42,
 });
-const newGame = (n = 6, k = 3, rpv = 1, limit = 0, speech = 0) => createGame(config(n, k, rpv, limit, speech), CLASSIC_PACK.scenarios[0], [CLASSIC_PACK]);
+const newGame = (n = 6, k = 3, rpv = 1, limit = 0, speech = 0, hazards = 0, scenarioIdx = 0) =>
+  createGame(config(n, k, rpv, limit, speech, hazards), CLASSIC_PACK.scenarios[scenarioIdx], [CLASSIC_PACK]);
 
 describe('schedule', () => {
   it('sums to N-K and caps rounds', () => {
@@ -236,5 +238,87 @@ describe('match timer', () => {
     const many = evaluate(g.scenario, g.players, 3);
     expect(many.notes.join()).toContain('переполнен');
     expect(many.score).toBeLessThan(few.score + 1);
+  });
+});
+
+describe('threat factors', () => {
+  const rats: Hazard = { id: 'h-rats', title: 'Крысы на корабле', description: '', severity: 'major', counters: ['дератизация', 'санитария'] };
+  const leak: Hazard = { id: 'h-leak', title: 'Течь в корпусе', description: '', severity: 'critical', counters: ['инженерия'] };
+  const mold: Hazard = { id: 'h-mold', title: 'Плесень', description: '', severity: 'minor', counters: ['санитария'] };
+  /** Детерминированные выжившие: у всех нейтральные карты без тегов, кроме профессии с заданными тегами. */
+  const withTags = (g: ReturnType<typeof newGame>, tagsByPlayer: string[][]) =>
+    g.players.map((p, i) => {
+      const plain = (c: 'profession' | 'hobby' | 'fact' | 'luggage', tags: string[]) => ({
+        card: { ...p.slots[c].card, description: 'Обычный человек', title: undefined, tags },
+        isRevealed: p.slots[c].isRevealed,
+      });
+      return { ...p, slots: { ...p.slots, profession: plain('profession', tagsByPlayer[i] ?? []), hobby: plain('hobby', []), fact: plain('fact', []), luggage: plain('luggage', []) } };
+    });
+
+  it('picks a seeded random subset from the scenario pool', () => {
+    const a = newGame(6, 3, 1, 0, 0, 2, 2), b = newGame(6, 3, 1, 0, 0, 2, 2);
+    expect(a.hazards).toHaveLength(2);
+    expect(a.hazards).toEqual(b.hazards);
+    expect(newGame(6, 3, 1, 0, 0, 0).hazards).toEqual([]);
+    expect(newGame(6, 3, 1, 0, 0, 4).hazards).toHaveLength(4);
+    expect(newGame(6, 3, 1, 0, 0, 99).hazards!.length).toBeLessThanOrEqual(CLASSIC_PACK.scenarios[0].hazards!.length);
+  });
+
+  it('every built-in hazard can actually be countered by some card in the pack', () => {
+    const all = Object.values(CLASSIC_PACK.cards).flat();
+    for (const sc of CLASSIC_PACK.scenarios) for (const h of sc.hazards ?? []) {
+      expect(all.some((c) => h.counters.some((t) => c.tags?.includes(t))), `${sc.id}/${h.id}`).toBe(true);
+    }
+  });
+
+  it('an un-neutralized critical hazard destroys the shelter whatever the score', () => {
+    const g = newGame(6, 3);
+    const ev = evaluate({ ...g.scenario, requiredSkills: [] }, withTags(g, [[], [], []]).slice(0, 3), 3, [leak]);
+    expect(ev.verdict).toBe('failed');
+    expect(ev.headline).toContain('Течь в корпусе');
+    expect(ev.notes.join()).toContain('гибель');
+  });
+
+  it('neutralized hazards list who removed them; a leftover minor hazard blocks the full win', () => {
+    const g = newGame(6, 3);
+    const survivors = withTags(g, [['инженерия'], ['дератизация'], ['санитария']]).slice(0, 3);
+    const sc = { ...g.scenario, requiredSkills: [] };
+    const ok = evaluate(sc, survivors, 3, [leak, rats]);
+    expect(ok.hazards.map((r) => r.by.length > 0)).toEqual([true, true]);
+    expect(ok.hazards[1].by).toEqual(['P2', 'P3']); // и дератизатор, и санитар подходят
+    const noSanitary = evaluate(sc, survivors.slice(0, 2), 3, [leak, rats, mold]);
+    expect(noSanitary.hazards[2].by).toEqual([]);
+    expect(noSanitary.verdict).not.toBe('survived');
+    expect(noSanitary.verdict).not.toBe('failed'); // критическая закрыта, остались лёгкие
+    // без угроз прежняя оценка не меняется
+    expect(evaluate(sc, survivors, 3).hazards).toEqual([]);
+  });
+
+  it('open hazards lower the score by severity', () => {
+    const g = newGame(6, 3);
+    const survivors = withTags(g, [['санитария'], [], []]).slice(0, 3);
+    const sc = { ...g.scenario, requiredSkills: [] };
+    const none = evaluate(sc, survivors, 3, []).score;
+    expect(evaluate(sc, survivors, 3, [rats]).score).toBe(none); // нейтрализована
+    expect(evaluate(sc, withTags(g, [[], [], []]).slice(0, 3), 3, [rats]).score).toBeLessThan(none);
+  });
+});
+
+describe('hazard data hygiene', () => {
+  it('sanitizes hazards in packs: limits, severity whitelist, empty titles dropped', () => {
+    const hazards = Array.from({ length: 20 }, (_, i) => ({ title: 'T' + 'x'.repeat(100), description: 'd'.repeat(500), severity: i % 2 ? 'evil' : 'critical', counters: ['a', 'b', 'c', 'd', 'e', 'f'] }));
+    const p = sanitizePack({ name: 'x', scenarios: [{ title: 't', hazards: [...hazards, { title: '' }, 5] }] })!;
+    const hs = p.scenarios[0].hazards!;
+    expect(hs).toHaveLength(8);
+    expect(hs[0].title.length).toBe(40);
+    expect(hs[0].description.length).toBe(160);
+    expect(hs[0].counters).toHaveLength(4);
+    expect(hs.map((h) => h.severity)).toContain('major'); // «evil» -> major
+    expect(hs.every((h) => ['critical', 'major', 'minor'].includes(h.severity))).toBe(true);
+    expect(sanitizeHazard({ title: '' }, 0)).toBeNull();
+  });
+  it('round-trips through the share link', () => {
+    const back = decodePack(encodePack(CLASSIC_PACK));
+    expect(back?.scenarios[2].hazards?.length).toBe(CLASSIC_PACK.scenarios[2].hazards!.length);
   });
 });

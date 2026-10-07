@@ -11,6 +11,7 @@ import { CATEGORIES, CATEGORY_LABEL, type Category, type GameState } from '../ty
 import { CardFace, Stepper } from '../ui/bits';
 import { Board } from './Game';
 import { SpeechTimer } from '../ui/SpeechTimer';
+import { ThreatsPanel } from '../ui/Threats';
 import { MatchClock } from '../ui/MatchClock';
 import { Verdict } from './Final';
 
@@ -306,6 +307,7 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
           {view.deadline && (
             <MatchClock deadline={view.deadline} totalMin={view.config.timeLimitMin} onExtend={host ? () => host.extendTime(5 * 60_000) : undefined} />
           )}
+          <ThreatsPanel hazards={view.hazards ?? []} />
           <Board game={view} />
 
           <section className="panel flex flex-col gap-2">

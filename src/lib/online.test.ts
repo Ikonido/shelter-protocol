@@ -268,3 +268,36 @@ describe('speech turns online', () => {
     expect(host.game!.phase).toBe('vote');
   });
 });
+
+describe('threat factors online', () => {
+  it('host picks hazards (default 2) and clients receive them sanitized', async () => {
+    const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[2], packs: [CLASSIC_PACK], slots: 1, voting: 'open', revealsPerVote: 1 }, 'Хост');
+    const p = pair();
+    host.addConn(p.hostSide);
+    const c = new OnlineClient(p.clientSide, 'Гость', 'tok');
+    await tick();
+    host.start();
+    await tick();
+    expect(host.game!.hazards).toHaveLength(2);
+    const st = c.state;
+    if (st.status !== 'game') throw new Error('no view');
+    expect(st.view.hazards!.map((h) => h.id)).toEqual(host.game!.hazards!.map((h) => h.id));
+    expect(st.view.config.hazardCount).toBe(2);
+  });
+  it('hostile hazards from the host are clamped', async () => {
+    const p = pair();
+    const c = new OnlineClient(p.clientSide, 'a', 't');
+    const { host } = await setup();
+    host.start();
+    const good = JSON.parse(JSON.stringify(host.viewFor(0)));
+    good.hazards = Array.from({ length: 50 }, () => ({ id: 'x', title: 'y'.repeat(999), description: 'z'.repeat(999), counters: Array(50).fill('c'), severity: 'bogus' }));
+    (p.hostSide as unknown as { send(m: unknown): void }).send({ t: 'view', me: 'p1', view: good });
+    await tick();
+    if (c.state.status !== 'game') throw new Error('should accept sanitized');
+    const hs = c.state.view.hazards!;
+    expect(hs.length).toBeLessThanOrEqual(4);
+    expect(hs[0].title.length).toBe(40);
+    expect(hs[0].counters.length).toBeLessThanOrEqual(4);
+    expect(hs[0].severity).toBe('major');
+  });
+});

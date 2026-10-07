@@ -3,6 +3,7 @@ import type { GameState } from '../types';
 import { CATEGORIES } from '../types';
 import { evaluate } from '../lib/evaluate';
 import { CardFace } from '../ui/bits';
+import { ThreatsPanel } from '../ui/Threats';
 import { useStore } from '../store';
 
 function Meter({ label, value }: { label: string; value: number }) {
@@ -18,7 +19,7 @@ function Meter({ label, value }: { label: string; value: number }) {
 
 export function Verdict({ game }: { game: GameState }) {
   const survivors = game.players.filter((p) => !p.isEliminated);
-  const ev = evaluate(game.scenario, survivors, game.config.shelterSlots);
+  const ev = evaluate(game.scenario, survivors, game.config.shelterSlots, game.hazards ?? []);
   const Icon = ev.verdict === 'survived' ? CheckCircle2 : ev.verdict === 'fragile' ? TriangleAlert : Skull;
   const tone = ev.verdict === 'survived' ? 'text-ok' : ev.verdict === 'fragile' ? 'text-amber' : 'text-danger';
   return (
@@ -50,7 +51,8 @@ export function Verdict({ game }: { game: GameState }) {
         )}
       </div>
 
-      {game.scenario.threats.length > 0 && (
+      <ThreatsPanel hazards={game.hazards ?? []} results={ev.hazards} />
+      {!(game.hazards?.length) && game.scenario.threats.length > 0 && (
         <div className="panel">
           <h3 className="label">Угрозы изоляции ({game.scenario.isolationDuration})</h3>
           <ul className="list-disc pl-5 text-sm text-dim">{game.scenario.threats.map((t) => <li key={t}>{t}</li>)}</ul>

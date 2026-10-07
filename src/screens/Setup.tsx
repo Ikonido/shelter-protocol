@@ -18,6 +18,7 @@ export default function Setup() {
   const [revealsPerVote, setRevealsPerVote] = useState(2);
   const [timeLimitMin, setTimeLimitMin] = useState(45);
   const [speechSec, setSpeechSec] = useState(45);
+  const [hazardCount, setHazardCount] = useState(2);
 
   const activePacks = useMemo(() => allPacks.filter((p) => packIds.includes(p.id)), [allPacks, packIds]);
   const scenarios = useMemo(() => activePacks.flatMap((p) => p.scenarios), [activePacks]);
@@ -44,7 +45,7 @@ export default function Setup() {
   const start = () => {
     const chosen = scenario ?? scenarios[Math.floor(Math.random() * scenarios.length)];
     if (mode === 'online') {
-      go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting, revealsPerVote, speechSec, timeLimitMin } });
+      go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting, revealsPerVote, speechSec, hazardCount, timeLimitMin } });
       return;
     }
     const config: SessionConfig = {
@@ -56,6 +57,7 @@ export default function Setup() {
       voting,
       revealsPerVote,
       speechSec,
+      hazardCount,
       timeLimitMin: mode === 'tabletop' ? 0 : timeLimitMin,
       names: Array.from({ length: n }, (_, i) => nameAt(i)),
       seed: newSeed(),
@@ -151,6 +153,13 @@ export default function Setup() {
             </button>
           </div>
         )}
+      </section>
+
+      <section className="panel">
+        <Stepper label="Факторы угрозы" value={hazardCount} min={0} max={4} onChange={setHazardCount} />
+        <p className="mt-1 max-w-md text-xs text-dim">
+          Случайные угрозы сценария (крысы и паразиты, течь, мародёры…). В финале каждую нужно нейтрализовать подходящим навыком или картой выживших: смертельная угроза без ответа губит убежище, остальные мешают полной победе.
+        </p>
       </section>
 
       {mode !== 'tabletop' && (

@@ -6,6 +6,7 @@ import { useStore } from '../store';
 import { rerollCard } from '../lib/generator';
 import { setEliminated } from '../lib/game';
 import { Verdict } from './Final';
+import { ThreatsPanel } from '../ui/Threats';
 import { copyText } from '../ui/clipboard';
 
 /** Режим «генератор карточек»: раздаём персонажей на бумаге/в мессенджер, а исход считаем по отметкам выживших. */
@@ -23,6 +24,7 @@ export default function Tabletop({ game }: { game: GameState }) {
 
   return (
     <div className="flex flex-col gap-5">
+      <ThreatsPanel hazards={game.hazards ?? []} defaultOpen />
       <div className="no-print flex flex-wrap gap-2">
         <button className="btn btn-sm" onClick={() => window.print()}><Printer size={16} /> Печать карточек</button>
         <button className="btn btn-sm" onClick={() => setShown(Object.fromEntries(game.players.map((p) => [p.id, true])))}><Eye size={16} /> Показать все</button>

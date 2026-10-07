@@ -4,6 +4,7 @@ import {
   type CardPack,
   type Category,
   type GameState,
+  type Hazard,
   type PlayerCharacter,
   type Scenario,
   type VotingMode,
@@ -26,7 +27,7 @@ import {
   } from './game';
 import { newSeed, randomCode } from './rng';
 import { LIMITS as L, clip } from './limits';
-import { sanitizeScenario } from './packs';
+import { sanitizeHazard, sanitizeScenario } from './packs';
 
 /* ---------- Протокол ---------- */
 
@@ -113,6 +114,7 @@ export interface HostSetup {
   voting: VotingMode;
   revealsPerVote?: number; // по умолчанию 2
   speechSec?: number; // секунд на объяснение пользы, по умолчанию 45; 0 — без таймера
+  hazardCount?: number; // факторов угрозы из пула сценария, по умолчанию 2
   timeLimitMin?: number; // 0 — без лимита; по умолчанию 0
 }
 
@@ -312,6 +314,7 @@ export class OnlineHost {
         voting: this.setup.voting,
         revealsPerVote: Math.min(3, Math.max(1, this.setup.revealsPerVote ?? 2)),
         speechSec: Math.min(300, Math.max(0, this.setup.speechSec ?? 45)),
+        hazardCount: Math.min(L.maxHazardsPerGame, Math.max(0, this.setup.hazardCount ?? 2)),
         timeLimitMin: Math.min(180, Math.max(0, this.setup.timeLimitMin ?? 0)),
         names,
         seed: newSeed(),
@@ -526,6 +529,7 @@ export function sanitizeView(raw: unknown): GameState | null {
       voting: cfg.voting === 'open' ? 'open' : 'secret',
       revealsPerVote: int(cfg.revealsPerVote, 1, 3),
       speechSec: int(cfg.speechSec, 0, 300),
+      hazardCount: int(cfg.hazardCount, 0, L.maxHazardsPerGame),
       timeLimitMin: int(cfg.timeLimitMin, 0, 180),
       names: players.map((p) => p.name),
       seed: 0,
@@ -536,6 +540,9 @@ export function sanitizeView(raw: unknown): GameState | null {
     schedule: Array.isArray(r.schedule) ? r.schedule.slice(0, 6).map((n) => int(n, 0, 19)) : [],
     phase: r.phase as GameState['phase'],
     revealStep: int(r.revealStep, 1, 3),
+    hazards: (Array.isArray(r.hazards) ? r.hazards.slice(0, L.maxHazardsPerGame) : [])
+      .map((h, i) => sanitizeHazard(h, i))
+      .filter((h): h is Hazard => !!h),
     ...(r.timeLeftMs !== undefined ? { deadline: Date.now() + int(r.timeLeftMs, 0, 180 * 60_000) } : {}),
     ...(r.speechLeftMs !== undefined ? { speechEndsAt: Date.now() + int(r.speechLeftMs, 0, 300_000) } : {}),
     ...(rec(r.lastReveal).playerId !== undefined && CATEGORIES.includes(rec(r.lastReveal).category as Category)
