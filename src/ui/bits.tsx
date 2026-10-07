@@ -11,6 +11,7 @@ import {
   Zap,
   type LucideIcon,
 } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { CATEGORY_LABEL, type Card, type Category } from '../types';
 
 export const CATEGORY_ICON: Record<Category, LucideIcon> = {
@@ -87,7 +88,7 @@ export function CardFace({
 }
 
 export function Modal({ children, onClose, title }: { children: ReactNode; onClose?: () => void; title?: string }) {
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal>
       <div className="panel hud anim-rise max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-b-none sm:rounded-b-lg">
         {title && <h2 className="h-hud mb-3">{title}</h2>}
@@ -98,7 +99,8 @@ export function Modal({ children, onClose, title }: { children: ReactNode; onClo
           </button>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

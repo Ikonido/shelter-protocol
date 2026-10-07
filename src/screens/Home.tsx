@@ -4,7 +4,7 @@ import { buildQuickGame, loadLastSetup } from '../lib/quick';
 import { Emblem } from '../ui/Emblem';
 import { isStandalone } from '../lib/pwa';
 import { UpdateBanner, UpdateButton } from '../ui/UpdateButton';
-import { Onboarding, tourSeen } from '../ui/Onboarding';
+import { Onboarding, markTourSeen, tourSeen } from '../ui/Onboarding';
 import { useState } from 'react';
 
 function MenuItem({ icon: Icon, title, hint, onClick }: { icon: LucideIcon; title: string; hint: string; onClick: () => void }) {
@@ -29,12 +29,13 @@ export default function Home() {
     notify(`Быстрая игра: ${g.scenario.title}`);
     go({ name: 'game' });
   };
-  const [tour, setTour] = useState(() => !tourSeen());
+  const [tour, setTour] = useState(false);
+  const [tourHint, setTourHint] = useState(() => !tourSeen());
   const to = (s: Screen) => () => go(s);
   const resumable = game && game.phase !== 'final';
   return (
     <>
-    {tour && <Onboarding onClose={() => setTour(false)} />}
+    {tour && <Onboarding onClose={() => { setTour(false); setTourHint(false); }} />}
     <div className="mx-auto grid max-w-5xl items-center gap-8 py-8 lg:min-h-dvh lg:grid-cols-2 lg:gap-14 lg:py-0">
       <header className="anim-rise text-center lg:text-left">
         <Emblem size={176} />
@@ -52,6 +53,15 @@ export default function Home() {
 
       <nav className="anim-rise flex flex-col gap-3" style={{ animationDelay: '.08s' }} aria-label="Главное меню">
         <UpdateBanner />
+        {tourHint && (
+          <section className="panel flex flex-col gap-2 border-amber/50">
+            <p className="text-sm"><b className="text-amber">Впервые здесь?</b> Правила за минуту: пять коротких экранов.</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button className="btn btn-sm" onClick={() => { markTourSeen(); setTourHint(false); }}>Не нужно</button>
+              <button className="btn btn-sm btn-primary" onClick={() => setTour(true)}>Показать</button>
+            </div>
+          </section>
+        )}
         {resumable && (
           <button className="btn btn-primary hud min-h-14 justify-between" onClick={to({ name: 'game' })}>
             <span className="flex items-center gap-2"><Play size={18} /> Продолжить партию</span>
