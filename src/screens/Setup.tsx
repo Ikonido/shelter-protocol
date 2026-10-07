@@ -50,6 +50,7 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
   const [hazardCount, setHazardCount] = useState(last?.hazardCount ?? 2);
   const [difficulty, setDifficulty] = useState<Difficulty>(last?.difficulty ?? 'normal');
   const [roundEvents, setRoundEvents] = useState(last?.roundEvents ?? false);
+  const [autoActions, setAutoActions] = useState(last?.autoActions ?? false);
   // Пресет подставляет рекомендуемые значения, после чего их можно поменять вручную.
   const pickDifficulty = (d: Difficulty) => {
     const r = DIFFICULTIES[d];
@@ -89,9 +90,9 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
   const canStart = scenarios.length > 0 && activePacks.some((p) => Object.values(p.cards).some((c) => c.length));
   const start = () => {
     const chosen = scenario ?? scenarios[Math.floor(Math.random() * scenarios.length)];
-    saveLastSetup({ packIds, n, k, names: Array.from({ length: n }, (_, i) => nameAt(i)), voting, revealsPerVote, timeLimitMin, speechSec, hazardCount, difficulty, roundEvents, scenarioId });
+    saveLastSetup({ packIds, n, k, names: Array.from({ length: n }, (_, i) => nameAt(i)), voting, revealsPerVote, timeLimitMin, speechSec, hazardCount, difficulty, roundEvents, autoActions, scenarioId });
     if (mode === 'online') {
-      go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting, revealsPerVote, speechSec, hazardCount, difficulty, roundEvents, timeLimitMin, adult: activePacks.some((p) => p.adult) } });
+      go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting, revealsPerVote, speechSec, hazardCount, difficulty, roundEvents, autoActions, timeLimitMin, adult: activePacks.some((p) => p.adult) } });
       return;
     }
     const config: SessionConfig = {
@@ -106,6 +107,7 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
       hazardCount,
       difficulty,
       roundEvents: mode === 'tabletop' ? false : roundEvents,
+      autoActions: mode === 'tabletop' ? false : autoActions,
       timeLimitMin: mode === 'tabletop' ? 0 : timeLimitMin,
       names: Array.from({ length: n }, (_, i) => nameAt(i)),
       seed: newSeed(),
@@ -254,6 +256,10 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
             <label className="flex w-full max-w-md cursor-pointer items-start gap-3 rounded-md border border-edge p-3">
               <input type="checkbox" className="mt-1 size-4 accent-amber" checked={roundEvents} onChange={(e) => setRoundEvents(e.target.checked)} />
               <span className="text-sm"><b>События раунда (необязательно)</b><br /><span className="text-xs text-dim">Усложняют игру. Перед каждым раундом выпадает карта кризиса: сокращается число мест, вспыхивает болезнь, появляется новая угроза — или приходит помощь. Можно вызваться добровольцем.</span></span>
+            </label>
+            <label className="flex w-full max-w-md cursor-pointer items-start gap-3 rounded-md border border-edge p-3">
+              <input type="checkbox" className="mt-1 size-4 accent-amber" checked={autoActions} onChange={(e) => setAutoActions(e.target.checked)} />
+              <span className="text-sm"><b>Карты действий исполняются сами (бета)</b><br /><span className="text-xs text-dim">Кража и подмена багажа, смена телосложения соседей, вето, двойной голос, тайный союз и прочее выполняются в игре после выбора цели. Выключено: действие только объявляется, а выполняют его игроки.</span></span>
             </label>
           <div>
             <Stepper label="Вскрытий до голосования" value={revealsPerVote} min={1} max={3} onChange={setRevealsPerVote} />

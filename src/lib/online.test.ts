@@ -79,6 +79,31 @@ describe('online', () => {
     again.destroy();
   });
 
+  it('auto actions run on the host from a guest message, with validation', async () => {
+    const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[0], packs: [CLASSIC_PACK], slots: 1, voting: 'open', revealsPerVote: 1, speechSec: 0, roundEvents: false, autoActions: true }, 'Хост');
+    const pairs = [pair(), pair()];
+    const guests = pairs.map((p, i) => ({ p, c: new OnlineClient(p.clientSide, `Гость${i + 1}`, `tk${i}`) }));
+    pairs.forEach((p) => host.addConn(p.hostSide));
+    await tick();
+    host.start();
+    await tick();
+    expect(host.game!.config.autoActions).toBe(true);
+    const g = host.game!;
+    // карта «Карманник» у первого гостя (p2)
+    host.game = { ...g, players: g.players.map((pl) => (pl.id === 'p2' ? { ...pl, slots: { ...pl.slots, action: { card: { ...pl.slots.action.card, title: 'Карманник', effect: 'stealLuggage' as const }, isRevealed: false } } } : pl)) };
+    const victim = host.game.players[2].slots.luggage.card.id;
+    guests[0].c.send({ t: 'action' }); // без цели: ничего не происходит
+    await tick();
+    expect(host.game!.players[1].slots.action.isRevealed).toBe(false);
+    guests[0].c.send({ t: 'action', target: 'p3' });
+    await tick();
+    expect(host.game!.players[1].slots.luggage.card.id).toBe(victim);
+    expect(host.game!.players[1].slots.action.isRevealed).toBe(true);
+    // гость видит результат, но не колоду
+    const st = guests[1].c.state;
+    expect(st.status === 'game' && 'deck' in st.view).toBe(false);
+  });
+
   it('plays a round: reveal → debate → secret vote → result; rejects bad input', async () => {
     const { host, clients } = await setup();
     host.start();

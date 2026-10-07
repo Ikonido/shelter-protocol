@@ -1,18 +1,19 @@
-import type { Card, CardPack, Category, Hazard, Modifier } from '../types';
+import type { ActionEffect, Card, CardPack, Category, Hazard, Modifier } from '../types';
 import { MEDIEVAL_PACK } from './packMedieval';
 import { FANTASY_PACK } from './packFantasy';
 import { ADULT_PACK } from './packAdult';
 
-type Row = [description: string, modifier?: Modifier, tags?: string[], title?: string];
+type Row = [description: string, modifier?: Modifier, tags?: string[], title?: string, effect?: ActionEffect];
 
 const make = (category: Category, rows: Row[]): Card[] =>
-  rows.map(([description, modifier = 'neutral', tags, title], i) => ({
+  rows.map(([description, modifier = 'neutral', tags, title, effect], i) => ({
     id: `classic-${category}-${i + 1}`,
     category,
     description,
     modifier,
     ...(tags ? { tags } : {}),
     ...(title ? { title } : {}),
+    ...(effect ? { effect } : {}),
   }));
 
 /** Сцены для хроники: [угроза снята, угроза не остановлена]. {who} — тот, кто справился. */
@@ -289,21 +290,21 @@ export const CLASSIC_PACK: CardPack = {
       ['Никогда не видел ни одного фильма про апокалипсис и очень этим гордится', 'neutral'],
     ]),
     action: make('action', [
-      ['Возьмите себе из колоды ещё одну карту багажа', 'positive', undefined, 'Находка'],
-      ['Украдите карту багажа у любого игрока: она теперь ваша, у него её нет', 'positive', undefined, 'Карманник'],
-      ['Добавьте любому игроку лишнюю карту багажа из колоды, он обязан её взять', 'neutral', undefined, 'Подкидыш'],
-      ['Игрок перед вами в порядке хода заменяет карту биологии (телосложение) на новую из колоды', 'neutral', undefined, 'Перекройка'],
-      ['Игрок после вас в порядке хода заменяет карту биологии на новую из колоды', 'neutral', undefined, 'Диета'],
-      ['Поменяйте местами карты биологии игроков до и после вас', 'neutral', undefined, 'Рокировка'],
-      ['Право вето: отмените один голос, поданный против вас в этом раунде.', 'positive', undefined, 'Вето'],
-      ['Ваш голос в одном голосовании считается за два.', 'positive', undefined, 'Двойной голос'],
-      ['Заставьте любого игрока немедленно открыть любую скрытую карту.', 'positive', undefined, 'Разоблачение'],
-      ['Поменяйтесь картой багажа с любым игроком.', 'neutral', undefined, 'Обмен багажом'],
-      ['Если в команде есть врач, ваше негативное здоровье считается нейтральным.', 'positive', undefined, 'Лечение'],
-      ['Тайный альянс: выберите союзника — вы оба голосуете одинаково.', 'neutral', undefined, 'Альянс'],
-      ['Вы защищены от исключения в этом раунде, но не можете голосовать.', 'positive', undefined, 'Отсрочка'],
-      ['Замените свою карту хобби на новую из колоды.', 'neutral', undefined, 'Подмена'],
-      ['Выберите игрока — его карта багажа считается потерянной.', 'neutral', undefined, 'Саботаж'],
+      ['Вытяните новую карту багажа из колоды и оставьте лучшую из двух', 'positive', undefined, 'Находка', 'drawLuggage'],
+      ['Украдите карту багажа у любого игрока вместо своей: у него остаётся пустое место', 'positive', undefined, 'Карманник', 'stealLuggage'],
+      ['Замените карту багажа любого игрока случайной картой из колоды', 'neutral', undefined, 'Подкидыш', 'giveLuggage'],
+      ['Игрок перед вами в порядке хода получает новое телосложение из колоды', 'neutral', undefined, 'Перекройка', 'rerollPrevPhysique'],
+      ['Игрок после вас в порядке хода получает новое телосложение из колоды', 'neutral', undefined, 'Диета', 'rerollNextPhysique'],
+      ['Поменяйте местами карты телосложения игроков до и после вас', 'neutral', undefined, 'Рокировка', 'swapNeighborsPhysique'],
+      ['Право вето: отмените один голос, поданный против вас в этом раунде.', 'positive', undefined, 'Вето', 'veto'],
+      ['Ваш голос в одном голосовании считается за два.', 'positive', undefined, 'Двойной голос', 'doubleVote'],
+      ['Заставьте любого игрока немедленно открыть любую скрытую карту.', 'positive', undefined, 'Разоблачение', 'forceReveal'],
+      ['Поменяйтесь картой багажа с любым игроком.', 'neutral', undefined, 'Обмен багажом', 'swapLuggage'],
+      ['Если в команде есть врач, ваше негативное здоровье считается нейтральным.', 'positive', undefined, 'Лечение', 'heal'],
+      ['Тайный альянс: выберите союзника — вы оба голосуете одинаково.', 'neutral', undefined, 'Альянс', 'ally'],
+      ['Вы защищены от исключения в этом раунде, но не можете голосовать.', 'positive', undefined, 'Отсрочка', 'immunity'],
+      ['Замените свою карту хобби на новую из колоды.', 'neutral', undefined, 'Подмена', 'rerollHobby'],
+      ['Выберите игрока — его карта багажа считается потерянной.', 'neutral', undefined, 'Саботаж', 'sabotage'],
     ]),
   },
 };

@@ -1,5 +1,7 @@
 import {
+  ACTION_EFFECTS,
   CATEGORIES,
+  type ActionEffect,
   type ActiveEvent,
   type Card,
   type CardPack,
@@ -38,7 +40,7 @@ import { sanitizeHazard, sanitizeScenario } from './packs';
 export type C2H =
   | { t: 'hello'; name: string; token: string; ticket?: string }
   | { t: 'reveal'; category: Category }
-  | { t: 'action' }
+  | { t: 'action'; target?: string; category?: Category }
   | { t: 'vote'; target: string }
   | { t: 'done' } // ходящий закончил речь раньше времени
   | { t: 'volunteer' }; // вызваться добровольцем (событие раунда)
@@ -90,7 +92,8 @@ export function viewFor(g: GameState, me: string, voting: VotingMode = g.config.
         ? Object.fromEntries(Object.keys(g.votes).map((v) => [v, v === me ? g.votes[v] : v]))
         : {};
   // Часы хоста клиентам не нужны (у телефонов они расходятся): передаём «сколько осталось» на момент отправки.
-  const { deadline, speechEndsAt, ...rest } = g;
+  // Колода, сброс и накопленные действия (тайные союзы) остаются у хоста.
+  const { deadline, speechEndsAt, deck: _deck, discard: _discard, fx: _fx, ...rest } = g;
   return {
     ...rest,
     players,
@@ -122,6 +125,7 @@ export interface HostSetup {
   hazardCount?: number; // факторов угрозы из пула сценария, по умолчанию 2
   difficulty?: Difficulty; // по умолчанию normal
   roundEvents?: boolean; // карта кризиса перед каждым раундом, по умолчанию нет
+  autoActions?: boolean; // карты действий исполняются в игре сами (бета), по умолчанию нет
   adult?: boolean; // в комнате пак 18+: гостям показывается предупреждение до начала игры
   timeLimitMin?: number; // 0 — без лимита; по умолчанию 0
 }
@@ -273,7 +277,7 @@ export class OnlineHost {
     const member = this.members.find((m) => m.conn === conn);
     if (!member) return;
     if (msg.t === 'reveal' && CATEGORIES.includes(msg.category as Category)) this.act(member, { t: 'reveal', category: msg.category as Category });
-    else if (msg.t === 'action') this.act(member, { t: 'action' });
+    else if (msg.t === 'action') this.act(member, { t: 'action', ...(typeof msg.target === 'string' ? { target: msg.target.slice(0, 12) } : {}), ...(CATEGORIES.includes(msg.category as Category) ? { category: msg.category as Category } : {}) });
     else if (msg.t === 'done') this.act(member, { t: 'done' });
     else if (msg.t === 'volunteer') this.act(member, { t: 'volunteer' });
     else if (msg.t === 'vote' && typeof msg.target === 'string') this.act(member, { t: 'vote', target: msg.target });
@@ -289,7 +293,7 @@ export class OnlineHost {
     let next = g;
     if (msg.t === 'reveal') next = revealCard(g, id, msg.category);
     else if (msg.t === 'action') {
-      if (g.phase === 'reveal' || g.phase === 'speech' || g.phase === 'vote') next = playAction(g, id);
+      if (g.phase === 'reveal' || g.phase === 'speech' || g.phase === 'vote') next = playAction(g, id, { target: msg.target, category: msg.category });
     } else if (msg.t === 'volunteer') {
       next = volunteer(g, id);
     } else if (msg.t === 'done') {
@@ -328,6 +332,7 @@ export class OnlineHost {
         hazardCount: Math.min(L.maxHazardsPerGame, Math.max(0, this.setup.hazardCount ?? 2)),
         difficulty: this.setup.difficulty ?? 'normal',
         roundEvents: this.setup.roundEvents ?? false,
+        autoActions: this.setup.autoActions === true,
         timeLimitMin: Math.min(180, Math.max(0, this.setup.timeLimitMin ?? 0)),
         names,
         seed: newSeed(),
@@ -497,6 +502,7 @@ export class OnlineClient {
   }
 }
 
+const ACTION_EFFECT_IDS = Object.keys(ACTION_EFFECTS);
 const EVENT_KINDS = ['shrink', 'plague', 'volunteer', 'leak', 'silence', 'newHazard', 'relief', 'prompt'] as const;
 const EVENT_TONES = ['good', 'bad', 'neutral'] as const;
 
@@ -514,6 +520,7 @@ function cleanCard(raw: unknown, category: Category): Card | null {
   if (typeof r.title === 'string') card.title = text(r.title, L.cardTitle);
   if (MODS.includes(r.modifier as string)) card.modifier = r.modifier as Card['modifier'];
   if (Array.isArray(r.tags)) card.tags = r.tags.slice(0, L.cardTags).map((t) => text(t, L.tagLen)).filter(Boolean);
+  if (category === 'action' && ACTION_EFFECT_IDS.includes(r.effect as ActionEffect)) card.effect = r.effect as ActionEffect;
   return card;
 }
 
@@ -571,6 +578,7 @@ export function sanitizeView(raw: unknown): GameState | null {
       hazardCount: int(cfg.hazardCount, 0, L.maxHazardsPerGame),
       difficulty: (['easy', 'normal', 'hard', 'nightmare'] as const).find((d) => d === cfg.difficulty) ?? 'normal',
       roundEvents: cfg.roundEvents === true,
+      autoActions: cfg.autoActions === true,
       timeLimitMin: int(cfg.timeLimitMin, 0, 180),
       names: players.map((p) => p.name),
       seed: 0,

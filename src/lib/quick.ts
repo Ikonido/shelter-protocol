@@ -16,6 +16,7 @@ export interface LastSetup {
   hazardCount: number;
   difficulty: Difficulty;
   roundEvents: boolean;
+  autoActions: boolean;
   scenarioId: string;
 }
 
@@ -43,6 +44,7 @@ export function parseLastSetup(raw: unknown): LastSetup | null {
     hazardCount: int(r.hazardCount, 0, 4, 2),
     difficulty: DIFFS.find((d) => d === r.difficulty) ?? 'normal',
     roundEvents: r.roundEvents === true,
+    autoActions: r.autoActions === true,
     scenarioId: typeof r.scenarioId === 'string' ? r.scenarioId.slice(0, 80) : 'random',
   };
 }
@@ -98,6 +100,7 @@ export function buildQuickGame(allPacks: CardPack[], last: LastSetup | null): Ga
     hazardCount: last?.hazardCount ?? rules.hazardCount,
     difficulty: last?.difficulty ?? 'normal',
     roundEvents: last?.roundEvents ?? false,
+    autoActions: last?.autoActions ?? false,
     timeLimitMin: last?.timeLimitMin ?? rules.timeLimitMin,
     names: Array.from({ length: base.n }, (_, i) => last?.names[i]?.trim() || `Игрок ${i + 1}`),
     seed: newSeed(),

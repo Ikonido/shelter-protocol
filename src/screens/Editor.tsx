@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft, Download, Link2, Plus, Trash2 } from 'lucide-react';
 import { useStore } from '../store';
 import { filterCards } from '../lib/cardFilter';
-import { CATEGORIES, CATEGORY_LABEL, type Card, type CardPack, type Category, type Hazard, type Modifier, type Scenario, type Severity } from '../types';
+import { ACTION_EFFECTS, CATEGORIES, CATEGORY_LABEL, type Card, type CardPack, type Category, type Hazard, type Modifier, type Scenario, type Severity } from '../types';
 import { exportPackFile, shareUrl } from '../lib/packs';
 import { uid } from '../lib/rng';
 import { copyText } from '../ui/clipboard';
@@ -151,6 +151,12 @@ export default function Editor({ packId }: { packId: string }) {
               return (
                 <div key={c.id} className="panel flex flex-col gap-2 p-3">
                   {cat === 'action' && <input className="input" maxLength={L.cardTitle} placeholder="Название действия" value={c.title ?? ''} onChange={(e) => patch({ title: e.target.value })} />}
+                  {cat === 'action' && (
+                    <select className="input" aria-label="Эффект карты при автоисполнении" value={c.effect ?? ''} onChange={(e) => patch({ effect: (e.target.value || undefined) as Card['effect'] })}>
+                      <option value="">Без эффекта: действие только объявляется</option>
+                      {Object.entries(ACTION_EFFECTS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+                    </select>
+                  )}
                   <div><textarea rows={2} maxLength={L.cardDescription} className="input" placeholder="Описание карты" value={c.description} onChange={(e) => patch({ description: e.target.value })} /><Counter v={c.description} max={L.cardDescription} /></div>
                   <div className="grid gap-2 sm:grid-cols-[10rem_1fr_auto]">
                     <select className="input" value={c.modifier ?? 'neutral'} onChange={(e) => patch({ modifier: e.target.value as Modifier })}>

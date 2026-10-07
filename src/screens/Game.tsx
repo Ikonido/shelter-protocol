@@ -28,6 +28,8 @@ import { MatchClock } from '../ui/MatchClock';
 import { SpeechTimer } from '../ui/SpeechTimer';
 import { ThreatsPanel } from '../ui/Threats';
 import { Board } from '../ui/Board';
+import { ActionTargetPicker } from '../ui/ActionTarget';
+import { canApply, needsTarget } from '../lib/actions';
 import { SkillsStrip } from '../ui/SkillsStrip';
 import { GameHud } from '../ui/GameHud';
 import { Avatar } from '../ui/Avatar';
@@ -263,12 +265,16 @@ function SpeechPhase({ game, update, undo }: { game: GameState; update: Update; 
 /* ---------- Карты действий и просмотр своего досье (в любой момент вскрытий) ---------- */
 
 function ActionsPanel({ game, update }: { game: GameState; update: Update }) {
+  const { notify } = useStore();
   const [actor, setActor] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
   const [peek, setPeek] = useState<string | null>(null);
   const living = alive(game);
   const actorP = living.find((p) => p.id === actor);
   const peekP = living.find((p) => p.id === peek);
-  const lastAction = [...game.log].reverse().find((l) => l.round === game.round && l.text.includes('применяет карту действия'));
+  // Автоисполнение: у карты есть эффект, и партия создана с этой опцией.
+  const autoEffect = game.config.autoActions ? actorP?.slots.action.card.effect : undefined;
+  const lastAction = [...game.log].reverse().find((l) => l.round === game.round && l.text.includes(' применяет '));
   return (
     <>
       {lastAction && <p className="panel border-[#e879f9]/60 text-sm" role="status"><Zap size={14} className="mr-1 inline text-[#e879f9]" />{lastAction.text}</p>}
@@ -289,13 +295,30 @@ function ActionsPanel({ game, update }: { game: GameState; update: Update }) {
       {actorP && (
         <Modal>
           <Gate name={actorP.name}>
-            <Dossier
-              game={game}
-              player={actorP}
-              mode="action"
-              onCancel={() => setActor(null)}
-              onDone={() => { update((g) => applyAction(g, actorP.id)); setActor(null); }}
-            />
+            {picking && autoEffect ? (
+              <ActionTargetPicker
+                game={game}
+                actorId={actorP.id}
+                effect={autoEffect}
+                title={actorP.slots.action.card.title ?? 'Действие'}
+                onCancel={() => setPicking(false)}
+                onConfirm={(params) => { update((g) => applyAction(g, actorP.id, params)); setPicking(false); setActor(null); }}
+              />
+            ) : (
+              <Dossier
+                game={game}
+                player={actorP}
+                mode="action"
+                onCancel={() => setActor(null)}
+                onDone={() => {
+                  if (autoEffect && needsTarget(autoEffect)) return setPicking(true);
+                  const check = autoEffect ? canApply(game, actorP.id, autoEffect) : null;
+                  if (check && !check.ok) return notify(check.reason);
+                  update((g) => applyAction(g, actorP.id));
+                  setActor(null);
+                }}
+              />
+            )}
           </Gate>
         </Modal>
       )}
