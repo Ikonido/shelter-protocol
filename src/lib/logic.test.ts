@@ -81,7 +81,7 @@ describe('round flow', () => {
     g = resolveVote(g);
     g = nextRound(g);
     const opts = revealOptions(g, g.players.find((p) => !p.isEliminated)!);
-    expect(opts).toEqual(['profession', 'health', 'hobby', 'luggage', 'fact']); // biology уже открыта, action — не открывается
+    expect(opts).toEqual(['profession', 'physique', 'health', 'hobby', 'luggage', 'fact']); // biology уже открыта, action — не открывается
   });
   it('rejects self votes', () => {
     expect(castVote(newGame(), 'p1', 'p1').votes).toEqual({});
@@ -159,7 +159,7 @@ describe('voting every N reveals', () => {
     expect(g.phase).toBe('reveal'); // не голосование, а второе вскрытие
     expect(g.revealStep).toBe(2);
     expect(currentSpeaker(g)!.id).toBe('p1'); // очередь заново с первого
-    expect(revealOptions(g, g.players[0])).toEqual(['profession', 'health', 'hobby', 'luggage', 'fact']); // дальше по желанию
+    expect(revealOptions(g, g.players[0])).toEqual(['profession', 'physique', 'health', 'hobby', 'luggage', 'fact']); // дальше по желанию
     for (const p of g.players) g = endSpeech(revealCard(g, p.id, 'hobby'));
     expect(g.phase).toBe('vote');
     expect(g.players.every((p) => p.slots.biology.isRevealed && p.slots.hobby.isRevealed)).toBe(true);
@@ -231,7 +231,7 @@ describe('match timer', () => {
     const late = applyOvertime(g, g.deadline! + 1);
     expect(late.phase).toBe('vote');
     expect(late.votes).toEqual({});
-    expect(late.players.every((p) => ['biology', 'profession', 'health', 'hobby', 'luggage', 'fact'].filter((c) => p.slots[c as 'biology'].isRevealed).length === 2)).toBe(true);
+    expect(late.players.every((p) => ['biology', 'profession', 'physique', 'health', 'hobby', 'luggage', 'fact'].filter((c) => p.slots[c as 'biology'].isRevealed).length === 2)).toBe(true);
   });
   it('overcrowded shelter is penalised', () => {
     const g = newGame(6, 3);
@@ -436,7 +436,7 @@ describe('round events', () => {
     const g = withEvents();
     const r = applyEvent(g, ev('leak'));
     for (const p of r.players) {
-      const open = (['profession', 'biology', 'health', 'hobby', 'luggage', 'fact'] as const).filter((c) => p.slots[c].isRevealed);
+      const open = (['profession', 'biology', 'physique', 'health', 'hobby', 'luggage', 'fact'] as const).filter((c) => p.slots[c].isRevealed);
       expect(open).toHaveLength(1);
       expect(open).not.toContain('biology');
     }
@@ -516,7 +516,7 @@ import type { CardPack } from '../types';
 
 describe('scenario builder logic', () => {
   const classic = CLASSIC_PACK;
-  const customWith = (over: Partial<CardPack>): CardPack => ({ id: 'mine', name: 'Мои', description: '', isCustom: true, scenarios: [], cards: { profession: [], biology: [], health: [], hobby: [], luggage: [], fact: [], action: [] }, ...over });
+  const customWith = (over: Partial<CardPack>): CardPack => ({ id: 'mine', name: 'Мои', description: '', isCustom: true, scenarios: [], cards: { profession: [], biology: [], physique: [], health: [], hobby: [], luggage: [], fact: [], action: [] }, ...over });
 
   it('tag overrides teach a built-in card a new ability, only when the pack is selected', () => {
     const doc = classic.cards.profession.find((c) => c.description === 'Хирург')!;

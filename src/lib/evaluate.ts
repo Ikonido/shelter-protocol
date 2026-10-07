@@ -43,7 +43,7 @@ export function cardMatchesSkill(card: Card, skill: string): boolean {
 }
 
 /** Навыки дают профессия, биология (расы со способностями), хобби, багаж и факт. */
-export const SKILL_CATEGORIES = ['profession', 'biology', 'hobby', 'fact', 'luggage'] as const;
+export const SKILL_CATEGORIES = ['profession', 'biology', 'physique', 'hobby', 'fact', 'luggage'] as const;
 
 export function evaluate(scenario: Scenario, survivors: PlayerCharacter[], slots?: number, hazards: Hazard[] = [], difficulty?: Difficulty): Evaluation {
   const rules = rulesFor(difficulty);
