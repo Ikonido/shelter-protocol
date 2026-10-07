@@ -128,3 +128,11 @@ describe('biology vs physique', () => {
     for (const p of chars) expect(p.slots.physique.card.description).toMatch(/Рост \d+ см/);
   });
 });
+
+describe('health cards', () => {
+  for (const pack of BUILTIN_PACKS) {
+    it(`${pack.name}: здоровье — короткий диагноз без пояснений`, () => {
+      for (const c of pack.cards.health) expect(c.description, c.description).not.toMatch(/[,:;(—«]/);
+    });
+  }
+});
