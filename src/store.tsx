@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { CardPack, Difficulty, GameState, Scenario, VotingMode } from './types';
+import type { CardPack, Difficulty, GameState, PlayMode, Scenario, VotingMode } from './types';
 import { BUILTIN_PACKS } from './data/classicPack';
 import { loadGame, loadPacks, saveGame, savePacks } from './lib/storage';
 import { packFromHash } from './lib/packs';
@@ -20,7 +20,7 @@ export interface OnlineDraft {
 
 export type Screen =
   | { name: 'home' }
-  | { name: 'setup' }
+  | { name: 'setup'; mode?: PlayMode }
   | { name: 'game' }
   | { name: 'packs' }
   | { name: 'editor'; packId: string }
