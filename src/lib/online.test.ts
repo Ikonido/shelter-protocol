@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CLASSIC_PACK } from '../data/classicPack';
+import { EVENTS } from './events';
+import { applyEvent } from './game';
 import { CATEGORIES } from '../types';
 import { OnlineClient, OnlineHost, type C2H, type Conn, type H2C } from './online';
 
@@ -14,7 +16,7 @@ function pair() {
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 async function setup(n = 3) {
-  const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[0], packs: [CLASSIC_PACK], slots: 1, voting: 'secret', revealsPerVote: 1, speechSec: 0 }, 'Хост');
+  const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[0], packs: [CLASSIC_PACK], slots: 1, voting: 'secret', revealsPerVote: 1, speechSec: 0, roundEvents: false }, 'Хост');
   const clients = [] as { c: OnlineClient; p: ReturnType<typeof pair> }[];
   for (let i = 1; i < n; i++) {
     const p = pair();
@@ -204,7 +206,7 @@ describe('abstain, steps and timer online', () => {
   });
 
   it('two reveals per vote online, and clients get time left instead of host clock', async () => {
-    const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[0], packs: [CLASSIC_PACK], slots: 1, voting: 'open', timeLimitMin: 10 }, 'Хост');
+    const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[0], packs: [CLASSIC_PACK], slots: 1, voting: 'open', timeLimitMin: 10, roundEvents: false }, 'Хост');
     const p = pair();
     host.addConn(p.hostSide);
     const c = new OnlineClient(p.clientSide, 'Гость', 'tok');
@@ -231,7 +233,7 @@ describe('abstain, steps and timer online', () => {
 
 describe('speech turns online', () => {
   it('speaker explains with a timer, anyone else cannot skip it, timeout/“done”/host skip move on', async () => {
-    const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[0], packs: [CLASSIC_PACK], slots: 1, voting: 'open', revealsPerVote: 1, speechSec: 30 }, 'Хост');
+    const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[0], packs: [CLASSIC_PACK], slots: 1, voting: 'open', revealsPerVote: 1, speechSec: 30, roundEvents: false }, 'Хост');
     const clients = [] as OnlineClient[];
     for (let i = 1; i <= 2; i++) {
       const p = pair();
@@ -271,7 +273,7 @@ describe('speech turns online', () => {
 
 describe('threat factors online', () => {
   it('host picks hazards (default 2) and clients receive them sanitized', async () => {
-    const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[2], packs: [CLASSIC_PACK], slots: 1, voting: 'open', revealsPerVote: 1 }, 'Хост');
+    const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[2], packs: [CLASSIC_PACK], slots: 1, voting: 'open', revealsPerVote: 1, roundEvents: false }, 'Хост');
     const p = pair();
     host.addConn(p.hostSide);
     const c = new OnlineClient(p.clientSide, 'Гость', 'tok');
@@ -299,5 +301,72 @@ describe('threat factors online', () => {
     expect(hs[0].title.length).toBe(40);
     expect(hs[0].counters.length).toBeLessThanOrEqual(4);
     expect(hs[0].severity).toBe('major');
+  });
+});
+
+describe('round events online', () => {
+  const make = async (events: boolean) => {
+    const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[2], packs: [CLASSIC_PACK], slots: 2, voting: 'open', revealsPerVote: 1, speechSec: 0, roundEvents: events }, 'Хост');
+    const clients: OnlineClient[] = [];
+    for (let i = 1; i <= 3; i++) {
+      const p = pair();
+      host.addConn(p.hostSide);
+      clients.push(new OnlineClient(p.clientSide, `Гость${i}`, `t${i}`));
+    }
+    await tick();
+    host.start();
+    await tick();
+    return { host, clients };
+  };
+
+  it('the round opens with a crisis card; nobody can reveal until the host starts the round', async () => {
+    const { host, clients } = await make(true);
+    expect(host.game!.phase).toBe('event');
+    const st = clients[0].state;
+    if (st.status !== 'game') throw new Error('no view');
+    expect(st.view.phase).toBe('event');
+    expect(st.view.event?.title).toBeTruthy();
+    host.actAsHost({ t: 'reveal', category: 'biology' });
+    await tick();
+    expect(host.game!.revealedThisRound).toEqual([]); // события ещё не закончились
+    host.startRound();
+    await tick();
+    expect(host.game!.phase).toBe('reveal');
+    host.actAsHost({ t: 'reveal', category: 'biology' });
+    expect(host.game!.revealedThisRound).toEqual(['p1']);
+  });
+
+  it('a guest can volunteer during the volunteer event, only then', async () => {
+    const { host, clients } = await make(true);
+    const g = host.game!;
+    // подменяем событие на «добровольца» (выпавшее случайно может быть любым)
+    host.game = { ...applyEvent({ ...g, event: undefined, usedEvents: [], phase: 'reveal' }, EVENTS.find((e) => e.kind === 'volunteer')!), phase: 'event' };
+    clients[1].send({ t: 'volunteer' });
+    await tick();
+    expect(host.game!.players.find((p) => p.id === 'p3')!.isEliminated).toBe(true);
+    host.startRound();
+    clients[0].send({ t: 'volunteer' }); // вне фазы события — игнор
+    await tick();
+    expect(host.game!.players.find((p) => p.id === 'p2')!.isEliminated).toBe(false);
+  });
+
+  it('clients clamp a hostile event card', async () => {
+    const p = pair();
+    const c = new OnlineClient(p.clientSide, 'a', 't');
+    const { host } = await make(true);
+    const good = JSON.parse(JSON.stringify(host.viewFor(0)));
+    good.event = { id: 'x', kind: 'plague', tone: 'bad', title: 'T'.repeat(999), text: 'x'.repeat(9999), outcome: Array(500).fill('o'.repeat(999)) };
+    (p.hostSide as unknown as { send(m: unknown): void }).send({ t: 'view', me: 'p1', view: good });
+    await tick();
+    if (c.state.status !== 'game') throw new Error('should accept sanitized');
+    expect(c.state.view.event!.title.length).toBe(80);
+    expect(c.state.view.event!.outcome.length).toBe(24);
+    const bad = JSON.parse(JSON.stringify(good));
+    bad.event.kind = 'rm -rf';
+    const p2 = pair();
+    const c2 = new OnlineClient(p2.clientSide, 'a', 't');
+    (p2.hostSide as unknown as { send(m: unknown): void }).send({ t: 'view', me: 'p1', view: bad });
+    await tick();
+    if (c2.state.status === 'game') expect(c2.state.view.event).toBeUndefined(); // неизвестный вид события отбрасывается
   });
 });

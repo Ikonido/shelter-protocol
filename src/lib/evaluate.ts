@@ -9,12 +9,16 @@ export interface SkillCoverage {
 export interface HazardResult {
   hazard: Hazard;
   by: string[]; // кто из выживших нейтрализует
+  /** Кто именно и какой картой (для хроники). */
+  via: { name: string; card: string }[];
   need: number; // сколько человек нужно (на «Кошмаре» смертельную угрозу снимают двое)
   ok: boolean;
 }
 
 export interface Evaluation {
   hazards: HazardResult[];
+  /** Неснятых смертельных угроз достаточно для гибели убежища. */
+  fatal: boolean;
   coverage: SkillCoverage[];
   coveredCount: number;
   health: number; // 0..1
@@ -45,11 +49,13 @@ export function evaluate(scenario: Scenario, survivors: PlayerCharacter[], slots
   const rules = rulesFor(difficulty);
   // Угроза нейтрализована, если нужное число выживших (обычно один) имеет подходящий навык/карту.
   const hazardResults: HazardResult[] = hazards.map((hazard) => {
-    const by = survivors
-      .filter((p) => hazard.counters.some((sk) => SKILL_CATEGORIES.some((c) => cardMatchesSkill(p.slots[c].card, sk))))
-      .map((p) => p.name);
+    const via = survivors.flatMap((p) => {
+      const c = SKILL_CATEGORIES.find((cat) => hazard.counters.some((sk) => cardMatchesSkill(p.slots[cat].card, sk)));
+      return c ? [{ name: p.name, card: p.slots[c].card.title ?? p.slots[c].card.description }] : [];
+    });
+    const by = via.map((v) => v.name);
     const need = hazard.severity === 'critical' ? rules.criticalNeeds : 1;
-    return { hazard, by, need, ok: by.length >= need };
+    return { hazard, by, via, need, ok: by.length >= need };
   });
   const open = hazardResults.filter((r) => !r.ok);
   const criticalOpen = open.filter((r) => r.hazard.severity === 'critical');
@@ -115,7 +121,7 @@ export function evaluate(scenario: Scenario, survivors: PlayerCharacter[], slots
         : fatal
           ? `Убежище погубила угроза: ${criticalOpen[0].hazard.title}`
           : 'Убежище не пережило катастрофу';
-  return { hazards: hazardResults, coverage, coveredCount, health, resources, stability, score, verdict, headline, notes };
+  return { hazards: hazardResults, fatal, coverage, coveredCount, health, resources, stability, score, verdict, headline, notes };
 }
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));

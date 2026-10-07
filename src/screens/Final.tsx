@@ -1,9 +1,11 @@
-import { CheckCircle2, Home, RotateCcw, Skull, TriangleAlert } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { CheckCircle2, Home, Newspaper, RotateCcw, Skull, TriangleAlert } from 'lucide-react';
 import type { GameState } from '../types';
 import { CATEGORIES } from '../types';
 import { evaluate } from '../lib/evaluate';
 import { CardFace } from '../ui/bits';
 import { ThreatsPanel } from '../ui/Threats';
+import { ChroniclePlayer } from '../ui/ChroniclePlayer';
 import { ScoreRing } from '../ui/ScoreRing';
 import { rulesFor } from '../lib/difficulty';
 import { useStore } from '../store';
@@ -79,11 +81,30 @@ export function Verdict({ game }: { game: GameState }) {
   );
 }
 
-export default function Final({ game }: { game: GameState }) {
-  const { go, setGame } = useStore();
+/**
+ * Финал: сначала «Хроника изоляции» (auto), затем итог с оценкой. В настольном режиме итог меняется по мере
+ * того, как отмечают выживших, поэтому хроника там запускается по кнопке.
+ */
+export function FinalReport({ game, auto = true, onStoryChange }: { game: GameState; auto?: boolean; onStoryChange?: (playing: boolean) => void }) {
+  const [story, setStory] = useState(auto);
+  // Родитель прячет остальное (журнал, кнопки), пока играет хроника.
+  useEffect(() => onStoryChange?.(story), [story, onStoryChange]);
+  if (story) return <ChroniclePlayer game={game} onDone={() => setStory(false)} />;
   return (
     <div className="flex flex-col gap-4">
       <Verdict game={game} />
+      <button className="btn" onClick={() => setStory(true)}><Newspaper size={16} /> Посмотреть хронику изоляции</button>
+    </div>
+  );
+}
+
+export default function Final({ game }: { game: GameState }) {
+  const { go, setGame } = useStore();
+  const [playing, setPlaying] = useState(true);
+  return (
+    <div className="flex flex-col gap-4">
+      <FinalReport game={game} onStoryChange={setPlaying} />
+      {!playing && (<>
       <details className="panel">
         <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">Журнал партии</summary>
         <ol className="mt-2 flex flex-col gap-1 text-xs text-dim">
@@ -94,6 +115,7 @@ export default function Final({ game }: { game: GameState }) {
         <button className="btn btn-primary" onClick={() => go({ name: 'setup' })}><RotateCcw size={18} /> Новая партия</button>
         <button className="btn" onClick={() => { setGame(null); go({ name: 'home' }); }}><Home size={18} /> В меню</button>
       </div>
+      </>)}
     </div>
   );
 }

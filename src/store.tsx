@@ -13,6 +13,7 @@ export interface OnlineDraft {
   revealsPerVote: number;
   hazardCount: number;
   difficulty: Difficulty;
+  roundEvents: boolean;
   speechSec: number;
   timeLimitMin: number;
 }

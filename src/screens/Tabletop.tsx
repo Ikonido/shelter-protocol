@@ -5,7 +5,7 @@ import { CardFace } from '../ui/bits';
 import { useStore } from '../store';
 import { rerollCard } from '../lib/generator';
 import { setEliminated } from '../lib/game';
-import { Verdict } from './Final';
+import { FinalReport } from './Final';
 import { Avatar } from '../ui/Avatar';
 import { ThreatsPanel } from '../ui/Threats';
 import { copyText } from '../ui/clipboard';
@@ -81,7 +81,7 @@ export default function Tabletop({ game }: { game: GameState }) {
             </button>
           ))}
         </div>
-        <Verdict game={game} />
+        <FinalReport game={game} auto={false} />
       </section>
     </div>
   );

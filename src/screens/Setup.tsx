@@ -28,6 +28,7 @@ export default function Setup() {
   const [speechSec, setSpeechSec] = useState(45);
   const [hazardCount, setHazardCount] = useState(2);
   const [difficulty, setDifficulty] = useState<Difficulty>('normal');
+  const [roundEvents, setRoundEvents] = useState(true);
   // Пресет подставляет рекомендуемые значения, после чего их можно поменять вручную.
   const pickDifficulty = (d: Difficulty) => {
     const r = DIFFICULTIES[d];
@@ -62,7 +63,7 @@ export default function Setup() {
   const start = () => {
     const chosen = scenario ?? scenarios[Math.floor(Math.random() * scenarios.length)];
     if (mode === 'online') {
-      go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting, revealsPerVote, speechSec, hazardCount, difficulty, timeLimitMin } });
+      go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting, revealsPerVote, speechSec, hazardCount, difficulty, roundEvents, timeLimitMin } });
       return;
     }
     const config: SessionConfig = {
@@ -76,6 +77,7 @@ export default function Setup() {
       speechSec,
       hazardCount,
       difficulty,
+      roundEvents: mode === 'tabletop' ? false : roundEvents,
       timeLimitMin: mode === 'tabletop' ? 0 : timeLimitMin,
       names: Array.from({ length: n }, (_, i) => nameAt(i)),
       seed: newSeed(),
@@ -209,8 +211,12 @@ export default function Setup() {
 
       {mode !== 'tabletop' && (
         <section className="panel">
-          <h2 className="step-title w-full">7 · Темп партии</h2>
+          <h2 className="step-title w-full">7 · Темп и события</h2>
           <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
+            <label className="flex w-full max-w-md cursor-pointer items-start gap-3 rounded-md border border-edge p-3">
+              <input type="checkbox" className="mt-1 size-4 accent-amber" checked={roundEvents} onChange={(e) => setRoundEvents(e.target.checked)} />
+              <span className="text-sm"><b>События раунда</b><br /><span className="text-xs text-dim">Перед каждым раундом выпадает карта кризиса: сокращается число мест, вспыхивает болезнь, появляется новая угроза — или приходит помощь. Можно вызваться добровольцем.</span></span>
+            </label>
           <div>
             <Stepper label="Вскрытий до голосования" value={revealsPerVote} min={1} max={3} onChange={setRevealsPerVote} />
             <p className="mt-1 max-w-xs text-xs text-dim">Между голосованиями каждый по очереди открывает столько карт. Чем больше вскрытий, тем меньше раундов.</p>

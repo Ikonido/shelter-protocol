@@ -6,6 +6,7 @@ import {
   alive,
   allVoted,
   castVote,
+  continueEvent,
   nextRound,
   pendingReveal,
   resolveVote,
@@ -16,8 +17,10 @@ import {
   endSpeech,
   extendDeadline,
   perVote,
+  quotaThisRound,
   stepOf,
   tickGame,
+  volunteer,
   playAction as applyAction,
 } from '../lib/game';
 import { CardFace, Modal } from '../ui/bits';
@@ -28,6 +31,7 @@ import { Board } from '../ui/Board';
 import { GameHud } from '../ui/GameHud';
 import { Avatar } from '../ui/Avatar';
 import { Tally } from '../ui/Tally';
+import { EventCard } from '../ui/EventCard';
 import { Gate } from '../ui/Gate';
 import Final from './Final';
 import Tabletop from './Tabletop';
@@ -84,6 +88,7 @@ export default function Game() {
             {timed && game.deadline && (
               <MatchClock deadline={game.deadline} totalMin={game.config.timeLimitMin} onExtend={() => update((g) => extendDeadline(g, 5 * 60_000))} />
             )}
+            {game.phase === 'event' && <EventPhase game={game} update={update} />}
             {game.phase === 'reveal' && <RevealPhase game={game} update={update} />}
             {game.phase === 'speech' && <SpeechPhase game={game} update={update} />}
             {game.phase === 'vote' && <VotePhase game={game} update={update} />}
@@ -152,6 +157,21 @@ export function Dossier({
         )}
       </div>
     </div>
+  );
+}
+
+/* ---------- Фаза 0: карта кризиса в начале раунда ---------- */
+
+function EventPhase({ game, update }: { game: GameState; update: Update }) {
+  if (!game.event) return null;
+  return (
+    <EventCard
+      round={game.round}
+      event={game.event}
+      volunteers={quotaThisRound(game) >= 1 ? alive(game) : []}
+      onVolunteer={(id) => update((g) => volunteer(g, id))}
+      action={<button className="btn btn-primary" onClick={() => update(continueEvent)}><Play size={18} /> Начать раунд</button>}
+    />
   );
 }
 
@@ -335,7 +355,7 @@ function ResultPhase({ game, update }: { game: GameState; update: Update }) {
   return (
     <section className="panel flex flex-col gap-3">
       <h2 className="h-hud">Итоги раунда {game.round}</h2>
-      <Tally players={game.players} result={r} />
+      {r.noVote ? <p className="text-sm text-amber">Добровольцы закрыли квоту раунда — голосования не будет.</p> : <Tally players={game.players} result={r} />}
       {r.skipped && <p className="text-sm text-amber">Большинство воздержалось ({r.abstained} из {alive(game).length}) — никто не покидает игру. Пропущенное исключение перенесено в дополнительный раунд.</p>}
       {!r.skipped && !!r.abstained && <p className="text-xs text-dim">Воздержались: {r.abstained}.</p>}
       {r.tieBreak && <p className="text-xs text-amber">Ничья на границе — решено жребием.</p>}

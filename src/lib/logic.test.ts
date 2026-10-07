@@ -1,17 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { CLASSIC_PACK } from '../data/classicPack';
 import { CATEGORIES, type SessionConfig } from '../types';
-import { ABSTAIN, alive, applyOvertime, buildSchedule, castVote, createGame, currentSpeaker, endSpeech, maxRoundsFor, nextRound, pendingReveal, resolveVote, revealCard, revealOptions, startVote, tickGame } from './game';
+import { ABSTAIN, applyEvent, continueEvent, volunteer, alive, applyOvertime, buildSchedule, castVote, createGame, currentSpeaker, endSpeech, maxRoundsFor, nextRound, pendingReveal, resolveVote, revealCard, revealOptions, startVote, tickGame } from './game';
 import { evaluate } from './evaluate';
 import type { Hazard } from '../types';
+import { EVENTS, drawEvent, isEligible } from './events';
 import { decodePack, encodePack, sanitizePack, sanitizeHazard } from './packs';
 
-const config = (n = 6, k = 3, revealsPerVote = 1, timeLimitMin = 0, speechSec = 0, hazardCount = 0, difficulty: SessionConfig['difficulty'] = 'normal'): SessionConfig => ({
+const config = (n = 6, k = 3, revealsPerVote = 1, timeLimitMin = 0, speechSec = 0, hazardCount = 0, difficulty: SessionConfig['difficulty'] = 'normal', roundEvents = false): SessionConfig => ({
   scenarioId: CLASSIC_PACK.scenarios[0].id, packIds: ['classic'], playerCount: n, shelterSlots: k,
-  mode: 'pass-and-play', voting: 'open', revealsPerVote, timeLimitMin, speechSec, hazardCount, difficulty, names: Array.from({ length: n }, (_, i) => `P${i + 1}`), seed: 42,
+  mode: 'pass-and-play', voting: 'open', revealsPerVote, timeLimitMin, speechSec, hazardCount, difficulty, roundEvents, names: Array.from({ length: n }, (_, i) => `P${i + 1}`), seed: 42,
 });
-const newGame = (n = 6, k = 3, rpv = 1, limit = 0, speech = 0, hazards = 0, scenarioIdx = 0) =>
-  createGame(config(n, k, rpv, limit, speech, hazards), CLASSIC_PACK.scenarios[scenarioIdx], [CLASSIC_PACK]);
+const newGame = (n = 6, k = 3, rpv = 1, limit = 0, speech = 0, hazards = 0, scenarioIdx = 0, events = false, difficulty: SessionConfig['difficulty'] = 'normal') =>
+  createGame(config(n, k, rpv, limit, speech, hazards, difficulty, events), CLASSIC_PACK.scenarios[scenarioIdx], [CLASSIC_PACK]);
 
 describe('schedule', () => {
   it('sums to N-K and caps rounds', () => {
@@ -372,5 +373,130 @@ describe('difficulty', () => {
     const major: Hazard = { ...crit, id: 'm', severity: 'major' };
     const scores = (['easy', 'normal', 'hard', 'nightmare'] as const).map((d) => evaluate(sc, survivors, 4, [major], d).score);
     for (let i = 1; i < scores.length; i++) expect(scores[i]).toBeLessThan(scores[i - 1]);
+  });
+});
+
+describe('round events', () => {
+  const ev = (id: string) => EVENTS.find((e) => e.id === id)!;
+  const withEvents = (n = 8, k = 4) => newGame(n, k, 1, 0, 45, 2, 2, true);
+
+  it('a crisis card opens the round before any reveal, then play continues', () => {
+    const g = withEvents();
+    expect(g.phase).toBe('event');
+    expect(g.event).toBeDefined();
+    expect(g.usedEvents).toEqual([g.event!.id]);
+    expect(g.revealedThisRound).toEqual([]);
+    const next = continueEvent(g);
+    expect(next.phase).toBe('reveal');
+    expect(continueEvent(next)).toBe(next);
+    expect(newGame(8, 4).phase).toBe('reveal'); // события выключены -> как раньше
+  });
+
+  it('events never repeat within a game and the next round gets a new one', () => {
+    let g = withEvents(12, 3);
+    const seen = new Set<string>([g.event!.id]);
+    for (let i = 0; i < 3 && g.phase !== 'final'; i++) {
+      g = continueEvent(g);
+      for (let guard = 0; guard < 80 && g.phase !== 'vote'; guard++) {
+        const p = currentSpeaker(g)!;
+        g = endSpeech(revealCard(g, p.id, revealOptions(g, p)[0]));
+      }
+      for (const p of alive(g)) g = castVote(g, p.id, alive(g).find((x) => x.id !== p.id)!.id);
+      g = nextRound(resolveVote(g));
+      if (g.event) { expect(seen.has(g.event.id)).toBe(false); seen.add(g.event.id); }
+    }
+    expect(seen.size).toBeGreaterThan(1);
+  });
+
+  it('shrink: one seat fewer and one more elimination this round', () => {
+    const g = withEvents();
+    const r = applyEvent(g, ev('vent'));
+    expect(r.config.shelterSlots).toBe(g.config.shelterSlots - 1);
+    expect(r.schedule[0]).toBe(g.schedule[0] + 1);
+  });
+
+  it('plague: only players with bad health reveal it', () => {
+    const g = withEvents();
+    const r = applyEvent(g, ev('plague'));
+    for (const p of r.players) expect(p.slots.health.isRevealed).toBe(p.slots.health.card.modifier === 'negative');
+    // нет больных -> событие неприменимо
+    const healthy = { ...g, players: g.players.map((p) => ({ ...p, slots: { ...p.slots, health: { ...p.slots.health, card: { ...p.slots.health.card, modifier: 'positive' as const } } } })) };
+    expect(isEligible(ev('plague'), healthy)).toBe(false);
+  });
+
+  it('leak: everyone reveals one more random card, biology stays for the forced reveal in round 1', () => {
+    const g = withEvents();
+    const r = applyEvent(g, ev('leak'));
+    for (const p of r.players) {
+      const open = (['profession', 'biology', 'health', 'hobby', 'luggage', 'fact'] as const).filter((c) => p.slots[c].isRevealed);
+      expect(open).toHaveLength(1);
+      expect(open).not.toContain('biology');
+    }
+  });
+
+  it('silence halves the speech time of the round', () => {
+    const g = continueEvent(applyEvent(withEvents(), ev('silence')));
+    expect(g.speechFactor).toBe(0.5);
+    const after = revealCard(g, currentSpeaker(g)!.id, 'biology');
+    const ms = after.speechEndsAt! - Date.now();
+    expect(ms).toBeGreaterThan(21_000);
+    expect(ms).toBeLessThan(23_500);
+  });
+
+  it('newHazard adds an unused threat; relief removes the lightest non-critical one', () => {
+    const g = withEvents();
+    const before = g.hazards!.length;
+    const more = applyEvent(g, ev('trouble'));
+    expect(more.hazards!.length).toBe(before + 1);
+    expect(new Set(more.hazards!.map((h) => h.id)).size).toBe(before + 1);
+    const mixed: Hazard[] = [
+      { id: 'a', title: 'A', description: '', counters: [], severity: 'critical' },
+      { id: 'b', title: 'B', description: '', counters: [], severity: 'major' },
+      { id: 'c', title: 'C', description: '', counters: [], severity: 'minor' },
+    ];
+    const relieved = applyEvent({ ...g, hazards: mixed }, ev('relief'));
+    expect(relieved.hazards!.map((h) => h.id)).toEqual(['a', 'b']);
+    expect(isEligible(ev('relief'), { ...g, hazards: [mixed[0]] })).toBe(false);
+  });
+
+  it('volunteer leaves instead of a vote; a covered quota skips the ballot; ends the game when seats are enough', () => {
+    let g = applyEvent(withEvents(8, 4), ev('volunteer'));
+    g = { ...g, phase: 'event' };
+    const q = g.schedule[0];
+    const v = volunteer(g, 'p3');
+    expect(v.players.find((p) => p.id === 'p3')!.isEliminated).toBe(true);
+    expect(v.schedule[0]).toBe(q - 1);
+    expect(v.event!.outcome.join()).toContain('добровольно');
+    expect(volunteer(continueEvent(v), 'p4')).toEqual(continueEvent(v)); // вне фазы события нельзя
+    // квота 1 -> один доброволец закрывает её, голосования нет
+    let one: ReturnType<typeof newGame> = { ...applyEvent(withEvents(8, 4), ev('volunteer')), phase: 'event', schedule: [1, 1, 1, 1] };
+    one = volunteer(one, 'p2');
+    expect(one.schedule[0]).toBe(0);
+    const res = startVote(one);
+    expect(res.phase).toBe('result');
+    expect(res.lastResult).toMatchObject({ noVote: true, eliminated: [] });
+    expect(alive(nextRound(res))).toHaveLength(7);
+    // мест уже достаточно -> финал
+    const tight = { ...applyEvent(newGame(5, 4, 1, 0, 0, 0, 0, true), ev('volunteer')), phase: 'event' as const, schedule: [1] };
+    expect(volunteer(tight, 'p1').phase).toBe('final');
+  });
+
+  it('weights favour good events on easy and bad ones on nightmare', () => {
+    const share = (d: SessionConfig['difficulty']) => {
+      let bad = 0;
+      for (let seed = 1; seed <= 300; seed++) {
+        const g = { ...newGame(8, 4, 1, 0, 45, 2, 2, false, d), seed, round: 1 };
+        if (drawEvent(g)?.tone === 'bad') bad++;
+      }
+      return bad / 300;
+    };
+    expect(share('nightmare')).toBeGreaterThan(share('easy') + 0.15);
+  });
+
+  it('overtime skips the event card', () => {
+    const g = newGame(8, 4, 1, 30, 45, 2, 2, true);
+    expect(g.phase).toBe('event');
+    const late = applyOvertime(g, g.deadline! + 1);
+    expect(['vote', 'result']).toContain(late.phase);
   });
 });

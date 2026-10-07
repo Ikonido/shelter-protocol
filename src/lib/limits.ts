@@ -14,6 +14,7 @@ export const LIMITS = {
   hazardTitle: 40,
   hazardDescription: 160,
   hazardCounters: 4,
+  hazardStory: 160,
   maxHazardsPerGame: 4,
   cardDescription: 240,
   cardTitle: 40,

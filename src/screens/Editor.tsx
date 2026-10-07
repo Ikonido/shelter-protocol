@@ -114,6 +114,10 @@ export default function Editor({ packId }: { packId: string }) {
                     <select className="input" value={h.severity} onChange={(e) => setHazard(s.id, h.id, { severity: e.target.value as Severity })}>
                       {SEVERITY_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div><span className="label">Хроника: угроза снята ({'{who}'} — кто справился)</span><textarea rows={2} className="input" maxLength={L.hazardStory} placeholder="{who} расставляет ловушки — грызуны уходят." value={h.onSuccess ?? ''} onChange={(e) => setHazard(s.id, h.id, { onSuccess: e.target.value || undefined })} /></div>
+                      <div><span className="label">Хроника: угроза не остановлена</span><textarea rows={2} className="input" maxLength={L.hazardStory} placeholder="Крысы прогрызают трюм и портят провизию." value={h.onFail ?? ''} onChange={(e) => setHazard(s.id, h.id, { onFail: e.target.value || undefined })} /></div>
+                    </div>
                     <div><span className="label">Нейтрализуют навыки/теги (через запятую)</span><ListInput value={h.counters} onCommit={(v) => setHazard(s.id, h.id, { counters: v })} placeholder="дератизация, санитария" maxItems={L.hazardCounters} maxLen={L.tagLen} /></div>
                   </div>
                 ))}

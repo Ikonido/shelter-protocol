@@ -6,8 +6,9 @@ import { rulesFor } from '../lib/difficulty';
 /** Полоса шагов раунда: вскрытие 1 → вскрытие 2 → голосование → итоги. */
 export function PhaseSteps({ game }: { game: GameState }) {
   const n = perVote(game);
-  const steps = [...Array.from({ length: n }, (_, i) => `Вскрытие ${i + 1}`), 'Голосование', 'Итоги'];
-  const current = game.phase === 'vote' ? n : game.phase === 'result' ? n + 1 : stepOf(game) - 1;
+  const ev = game.config.roundEvents ? 1 : 0;
+  const steps = [...(ev ? ['Событие'] : []), ...Array.from({ length: n }, (_, i) => `Вскрытие ${i + 1}`), 'Голосование', 'Итоги'];
+  const current = game.phase === 'event' ? 0 : game.phase === 'vote' ? ev + n : game.phase === 'result' ? ev + n + 1 : ev + stepOf(game) - 1;
   return (
     <ol className="flex items-center gap-1 overflow-x-auto text-[10px] uppercase tracking-widest" aria-label="Шаги раунда">
       {steps.map((label, i) => {

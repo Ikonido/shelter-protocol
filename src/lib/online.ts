@@ -1,5 +1,6 @@
 import {
   CATEGORIES,
+  type ActiveEvent,
   type Card,
   type CardPack,
   type Category,
@@ -21,11 +22,13 @@ import {
   revealCard,
   revealOptions,
   ABSTAIN,
+  continueEvent,
   currentSpeaker,
   endSpeech,
   extendDeadline,
   tickGame,
-  } from './game';
+  volunteer,
+} from './game';
 import { newSeed, randomCode } from './rng';
 import { LIMITS as L, clip } from './limits';
 import { sanitizeHazard, sanitizeScenario } from './packs';
@@ -37,7 +40,8 @@ export type C2H =
   | { t: 'reveal'; category: Category }
   | { t: 'action' }
   | { t: 'vote'; target: string }
-  | { t: 'done' }; // ходящий закончил речь раньше времени
+  | { t: 'done' } // ходящий закончил речь раньше времени
+  | { t: 'volunteer' }; // вызваться добровольцем (событие раунда)
 
 export interface LobbyMember {
   name: string;
@@ -117,6 +121,7 @@ export interface HostSetup {
   speechSec?: number; // секунд на объяснение пользы, по умолчанию 45; 0 — без таймера
   hazardCount?: number; // факторов угрозы из пула сценария, по умолчанию 2
   difficulty?: Difficulty; // по умолчанию normal
+  roundEvents?: boolean; // карта кризиса перед каждым раундом, по умолчанию да
   timeLimitMin?: number; // 0 — без лимита; по умолчанию 0
 }
 
@@ -269,6 +274,7 @@ export class OnlineHost {
     if (msg.t === 'reveal' && CATEGORIES.includes(msg.category as Category)) this.act(member, { t: 'reveal', category: msg.category as Category });
     else if (msg.t === 'action') this.act(member, { t: 'action' });
     else if (msg.t === 'done') this.act(member, { t: 'done' });
+    else if (msg.t === 'volunteer') this.act(member, { t: 'volunteer' });
     else if (msg.t === 'vote' && typeof msg.target === 'string') this.act(member, { t: 'vote', target: msg.target });
   }
 
@@ -283,6 +289,8 @@ export class OnlineHost {
     if (msg.t === 'reveal') next = revealCard(g, id, msg.category);
     else if (msg.t === 'action') {
       if (g.phase === 'reveal' || g.phase === 'speech') next = playAction(g, id);
+    } else if (msg.t === 'volunteer') {
+      next = volunteer(g, id);
     } else if (msg.t === 'done') {
       if (g.phase === 'speech' && currentSpeaker(g)?.id === id) next = endSpeech(g);
     } else if (msg.t === 'vote' && g.phase === 'vote') {
@@ -318,6 +326,7 @@ export class OnlineHost {
         speechSec: Math.min(300, Math.max(0, this.setup.speechSec ?? 45)),
         hazardCount: Math.min(L.maxHazardsPerGame, Math.max(0, this.setup.hazardCount ?? 2)),
         difficulty: this.setup.difficulty ?? 'normal',
+        roundEvents: this.setup.roundEvents ?? true,
         timeLimitMin: Math.min(180, Math.max(0, this.setup.timeLimitMin ?? 0)),
         names,
         seed: newSeed(),
@@ -331,6 +340,10 @@ export class OnlineHost {
   }
 
   /* Управление раундом — только у хоста */
+  /** Игроки прочитали карту кризиса — хост запускает вскрытия. */
+  startRound() {
+    if (this.game?.phase === 'event') this.setGame(continueEvent(this.game));
+  }
   /** Хост может прервать чужую речь («Следующий игрок»). */
   skipSpeech() {
     if (this.game?.phase === 'speech') this.setGame(endSpeech(this.game));
@@ -479,9 +492,12 @@ export class OnlineClient {
   }
 }
 
+const EVENT_KINDS = ['shrink', 'plague', 'volunteer', 'leak', 'silence', 'newHazard', 'relief', 'prompt'] as const;
+const EVENT_TONES = ['good', 'bad', 'neutral'] as const;
+
 /* ---------- Недоверенное состояние от хоста ---------- */
 
-const PHASES = ['reveal', 'speech', 'vote', 'result', 'final'];
+const PHASES = ['event', 'reveal', 'speech', 'vote', 'result', 'final'];
 const MODS = ['positive', 'neutral', 'negative'];
 const text = (v: unknown, max: number) => (typeof v === 'string' ? clip(v, max) : '');
 const rec = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -497,6 +513,21 @@ function cleanCard(raw: unknown, category: Category): Card | null {
 }
 
 /** Хост — внешний источник: заново собираем состояние только из проверенных полей и обрезаем строки по лимитам. */
+function cleanEvent(raw: unknown): ActiveEvent | null {
+  const e = rec(raw);
+  const kind = EVENT_KINDS.find((k) => k === e.kind);
+  const tone = EVENT_TONES.find((t) => t === e.tone);
+  if (!kind || !tone || typeof e.title !== 'string') return null;
+  return {
+    id: text(e.id, 40),
+    kind,
+    tone,
+    title: text(e.title, 80),
+    text: text(e.text, 400),
+    outcome: Array.isArray(e.outcome) ? e.outcome.slice(0, 24).map((o) => text(o, 300)) : [],
+  };
+}
+
 export function sanitizeView(raw: unknown): GameState | null {
   const r = rec(raw);
   if (!Array.isArray(r.players) || r.players.length < 1 || r.players.length > MAX_ONLINE_PLAYERS) return null;
@@ -534,6 +565,7 @@ export function sanitizeView(raw: unknown): GameState | null {
       speechSec: int(cfg.speechSec, 0, 300),
       hazardCount: int(cfg.hazardCount, 0, L.maxHazardsPerGame),
       difficulty: (['easy', 'normal', 'hard', 'nightmare'] as const).find((d) => d === cfg.difficulty) ?? 'normal',
+      roundEvents: cfg.roundEvents === true,
       timeLimitMin: int(cfg.timeLimitMin, 0, 180),
       names: players.map((p) => p.name),
       seed: 0,
@@ -544,6 +576,7 @@ export function sanitizeView(raw: unknown): GameState | null {
     schedule: Array.isArray(r.schedule) ? r.schedule.slice(0, 6).map((n) => int(n, 0, 19)) : [],
     phase: r.phase as GameState['phase'],
     revealStep: int(r.revealStep, 1, 3),
+    ...(cleanEvent(r.event) ? { event: cleanEvent(r.event)! } : {}),
     hazards: (Array.isArray(r.hazards) ? r.hazards.slice(0, L.maxHazardsPerGame) : [])
       .map((h, i) => sanitizeHazard(h, i))
       .filter((h): h is Hazard => !!h),
@@ -564,6 +597,7 @@ export function sanitizeView(raw: unknown): GameState | null {
       tieBreak: lr.tieBreak === true,
       abstained: int(lr.abstained, 0, MAX_ONLINE_PLAYERS),
       skipped: lr.skipped === true,
+      noVote: lr.noVote === true,
     };
   }
   return game;

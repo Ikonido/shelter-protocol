@@ -6,7 +6,7 @@ import { createRoom, isValidCode, isValidTicket, joinRoom, normalizeCode, probeL
 import { randomToken } from '../lib/rng';
 import { copyText } from '../ui/clipboard';
 import { QR } from '../ui/QR';
-import { ABSTAIN, alive, currentSpeaker, perVote, revealOptions, stepOf } from '../lib/game';
+import { ABSTAIN, alive, currentSpeaker, perVote, quotaThisRound, revealOptions, stepOf } from '../lib/game';
 import { CATEGORIES, CATEGORY_LABEL, type Category, type GameState } from '../types';
 import { CardFace, Stepper } from '../ui/bits';
 import { Board } from '../ui/Board';
@@ -15,8 +15,9 @@ import { SpeechTimer } from '../ui/SpeechTimer';
 import { ThreatsPanel } from '../ui/Threats';
 import { Avatar } from '../ui/Avatar';
 import { Tally } from '../ui/Tally';
+import { EventCard } from '../ui/EventCard';
 import { MatchClock } from '../ui/MatchClock';
-import { Verdict } from './Final';
+import { FinalReport } from './Final';
 
 type Send = (m: Exclude<C2H, { t: 'hello' }>) => void;
 
@@ -277,6 +278,7 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
   const player = view.players.find((p) => p.id === me)!;
   const living = alive(view);
   const [pick, setPick] = useState<Category | null>(null);
+  const [storyOn, setStoryOn] = useState(true); // идёт хроника изоляции — остальное скрыто
   const speaker = currentSpeaker(view);
   const myTurn = speaker?.id === me;
   const options = view.phase === 'reveal' && myTurn && !player.isEliminated ? revealOptions(view, player) : [];
@@ -291,18 +293,32 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
 
       {!live ? (
         <>
-          <Verdict game={view} />
-          <details className="panel">
-            <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">Журнал партии</summary>
-            <ol className="mt-2 flex flex-col gap-1 text-xs text-dim">{view.log.map((l, i) => <li key={i}>[Р{l.round}] {l.text}</li>)}</ol>
-          </details>
-          <button className="btn btn-primary" onClick={onExit}>В меню</button>
+          <FinalReport game={view} onStoryChange={setStoryOn} />
+          {!storyOn && (
+            <>
+              <details className="panel">
+                <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">Журнал партии</summary>
+                <ol className="mt-2 flex flex-col gap-1 text-xs text-dim">{view.log.map((l, i) => <li key={i}>[Р{l.round}] {l.text}</li>)}</ol>
+              </details>
+              <button className="btn btn-primary" onClick={onExit}>В меню</button>
+            </>
+          )}
         </>
       ) : (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
           <div className="anim-rise flex min-w-0 flex-col gap-4" key={`${view.round}-${stepOf(view)}-${view.phase}-${speaker?.id ?? ''}`}>
             {view.deadline && (
               <MatchClock deadline={view.deadline} totalMin={view.config.timeLimitMin} onExtend={host ? () => host.extendTime(5 * 60_000) : undefined} />
+            )}
+
+            {view.phase === 'event' && view.event && (
+              <EventCard
+                round={view.round}
+                event={view.event}
+                volunteers={!player.isEliminated && quotaThisRound(view) >= 1 ? [player] : []}
+                onVolunteer={() => send({ t: 'volunteer' })}
+                action={host ? <button className="btn btn-primary" onClick={() => host.startRound()}>Начать раунд</button> : <p className="text-xs text-dim">Раунд начнёт хост, когда все прочитают.</p>}
+              />
             )}
 
             {view.phase === 'reveal' && speaker && (
@@ -361,7 +377,7 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
             {view.phase === 'result' && view.lastResult && (
               <section className="panel hud flex flex-col gap-3">
                 <h2 className="h-hud">Итоги раунда {view.round}</h2>
-                <Tally players={view.players} result={view.lastResult} />
+                {view.lastResult.noVote ? <p className="text-sm text-amber">Добровольцы закрыли квоту раунда — голосования не будет.</p> : <Tally players={view.players} result={view.lastResult} />}
                 {view.lastResult.tieBreak && <p className="text-xs text-amber">Ничья на границе — решено жребием.</p>}
                 {view.lastResult.skipped && <p className="text-sm text-amber">Большинство воздержалось ({view.lastResult.abstained} из {alive(view).length}) — никто не покидает игру. Пропущенное исключение перенесено в дополнительный раунд.</p>}
                 {!view.lastResult.skipped && !!view.lastResult.abstained && <p className="text-xs text-dim">Воздержались: {view.lastResult.abstained}.</p>}

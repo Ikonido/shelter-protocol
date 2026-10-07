@@ -2,6 +2,7 @@ import {
   CATEGORIES,
   CATEGORY_LABEL,
   type Category,
+  type ActiveEvent,
   type GameState,
   type Hazard,
   type PlayerCharacter,
@@ -11,6 +12,7 @@ import {
   type CardPack,
 } from '../types';
 import { generateCharacters } from './generator';
+import { EVENTS, drawEvent, hiddenForLeak, unusedHazards } from './events';
 import { mulberry32, shuffle } from './rng';
 
 export const MAX_ROUNDS = 6;
@@ -39,7 +41,7 @@ export function clampConfig(playerCount: number, slots: number) {
 export function createGame(config: SessionConfig, scenario: Scenario, packs: CardPack[]): GameState {
   const rng = mulberry32(config.seed);
   const players = generateCharacters(config.names, packs, rng);
-  return {
+  const base: GameState = {
     config,
     scenario: { ...scenario },
     players,
@@ -54,6 +56,7 @@ export function createGame(config: SessionConfig, scenario: Scenario, packs: Car
     log: [],
     seed: config.seed,
   };
+  return config.mode !== 'tabletop' && config.roundEvents ? openRound(base) : base;
 }
 
 /** Случайный (но воспроизводимый по seed) набор факторов угрозы из пула сценария. */
@@ -112,7 +115,7 @@ export function revealCard(g: GameState, playerId: string, category: Category): 
     ],
   };
   const sec = g.config.speechSec ?? 0;
-  if (sec > 0) return { ...next, phase: 'speech', speechEndsAt: Date.now() + sec * 1000 };
+  if (sec > 0) return { ...next, phase: 'speech', speechEndsAt: Date.now() + sec * 1000 * (g.speechFactor ?? 1) };
   return afterTurn(next);
 }
 
@@ -133,6 +136,16 @@ export function playAction(g: GameState, playerId: string): GameState {
 }
 
 export function startVote(g: GameState): GameState {
+  // Квоту закрыли добровольцы: голосовать не за что.
+  if (g.schedule.length > 0 && quotaThisRound(g) <= 0) {
+    return {
+      ...g,
+      phase: 'result',
+      votes: {},
+      lastResult: { eliminated: [], tally: Object.fromEntries(alive(g).map((p) => [p.id, 0])), tieBreak: false, noVote: true },
+      log: [...g.log, { round: g.round, text: 'Добровольцы закрыли квоту — голосования нет' }],
+    };
+  }
   return { ...g, phase: 'vote', votes: {} };
 }
 
@@ -211,10 +224,109 @@ export function endSpeech(g: GameState): GameState {
   return g.phase === 'speech' ? afterTurn(g) : g;
 }
 
+/* ---------- События раунда ---------- */
+
+/**
+ * Начало раунда: выпадает карта кризиса (если включены), её эффект применяется сразу,
+ * затем игроки читают её (фаза event) и только потом идут вскрытия.
+ * Если открывать нечего (карты кончились), событие не показываем — раунд сразу идёт к голосованию.
+ */
+export function openRound(g: GameState): GameState {
+  const base = { ...g, speechFactor: 1, event: undefined };
+  if (!g.config.roundEvents) return startStep(base);
+  const def = drawEvent(base);
+  if (!def) return startStep(base);
+  const applied = applyEvent(base, def);
+  const prepared = startStep(applied);
+  if (prepared.phase !== 'reveal') return startStep(base);
+  return { ...prepared, phase: 'event' };
+}
+
+export function applyEvent(g: GameState, def: (typeof EVENTS)[number]): GameState {
+  const outcome: string[] = [];
+  let cur: GameState = { ...g, usedEvents: [...(g.usedEvents ?? []), def.id] };
+  const rng = mulberry32((g.seed ^ Math.imul(g.round, 0x85ebca6b) ^ 0x2c1b3c6d) >>> 0);
+  const living = () => cur.players.filter((p) => !p.isEliminated);
+
+  switch (def.kind) {
+    case 'shrink': {
+      const slots = cur.config.shelterSlots - 1;
+      const schedule = cur.schedule.slice();
+      schedule[cur.round - 1] = (schedule[cur.round - 1] ?? 0) + 1;
+      cur = { ...cur, config: { ...cur.config, shelterSlots: slots }, schedule };
+      outcome.push(`Мест в бункере: ${slots}. В этом раунде исключается: ${schedule[cur.round - 1]}.`);
+      break;
+    }
+    case 'plague': {
+      const sick = living().filter((p) => p.slots.health.card.modifier === 'negative' && !p.slots.health.isRevealed);
+      cur = { ...cur, players: cur.players.map((p) => (sick.some((s) => s.id === p.id) ? { ...p, slots: { ...p.slots, health: { ...p.slots.health, isRevealed: true } } } : p)) };
+      for (const p of sick) outcome.push(`${p.name} открывает здоровье: ${p.slots.health.card.description}`);
+      break;
+    }
+    case 'leak': {
+      cur = {
+        ...cur,
+        players: cur.players.map((p) => {
+          if (p.isEliminated) return p;
+          const hidden = hiddenForLeak(p, cur);
+          if (!hidden.length) return p;
+          const cat = hidden[Math.floor(rng() * hidden.length)];
+          outcome.push(`${p.name} раскрывает «${CATEGORY_LABEL[cat]}»: ${p.slots[cat].card.description}`);
+          return { ...p, slots: { ...p.slots, [cat]: { ...p.slots[cat], isRevealed: true } } };
+        }),
+      };
+      break;
+    }
+    case 'silence':
+      cur = { ...cur, speechFactor: 0.5 };
+      outcome.push(`Время речи: ${Math.max(5, Math.round((cur.config.speechSec ?? 0) * 0.5))} с.`);
+      break;
+    case 'newHazard': {
+      const pool = unusedHazards(cur);
+      const h = pool[Math.floor(rng() * pool.length)];
+      cur = { ...cur, hazards: [...(cur.hazards ?? []), h] };
+      outcome.push(`Новая угроза: «${h.title}». ${h.description}`);
+      break;
+    }
+    case 'relief': {
+      const rank = { minor: 0, major: 1, critical: 2 } as const;
+      const target = (cur.hazards ?? []).filter((h) => h.severity !== 'critical').sort((a, b) => rank[a.severity] - rank[b.severity])[0];
+      cur = { ...cur, hazards: (cur.hazards ?? []).filter((h) => h.id !== target.id) };
+      outcome.push(`Угроза снята: «${target.title}».`);
+      break;
+    }
+    default:
+      break;
+  }
+  const event: ActiveEvent = { id: def.id, kind: def.kind, title: def.title, text: def.text, tone: def.tone, outcome };
+  return { ...cur, event, log: [...cur.log, { round: cur.round, text: `Событие «${def.title}»${outcome.length ? ': ' + outcome.join(' ') : ''}` }] };
+}
+
+/** Игроки прочитали событие — начинаются вскрытия. */
+export function continueEvent(g: GameState): GameState {
+  return g.phase === 'event' ? { ...g, phase: 'reveal' } : g;
+}
+
+/** Доброволец выходит сам: квота раунда уменьшается на одного (событие «Кто готов уйти добровольно?»). */
+export function volunteer(g: GameState, playerId: string): GameState {
+  const p = g.players.find((x) => x.id === playerId);
+  if (g.phase !== 'event' || g.event?.kind !== 'volunteer' || !p || p.isEliminated || quotaThisRound(g) < 1) return g;
+  const schedule = g.schedule.slice();
+  schedule[g.round - 1] = quotaThisRound(g) - 1;
+  const next: GameState = {
+    ...g,
+    schedule,
+    players: g.players.map((x) => (x.id === playerId ? { ...x, isEliminated: true } : x)),
+    event: { ...g.event, outcome: [...g.event.outcome, `${p.name} добровольно уходит из бункера.`] },
+    log: [...g.log, { round: g.round, text: `${p.name} вызвался добровольцем и покидает бункер` }],
+  };
+  return alive(next).length <= next.config.shelterSlots ? { ...next, phase: 'final' } : next;
+}
+
 export function nextRound(g: GameState): GameState {
   const done = alive(g).length <= g.config.shelterSlots || g.round >= g.schedule.length;
   if (done) return { ...g, phase: 'final' };
-  return startStep({ ...g, round: g.round + 1, revealStep: 1, votes: {} });
+  return openRound({ ...g, round: g.round + 1, revealStep: 1, votes: {} });
 }
 
 /* ---------- Время партии ---------- */
@@ -234,7 +346,8 @@ export function applyOvertime(g: GameState, now = Date.now()): GameState {
   let cur = g;
   for (let i = 0; i < 400; i++) {
     let next = cur;
-    if (cur.phase === 'speech') next = endSpeech(cur);
+    if (cur.phase === 'event') next = continueEvent(cur);
+    else if (cur.phase === 'speech') next = endSpeech(cur);
     else if (cur.phase === 'reveal') {
       const p = pendingReveal(cur)[0];
       if (p) next = revealCard(cur, p.id, revealOptions(cur, p)[0]);

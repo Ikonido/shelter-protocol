@@ -36,6 +36,8 @@ export function sanitizeHazard(raw: unknown, i: number): Hazard | null {
     description: str(r.description, L.hazardDescription),
     counters: strList(r.counters, L.hazardCounters, L.tagLen),
     severity: SEVERITIES.includes(r.severity as Severity) ? (r.severity as Severity) : 'major',
+    ...(str(r.onSuccess, L.hazardStory) ? { onSuccess: str(r.onSuccess, L.hazardStory) } : {}),
+    ...(str(r.onFail, L.hazardStory) ? { onFail: str(r.onFail, L.hazardStory) } : {}),
   };
 }
 
