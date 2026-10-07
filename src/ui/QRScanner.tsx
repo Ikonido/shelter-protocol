@@ -9,6 +9,12 @@ export function QRScanner({ onInvite, onClose }: { onInvite: (i: Invite) => void
   const video = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [foreign, setForeign] = useState(false);
+  // Родитель передаёт новую функцию при каждой перерисовке. Держим последнюю в ref, а не в зависимостях эффекта,
+  // иначе камера перезапускалась бы на каждом обновлении экрана.
+  const inviteRef = useRef(onInvite);
+  useEffect(() => {
+    inviteRef.current = onInvite;
+  }, [onInvite]);
 
   useEffect(() => {
     let stop = false;
@@ -57,7 +63,7 @@ export function QRScanner({ onInvite, onClose }: { onInvite: (i: Invite) => void
           }
           if (text) {
             const invite = parseInvite(text);
-            if (invite) return onInvite(invite);
+            if (invite) return inviteRef.current(invite);
             setForeign(true);
           }
         }
@@ -71,7 +77,7 @@ export function QRScanner({ onInvite, onClose }: { onInvite: (i: Invite) => void
       window.clearTimeout(timer);
       stream?.getTracks().forEach((t) => t.stop());
     };
-  }, [onInvite]);
+  }, []);
 
   return (
     <div className="flex flex-col gap-2">

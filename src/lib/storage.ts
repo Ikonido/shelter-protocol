@@ -41,6 +41,15 @@ function withNewSlots(g: GameState): GameState {
 
 const PHASES = ['event', 'reveal', 'speech', 'vote', 'result', 'final', 'debate'];
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+// isRevealed может отсутствовать в старых сохранениях: тогда считаем карту закрытой.
+const validSlot = (slot: unknown) =>
+  isObj(slot) && isObj(slot.card) && typeof slot.card.description === 'string' && (slot.isRevealed === undefined || typeof slot.isRevealed === 'boolean');
+const validFx = (fx: unknown) =>
+  isObj(fx) &&
+  ['double', 'veto', 'immune'].every((k) => Array.isArray(fx[k]) && (fx[k] as unknown[]).every((x) => typeof x === 'string')) &&
+  Array.isArray(fx.allies) &&
+  fx.allies.every((pair) => Array.isArray(pair) && pair.length === 2 && pair.every((x) => typeof x === 'string'));
 
 /**
  * Проверка структуры сохранённой партии. Битое или чужое сохранение не должно ронять экран:
@@ -51,13 +60,22 @@ export function validateSavedGame(raw: unknown): GameState | null {
   if (!isObj(raw.scenario) || typeof raw.scenario.title !== 'string' || !isObj(raw.config)) return null;
   if (typeof raw.phase !== 'string' || !PHASES.includes(raw.phase)) return null;
   if (typeof raw.round !== 'number' || !Number.isFinite(raw.round)) return null;
-  if (!Array.isArray(raw.schedule) || !Array.isArray(raw.revealedThisRound) || !Array.isArray(raw.log) || !isObj(raw.votes)) return null;
+  if (!Array.isArray(raw.schedule) || !raw.schedule.every(isNum)) return null;
+  if (!Array.isArray(raw.revealedThisRound) || !raw.revealedThisRound.every((x) => typeof x === 'string')) return null;
+  if (!Array.isArray(raw.log) || !raw.log.every((l) => isObj(l) && isNum(l.round) && typeof l.text === 'string')) return null;
+  if (!isObj(raw.votes) || !Object.values(raw.votes).every((v) => typeof v === 'string')) return null;
+  if (!isNum(raw.seed)) return null;
+  if (raw.deadline !== undefined && !isNum(raw.deadline)) return null;
+  if (raw.speechEndsAt !== undefined && !isNum(raw.speechEndsAt)) return null;
+  if (raw.event !== undefined && !isObj(raw.event)) return null;
+  if (raw.fx !== undefined && !validFx(raw.fx)) return null;
   for (const p of raw.players) {
     if (!isObj(p) || typeof p.id !== 'string' || typeof p.name !== 'string' || !isObj(p.slots)) return null;
+    if (p.isEliminated !== undefined && typeof p.isEliminated !== 'boolean') return null;
     for (const c of CATEGORIES) {
       const slot = p.slots[c];
       if (slot === undefined && ADDED.includes(c)) continue;
-      if (!isObj(slot) || !isObj(slot.card) || typeof slot.card.description !== 'string') return null;
+      if (!validSlot(slot)) return null;
     }
   }
   return raw as unknown as GameState;
