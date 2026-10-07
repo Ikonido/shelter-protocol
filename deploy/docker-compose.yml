@@ -1,0 +1,58 @@
+# Маленький сервер для онлайн-комнат: посредник PeerJS (+ HTTPS через Caddy) и, по желанию, TURN-сервер.
+# Запуск: cp .env.example .env && nano .env && docker compose up -d
+# TURN включается так: docker compose --profile turn up -d
+services:
+  peerjs:
+    image: peerjs/peerjs-server:latest
+    restart: unless-stopped
+    # Только сводит игроков по коду комнаты; сами игровые данные через него не идут.
+    command: ["--port", "9000", "--path", "/", "--proxied", "--concurrent_limit", "500", "--alive_timeout", "60000"]
+    expose:
+      - "9000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - peerjs
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  # Нужен редко: когда два игрока в сетях, где прямое соединение не устанавливается (часть мобильных операторов).
+  # Через него идёт весь трафик таких игроков, поэтому квоты ограничены.
+  turn:
+    profiles: ["turn"]
+    image: coturn/coturn:latest
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - "-n"
+      - "--lt-cred-mech"
+      - "--fingerprint"
+      - "--realm=${DOMAIN}"
+      - "--user=${TURN_USER}:${TURN_PASS}"
+      - "--external-ip=${PUBLIC_IP}"
+      - "--listening-port=3478"
+      - "--min-port=49152"
+      - "--max-port=49200"
+      - "--no-multicast-peers"
+      - "--no-cli"
+      - "--no-tls"
+      - "--no-dtls"
+      - "--user-quota=12"
+      - "--total-quota=100"
+      - "--max-bps=1000000"
+      - "--denied-peer-ip=10.0.0.0-10.255.255.255"
+      - "--denied-peer-ip=172.16.0.0-172.31.255.255"
+      - "--denied-peer-ip=192.168.0.0-192.168.255.255"
+
+volumes:
+  caddy_data:
+  caddy_config:

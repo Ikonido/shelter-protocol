@@ -56,7 +56,7 @@ npm run lan      # сборка + сервер на :8080  (PORT=9000 npm run la
 VITE_PEER_HOST=peer.example.com VITE_PEER_PORT=443 VITE_PEER_PATH=/ VITE_PEER_SECURE=true
 VITE_TURN_URL=turn:turn.example.com:3478 VITE_TURN_USER=... VITE_TURN_PASS=...
 ```
-(TURN — например coturn). Безопасность и приватность: [SECURITY.md](SECURITY.md).
+(TURN — например coturn). Готовый набор для запуска своего маленького сервера (Docker, HTTPS, по желанию TURN) и пошаговая инструкция: [docs/SERVER.md](docs/SERVER.md), проверка адреса: `node scripts/check-server.mjs <адрес>`. Безопасность и приватность: [SECURITY.md](SECURITY.md).
 
 ## Свои паки
 Карта даёт навык, если её `tags` совпадают с одним из `requiredSkills` сценария (или навык встречается в тексте карты). Массовое добавление в редакторе: `Текст | + | тег1, тег2`.
