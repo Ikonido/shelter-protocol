@@ -55,7 +55,7 @@ export const unusedHazards = (g: GameState) => {
 
 /** Какие скрытые карты может «слить» утечка (биологию в первом вскрытии не трогаем: её открывают по правилу). */
 function hiddenForLeak(p: GameState['players'][number], g: GameState) {
-  const cats = (['profession', 'biology', 'physique', 'health', 'hobby', 'luggage', 'fact'] as const).filter((c) => !p.slots[c].isRevealed);
+  const cats = (['profession', 'biology', 'physique', 'character', 'health', 'hobby', 'luggage', 'fact'] as const).filter((c) => !p.slots[c].isRevealed);
   return g.round === 1 && cats.includes('biology') ? cats.filter((c) => c !== 'biology') : cats;
 }
 

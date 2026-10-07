@@ -7,6 +7,7 @@ import {
   Backpack,
   FileText,
   Ruler,
+  Smile,
   Zap,
   type LucideIcon,
 } from 'lucide-react';
@@ -16,6 +17,7 @@ export const CATEGORY_ICON: Record<Category, LucideIcon> = {
   profession: Briefcase,
   biology: Dna,
   physique: Ruler,
+  character: Smile,
   health: HeartPulse,
   hobby: Palette,
   luggage: Backpack,

@@ -35,3 +35,33 @@ export const PHYSIQUE_ROWS: Row[] = [
 ];
 
 export const GENERIC_PHYSIQUE = cards('generic', 'physique', PHYSIQUE_ROWS);
+
+/** Характер: темперамент и манера держаться. Сильные стороны дают плюс и навык «психология» там, где он нужен. */
+export const CHARACTER_ROWS: Row[] = [
+  ['Лидер', 'positive', ['психология']],
+  ['Спокойный', 'positive', ['психология']],
+  ['Предприниматель', 'positive'],
+  ['Добряк', 'positive'],
+  ['Хладнокровный', 'positive', ['психология']],
+  ['Оптимист', 'positive'],
+  ['Дипломат', 'positive', ['психология']],
+  ['Упрямый', 'neutral'],
+  ['Хитрый', 'neutral'],
+  ['Весельчак', 'neutral'],
+  ['Молчун', 'neutral'],
+  ['Авантюрист', 'neutral'],
+  ['Скромник', 'neutral'],
+  ['Педант', 'neutral'],
+  ['Драма-квин', 'negative'],
+  ['Паникёр', 'negative'],
+  ['Трус', 'negative'],
+  ['Эгоист', 'negative'],
+  ['Вспыльчивый', 'negative'],
+  ['Нытик', 'negative'],
+  ['Зануда', 'negative'],
+  ['Параноик', 'negative'],
+  ['Манипулятор', 'negative'],
+  ['Лентяй', 'negative'],
+];
+
+export const GENERIC_CHARACTER = cards('generic', 'character', CHARACTER_ROWS);

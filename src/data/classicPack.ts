@@ -1,5 +1,5 @@
 import type { Card, CardPack, Category, Hazard, Modifier } from '../types';
-import { PHYSIQUE_ROWS } from './physique';
+import { CHARACTER_ROWS, PHYSIQUE_ROWS } from './physique';
 import { MEDIEVAL_PACK } from './packMedieval';
 import { FANTASY_PACK } from './packFantasy';
 import { ADULT_PACK } from './packAdult';
@@ -169,6 +169,7 @@ export const CLASSIC_PACK: CardPack = {
       ['Мужчина, 52 года', 'neutral'],
     ]),
     physique: make('physique', PHYSIQUE_ROWS),
+    character: make('character', CHARACTER_ROWS),
     health: make('health', [
       ['Идеально здоров', 'positive'],
       ['Железный иммунитет', 'positive'],

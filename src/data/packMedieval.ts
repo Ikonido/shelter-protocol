@@ -1,5 +1,5 @@
 import type { CardPack } from '../types';
-import { PHYSIQUE_ROWS } from './physique';
+import { CHARACTER_ROWS, PHYSIQUE_ROWS } from './physique';
 import { cards, ev, haz } from './packKit';
 
 const P = 'med';
@@ -113,6 +113,13 @@ export const MEDIEVAL_PACK: CardPack = {
       ['Женщина, 60 лет', 'neutral'],
     ]),
     physique: cards(P, 'physique', PHYSIQUE_ROWS),
+    character: cards(P, 'character', [
+      ...CHARACTER_ROWS,
+      ['Рыцарь чести', 'positive', ['оборона']],
+      ['Богобоязненный', 'neutral'],
+      ['Склочник', 'negative'],
+      ['Трусливый как заяц', 'negative'],
+    ]),
     health: cards(P, 'health', [
       ['Крепкое здоровье', 'positive'],
       ['Переболел чумой', 'positive'],

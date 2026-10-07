@@ -1,5 +1,5 @@
 import { CATEGORIES, type Card, type CardPack, type Category, type PlayerCharacter } from '../types';
-import { GENERIC_PHYSIQUE } from '../data/physique';
+import { GENERIC_CHARACTER, GENERIC_PHYSIQUE } from '../data/physique';
 import { shuffle, type Rng } from './rng';
 
 /** Объединяет пулы выбранных паков по категориям (без дублей по id). */
@@ -52,6 +52,7 @@ export function generateCharacters(names: string[], packs: CardPack[], rng: Rng)
   const pools = mergePools(packs);
   // Старые и самодельные паки могли появиться до карты телосложения: тогда берём общую колоду.
   if (pools.physique.length === 0) pools.physique = GENERIC_PHYSIQUE;
+  if (pools.character.length === 0) pools.character = GENERIC_CHARACTER;
   const hands = Object.fromEntries(
     CATEGORIES.map((c) => [c, drawCards(pools[c], names.length, rng)]),
   ) as Record<Category, Card[]>;
@@ -69,6 +70,7 @@ export function generateCharacters(names: string[], packs: CardPack[], rng: Rng)
 export function rerollCard(player: PlayerCharacter, category: Category, packs: CardPack[], rng: Rng): PlayerCharacter {
   const pools = mergePools(packs);
   if (category === 'physique' && pools.physique.length === 0) pools.physique = GENERIC_PHYSIQUE;
+  if (category === 'character' && pools.character.length === 0) pools.character = GENERIC_CHARACTER;
   const pool = pools[category].filter((c) => c.id !== player.slots[category].card.id);
   if (pool.length === 0) return player;
   const card = pool[Math.floor(rng() * pool.length)];
