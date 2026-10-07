@@ -6,6 +6,7 @@ import {
   Palette,
   Backpack,
   FileText,
+  Ruler,
   Zap,
   type LucideIcon,
 } from 'lucide-react';
@@ -14,6 +15,7 @@ import { CATEGORY_LABEL, type Card, type Category } from '../types';
 export const CATEGORY_ICON: Record<Category, LucideIcon> = {
   profession: Briefcase,
   biology: Dna,
+  physique: Ruler,
   health: HeartPulse,
   hobby: Palette,
   luggage: Backpack,

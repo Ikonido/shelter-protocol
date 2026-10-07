@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { BUILTIN_PACKS } from './classicPack';
+import { BUILTIN_PACKS, CLASSIC_PACK } from './classicPack';
+import { generateCharacters } from '../lib/generator';
+import { mulberry32 } from '../lib/rng';
 import { CATEGORIES, type CardPack, type SessionConfig } from '../types';
 import { sanitizePack } from '../lib/packs';
 import { skillCards, validateScenario, cardsWithSkill } from '../lib/vocab';
@@ -109,5 +111,20 @@ describe('built-in packs', () => {
     expect(labels[0]).toBe('День 1');
     expect(labels.some((l) => /дн|недел/.test(l))).toBe(true);
     expect(labels.every((l) => !/год|лет|месяц/.test(l))).toBe(true);
+  });
+});
+
+describe('biology vs physique', () => {
+  for (const pack of BUILTIN_PACKS) {
+    it(`${pack.name}: биология — только пол, возраст, раса; рост и вес живут в телосложении`, () => {
+      for (const c of pack.cards.biology) expect(c.description, c.description).not.toMatch(/(^|[^а-яё])(рост|вес)([^а-яё]|$)|(^|[^а-яё])(кг|см)([^а-яё]|$)|накач|жирн|толст|худ|повар|кузнец|борода/i);
+      expect(pack.cards.physique.length).toBeGreaterThanOrEqual(10);
+      for (const c of pack.cards.physique) expect(c.description, c.description).toMatch(/Рост \d+ см, вес \d+ кг/);
+    });
+  }
+  it('самодельный пак без телосложения получает общую колоду', () => {
+    const bare = { ...CLASSIC_PACK, id: 'bare', cards: { ...CLASSIC_PACK.cards, physique: [] } };
+    const chars = generateCharacters(['А', 'Б'], [bare], mulberry32(1));
+    for (const p of chars) expect(p.slots.physique.card.description).toMatch(/Рост \d+ см/);
   });
 });

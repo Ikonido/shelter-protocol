@@ -68,7 +68,7 @@ export function pickHazards(scenario: Scenario, count: number, seed: number): Ha
 
 export const perVote = (g: GameState) => Math.max(1, g.config.revealsPerVote ?? 1);
 export const stepOf = (g: GameState) => g.revealStep ?? 1;
-/** Открываемых категорий 6: раундов не больше, чем хватит карт на все вскрытия. */
+/** Открываемых категорий 7: раундов не больше, чем хватит карт на все вскрытия. */
 export const maxRoundsFor = (revealsPerVote: number) =>
   Math.max(1, Math.min(MAX_ROUNDS, Math.floor(REVEALABLE.length / Math.max(1, revealsPerVote || 1))));
 

@@ -1,6 +1,7 @@
 export type Category =
   | 'profession'
   | 'biology'
+  | 'physique'
   | 'health'
   | 'hobby'
   | 'luggage'
@@ -10,6 +11,7 @@ export type Category =
 export const CATEGORIES: Category[] = [
   'profession',
   'biology',
+  'physique',
   'health',
   'hobby',
   'luggage',
@@ -20,6 +22,7 @@ export const CATEGORIES: Category[] = [
 export const CATEGORY_LABEL: Record<Category, string> = {
   profession: 'Профессия',
   biology: 'Биология',
+  physique: 'Телосложение',
   health: 'Здоровье',
   hobby: 'Хобби',
   luggage: 'Багаж',
