@@ -45,7 +45,7 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
   const [speechSec, setSpeechSec] = useState(45);
   const [hazardCount, setHazardCount] = useState(2);
   const [difficulty, setDifficulty] = useState<Difficulty>('normal');
-  const [roundEvents, setRoundEvents] = useState(true);
+  const [roundEvents, setRoundEvents] = useState(false);
   // Пресет подставляет рекомендуемые значения, после чего их можно поменять вручную.
   const pickDifficulty = (d: Difficulty) => {
     const r = DIFFICULTIES[d];
@@ -248,7 +248,7 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
           <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
             <label className="flex w-full max-w-md cursor-pointer items-start gap-3 rounded-md border border-edge p-3">
               <input type="checkbox" className="mt-1 size-4 accent-amber" checked={roundEvents} onChange={(e) => setRoundEvents(e.target.checked)} />
-              <span className="text-sm"><b>События раунда</b><br /><span className="text-xs text-dim">Перед каждым раундом выпадает карта кризиса: сокращается число мест, вспыхивает болезнь, появляется новая угроза — или приходит помощь. Можно вызваться добровольцем.</span></span>
+              <span className="text-sm"><b>События раунда (необязательно)</b><br /><span className="text-xs text-dim">Усложняют игру. Перед каждым раундом выпадает карта кризиса: сокращается число мест, вспыхивает болезнь, появляется новая угроза — или приходит помощь. Можно вызваться добровольцем.</span></span>
             </label>
           <div>
             <Stepper label="Вскрытий до голосования" value={revealsPerVote} min={1} max={3} onChange={setRevealsPerVote} />
