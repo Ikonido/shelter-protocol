@@ -1,37 +1,87 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #070b0a;
-  --color-panel: #0d1513;
-  --color-edge: #1f3a33;
-  --color-ink: #cfe8df;
-  --color-dim: #6f9488;
+  --color-bg: #060a09;
+  --color-panel: #0c1412;
+  --color-panel-2: #101b18;
+  --color-edge: #1d3a32;
+  --color-edge-hi: #2d5a4c;
+  --color-ink: #d3ebe2;
+  --color-dim: #75998c;
   --color-amber: #fbbf24;
   --color-danger: #f87171;
   --color-ok: #4ade80;
-  --font-mono: ui-monospace, "JetBrains Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  --font-mono: ui-monospace, "JetBrains Mono", "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+  --animate-rise: rise .35s cubic-bezier(.2,.8,.2,1) both;
+  --animate-flip: flip .6s cubic-bezier(.2,.8,.2,1) both;
+  --animate-ring: ring 1.8s ease-out infinite;
+  --animate-spin-slow: spin 40s linear infinite;
+  --animate-spin-rev: spin 28s linear infinite reverse;
+  --animate-blink: blink 2.4s ease-in-out infinite;
+  --animate-stamp: stamp .45s cubic-bezier(.2,1.4,.4,1) .25s both;
+  --animate-flash: flash 1.2s ease-out both;
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @keyframes flip { 0% { opacity: 0; transform: perspective(700px) rotateY(-90deg) scale(.96); } 60% { opacity: 1; } 100% { transform: perspective(700px) rotateY(0); } }
+  @keyframes ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-amber) 55%, transparent); } 100% { box-shadow: 0 0 0 14px transparent; } }
+  @keyframes stamp { from { opacity: 0; transform: rotate(-8deg) scale(1.9); } to { opacity: 1; transform: rotate(-8deg) scale(1); } }
+  @keyframes flash { 0% { opacity: .55; } 100% { opacity: 0; } }
+  @keyframes blink { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
 }
+
+/* Цвета категорий карт: одна переменная --c управляет рамкой, иконкой и свечением */
+.cat-profession { --c: #fbbf24; }
+.cat-biology    { --c: #fb7185; }
+.cat-health     { --c: #34d399; }
+.cat-hobby      { --c: #a78bfa; }
+.cat-luggage    { --c: #38bdf8; }
+.cat-fact       { --c: #a3e635; }
+.cat-action     { --c: #e879f9; }
 
 html, body, #root { min-height: 100%; }
 body {
-  background: var(--color-bg);
+  background-color: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-mono);
   -webkit-tap-highlight-color: transparent;
   background-image:
-    radial-gradient(ellipse at top, rgba(251,191,36,.06), transparent 60%),
+    radial-gradient(900px 420px at 50% -80px, rgba(251,191,36,.10), transparent 70%),
+    linear-gradient(rgba(125,211,180,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125,211,180,.035) 1px, transparent 1px),
     repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0 1px, transparent 1px 3px);
+  background-size: auto, 36px 36px, 36px 36px, auto;
+  background-attachment: fixed;
 }
+::selection { background: color-mix(in srgb, var(--color-amber) 35%, transparent); }
+:focus-visible { outline: 2px solid var(--color-amber); outline-offset: 2px; }
 
 @layer components {
-  .panel { @apply rounded-lg border border-edge bg-panel p-4; }
-  .btn { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-edge bg-panel px-4 py-2 text-sm uppercase tracking-wider text-ink transition hover:border-amber hover:text-amber active:scale-[.98] disabled:pointer-events-none disabled:opacity-40; }
-  .btn-primary { @apply border-amber bg-amber/10 text-amber hover:bg-amber/20; }
+  .panel {
+    @apply relative rounded-lg border border-edge p-4;
+    background: linear-gradient(180deg, var(--color-panel-2), var(--color-panel));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+  /* «HUD-уголки» для главных панелей */
+  .hud { position: relative; }
+  .hud::before, .hud::after { content: ""; position: absolute; width: 12px; height: 12px; border: 2px solid var(--color-amber); opacity: .8; pointer-events: none; }
+  .hud::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; border-top-left-radius: 8px; }
+  .hud::after { bottom: -1px; right: -1px; border-left: 0; border-top: 0; border-bottom-right-radius: 8px; }
+
+  .btn { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-edge bg-panel px-4 py-2 text-sm uppercase tracking-wider text-ink transition duration-150 hover:border-amber hover:text-amber active:scale-[.98] disabled:pointer-events-none disabled:opacity-40; }
+  .btn-primary { @apply border-amber text-amber hover:bg-amber/20; background: linear-gradient(180deg, color-mix(in srgb, var(--color-amber) 20%, transparent), color-mix(in srgb, var(--color-amber) 8%, transparent)); box-shadow: 0 0 22px -8px var(--color-amber); }
   .btn-danger { @apply border-danger/60 text-danger hover:border-danger hover:text-danger; }
   .btn-sm { @apply min-h-9 px-3 py-1 text-xs; }
   .input { @apply min-h-11 w-full rounded-md border border-edge bg-bg px-3 py-2 text-sm text-ink outline-none placeholder:text-dim focus:border-amber; }
   .label { @apply mb-1 block text-xs uppercase tracking-widest text-dim; }
   .h-hud { @apply text-xs uppercase tracking-[.25em] text-amber; }
+  .chip { @apply inline-flex items-center gap-1 rounded-full border border-edge px-2 py-0.5 text-[10px] uppercase tracking-widest text-dim; }
+  .step-title { @apply mb-3 flex items-center gap-2 text-xs uppercase tracking-[.25em] text-amber; }
+  .step-title::after { content: ""; height: 1px; flex: 1; background: linear-gradient(90deg, var(--color-edge-hi), transparent); }
+  .anim-rise { animation: var(--animate-rise); }
+  .anim-flip { animation: var(--animate-flip); transform-origin: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
 
 @media print {

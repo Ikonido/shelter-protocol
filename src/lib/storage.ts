@@ -27,6 +27,9 @@ export const savePacks = (packs: CardPack[]) => write(K_PACKS, packs);
 
 export const loadGame = (): GameState | null => {
   const g = read<GameState>(K_GAME);
-  return g && Array.isArray(g.players) && g.scenario && g.config ? g : null;
+  if (!g || !Array.isArray(g.players) || !g.scenario || !g.config) return null;
+  // Сохранения старой версии: общая фаза дебатов упразднена (теперь у каждого своя речь) — идём сразу к голосованию.
+  if ((g.phase as string) === 'debate') return { ...g, phase: 'vote', votes: {} };
+  return g;
 };
 export const saveGame = (g: GameState | null) => write(K_GAME, g);

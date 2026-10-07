@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { CardPack, GameState, Scenario, VotingMode } from './types';
+import type { CardPack, Difficulty, GameState, Scenario, VotingMode } from './types';
 import { BUILTIN_PACKS } from './data/classicPack';
 import { loadGame, loadPacks, saveGame, savePacks } from './lib/storage';
 import { packFromHash } from './lib/packs';
@@ -10,6 +10,12 @@ export interface OnlineDraft {
   packs: CardPack[];
   slots: number;
   voting: VotingMode;
+  revealsPerVote: number;
+  hazardCount: number;
+  difficulty: Difficulty;
+  roundEvents: boolean;
+  speechSec: number;
+  timeLimitMin: number;
 }
 
 export type Screen =

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, Download, Link2, Plus, Trash2 } from 'lucide-react';
 import { useStore } from '../store';
-import { CATEGORIES, CATEGORY_LABEL, type Card, type CardPack, type Category, type Modifier, type Scenario } from '../types';
+import { CATEGORIES, CATEGORY_LABEL, type Card, type CardPack, type Category, type Hazard, type Modifier, type Scenario, type Severity } from '../types';
 import { exportPackFile, shareUrl } from '../lib/packs';
 import { uid } from '../lib/rng';
 import { copyText } from '../ui/clipboard';
@@ -30,6 +30,7 @@ function ListInput({ value, onCommit, multiline = false, placeholder, maxItems, 
   );
 }
 
+const SEVERITY_OPTIONS: [Severity, string][] = [['critical', 'смертельная — без ответа убежище гибнет'], ['major', 'серьёзная'], ['minor', 'лёгкая']];
 const MOD_OPTIONS: [Modifier, string][] = [['positive', '+ полезная'], ['neutral', '· нейтральная'], ['negative', '− вредная']];
 
 export default function Editor({ packId }: { packId: string }) {
@@ -42,6 +43,8 @@ export default function Editor({ packId }: { packId: string }) {
   }
   const save = (p: CardPack) => upsertPack(p);
   const setCards = (cat: Category, cards: Card[]) => save({ ...pack, cards: { ...pack.cards, [cat]: cards } });
+  const setHazard = (sid: string, hid: string, patch: Partial<Hazard>) =>
+    setScenario(sid, { hazards: (pack.scenarios.find((x) => x.id === sid)?.hazards ?? []).map((h) => (h.id === hid ? { ...h, ...patch } : h)) });
   const setScenario = (id: string, patch: Partial<Scenario>) =>
     save({ ...pack, scenarios: pack.scenarios.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
 
@@ -99,6 +102,27 @@ export default function Editor({ packId }: { packId: string }) {
               </div>
               <div><span className="label">Требуемые навыки (через запятую)</span><ListInput value={s.requiredSkills} onCommit={(v) => setScenario(s.id, { requiredSkills: v })} placeholder="медицина, агрономия" maxItems={L.skills} maxLen={L.skillLen} /></div>
               <div><span className="label">Угрозы (по одной в строке)</span><ListInput multiline value={s.threats} onCommit={(v) => setScenario(s.id, { threats: v })} maxItems={L.threats} maxLen={L.threatLen} /></div>
+              <div className="flex flex-col gap-2">
+                <span className="label">Факторы угрозы: в партию берётся случайный набор ({(s.hazards ?? []).length}/{L.hazards})</span>
+                {(s.hazards ?? []).map((h) => (
+                  <div key={h.id} className="rounded-md border border-edge p-3 flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <input className="input" maxLength={L.hazardTitle} placeholder="Например: Крысы на корабле" value={h.title} onChange={(e) => setHazard(s.id, h.id, { title: e.target.value })} />
+                      <button className="btn btn-danger btn-sm" aria-label="удалить угрозу" onClick={() => setScenario(s.id, { hazards: (s.hazards ?? []).filter((x) => x.id !== h.id) })}><Trash2 size={14} /></button>
+                    </div>
+                    <textarea rows={2} className="input" maxLength={L.hazardDescription} placeholder="Описание" value={h.description} onChange={(e) => setHazard(s.id, h.id, { description: e.target.value })} />
+                    <select className="input" value={h.severity} onChange={(e) => setHazard(s.id, h.id, { severity: e.target.value as Severity })}>
+                      {SEVERITY_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div><span className="label">Хроника: угроза снята ({'{who}'} — кто справился)</span><textarea rows={2} className="input" maxLength={L.hazardStory} placeholder="{who} расставляет ловушки — грызуны уходят." value={h.onSuccess ?? ''} onChange={(e) => setHazard(s.id, h.id, { onSuccess: e.target.value || undefined })} /></div>
+                      <div><span className="label">Хроника: угроза не остановлена</span><textarea rows={2} className="input" maxLength={L.hazardStory} placeholder="Крысы прогрызают трюм и портят провизию." value={h.onFail ?? ''} onChange={(e) => setHazard(s.id, h.id, { onFail: e.target.value || undefined })} /></div>
+                    </div>
+                    <div><span className="label">Нейтрализуют навыки/теги (через запятую)</span><ListInput value={h.counters} onCommit={(v) => setHazard(s.id, h.id, { counters: v })} placeholder="дератизация, санитария" maxItems={L.hazardCounters} maxLen={L.tagLen} /></div>
+                  </div>
+                ))}
+                <button className="btn btn-sm" disabled={(s.hazards ?? []).length >= L.hazards} onClick={() => setScenario(s.id, { hazards: [...(s.hazards ?? []), { id: uid('hz'), title: '', description: '', counters: [], severity: 'major' }] })}><Plus size={14} /> Добавить угрозу</button>
+              </div>
             </div>
           ))}
           <button className="btn" disabled={pack.scenarios.length >= L.scenarios} onClick={() => save({ ...pack, scenarios: [...pack.scenarios, { id: uid('sc'), title: 'Новая катастрофа', description: '', shelterSlots: 4, isolationDuration: '1 год', requiredSkills: [], threats: [] }] })}><Plus size={16} /> Добавить сценарий ({pack.scenarios.length}/{L.scenarios})</button>

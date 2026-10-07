@@ -1,9 +1,12 @@
 import {
   CATEGORIES,
+  type ActiveEvent,
   type Card,
   type CardPack,
   type Category,
+  type Difficulty,
   type GameState,
+  type Hazard,
   type PlayerCharacter,
   type Scenario,
   type VotingMode,
@@ -14,16 +17,21 @@ import {
   castVote,
   createGame,
   nextRound,
-  pendingReveal,
   playAction,
   resolveVote,
   revealCard,
   revealOptions,
-  startVote,
+  ABSTAIN,
+  continueEvent,
+  currentSpeaker,
+  endSpeech,
+  extendDeadline,
+  tickGame,
+  volunteer,
 } from './game';
 import { newSeed, randomCode } from './rng';
 import { LIMITS as L, clip } from './limits';
-import { sanitizeScenario } from './packs';
+import { sanitizeHazard, sanitizeScenario } from './packs';
 
 /* ---------- Протокол ---------- */
 
@@ -31,7 +39,9 @@ export type C2H =
   | { t: 'hello'; name: string; token: string; ticket?: string }
   | { t: 'reveal'; category: Category }
   | { t: 'action' }
-  | { t: 'vote'; target: string };
+  | { t: 'vote'; target: string }
+  | { t: 'done' } // ходящий закончил речь раньше времени
+  | { t: 'volunteer' }; // вызваться добровольцем (событие раунда)
 
 export interface LobbyMember {
   name: string;
@@ -79,7 +89,17 @@ export function viewFor(g: GameState, me: string, voting: VotingMode = g.config.
       : g.phase === 'vote'
         ? Object.fromEntries(Object.keys(g.votes).map((v) => [v, v === me ? g.votes[v] : v]))
         : {};
-  return { ...g, players, votes, seed: 0, config: { ...g.config, seed: 0 } };
+  // Часы хоста клиентам не нужны (у телефонов они расходятся): передаём «сколько осталось» на момент отправки.
+  const { deadline, speechEndsAt, ...rest } = g;
+  return {
+    ...rest,
+    players,
+    votes,
+    seed: 0,
+    config: { ...g.config, seed: 0 },
+    ...(deadline ? { timeLeftMs: Math.max(0, deadline - Date.now()) } : {}),
+    ...(speechEndsAt ? { speechLeftMs: Math.max(0, speechEndsAt - Date.now()) } : {}),
+  };
 }
 
 /* ---------- Хост ---------- */
@@ -97,6 +117,12 @@ export interface HostSetup {
   packs: CardPack[];
   slots: number;
   voting: VotingMode;
+  revealsPerVote?: number; // по умолчанию 2
+  speechSec?: number; // секунд на объяснение пользы, по умолчанию 45; 0 — без таймера
+  hazardCount?: number; // факторов угрозы из пула сценария, по умолчанию 2
+  difficulty?: Difficulty; // по умолчанию normal
+  roundEvents?: boolean; // карта кризиса перед каждым раундом, по умолчанию да
+  timeLimitMin?: number; // 0 — без лимита; по умолчанию 0
 }
 
 const cleanName = (v: unknown) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, 24) : '');
@@ -247,6 +273,8 @@ export class OnlineHost {
     if (!member) return;
     if (msg.t === 'reveal' && CATEGORIES.includes(msg.category as Category)) this.act(member, { t: 'reveal', category: msg.category as Category });
     else if (msg.t === 'action') this.act(member, { t: 'action' });
+    else if (msg.t === 'done') this.act(member, { t: 'done' });
+    else if (msg.t === 'volunteer') this.act(member, { t: 'volunteer' });
     else if (msg.t === 'vote' && typeof msg.target === 'string') this.act(member, { t: 'vote', target: msg.target });
   }
 
@@ -260,9 +288,13 @@ export class OnlineHost {
     let next = g;
     if (msg.t === 'reveal') next = revealCard(g, id, msg.category);
     else if (msg.t === 'action') {
-      if (g.phase === 'reveal' || g.phase === 'debate') next = playAction(g, id);
+      if (g.phase === 'reveal' || g.phase === 'speech') next = playAction(g, id);
+    } else if (msg.t === 'volunteer') {
+      next = volunteer(g, id);
+    } else if (msg.t === 'done') {
+      if (g.phase === 'speech' && currentSpeaker(g)?.id === id) next = endSpeech(g);
     } else if (msg.t === 'vote' && g.phase === 'vote') {
-      const target = alive(g).find((p) => p.id === msg.target);
+      const target = msg.target === ABSTAIN ? { id: ABSTAIN } : alive(g).find((p) => p.id === msg.target);
       if (target) next = castVote(g, id, target.id);
       if (allVoted(next)) next = resolveVote(next);
     }
@@ -290,6 +322,12 @@ export class OnlineHost {
         shelterSlots: Math.max(1, Math.min(this.setup.slots, n - 1)),
         mode: 'online',
         voting: this.setup.voting,
+        revealsPerVote: Math.min(3, Math.max(1, this.setup.revealsPerVote ?? 2)),
+        speechSec: Math.min(300, Math.max(0, this.setup.speechSec ?? 45)),
+        hazardCount: Math.min(L.maxHazardsPerGame, Math.max(0, this.setup.hazardCount ?? 2)),
+        difficulty: this.setup.difficulty ?? 'normal',
+        roundEvents: this.setup.roundEvents ?? true,
+        timeLimitMin: Math.min(180, Math.max(0, this.setup.timeLimitMin ?? 0)),
         names,
         seed: newSeed(),
       },
@@ -302,26 +340,45 @@ export class OnlineHost {
   }
 
   /* Управление раундом — только у хоста */
-  toVote() {
-    if (this.game?.phase === 'debate') this.setGame(startVote(this.game));
+  /** Игроки прочитали карту кризиса — хост запускает вскрытия. */
+  startRound() {
+    if (this.game?.phase === 'event') this.setGame(continueEvent(this.game));
+  }
+  /** Хост может прервать чужую речь («Следующий игрок»). */
+  skipSpeech() {
+    if (this.game?.phase === 'speech') this.setGame(endSpeech(this.game));
+  }
+  /** Раз в секунду: кончилась речь → ходит следующий; вышло время партии → овертайм. */
+  tick(now = Date.now()) {
+    if (!this.game) return;
+    const next = tickGame(this.game, now);
+    if (next !== this.game) this.setGame(next);
+  }
+  extendTime(ms: number) {
+    if (this.game) this.setGame(extendDeadline(this.game, ms));
   }
   next() {
     if (this.game?.phase === 'result') this.setGame(nextRound(this.game));
   }
-  /** Автоход за отключившихся: открыть первую доступную карту / отдать голос за случайного, чтобы партия не зависла. */
+  /**
+   * Автоход за отключившихся, чтобы партия не зависла: если сейчас очередь отключённого игрока — открываем
+   * ему первую доступную карту и пропускаем речь; отсутствующие голосуют за случайного игрока.
+   */
   autofillDisconnected() {
     let g = this.game;
     if (!g) return;
+    const absent = (playerId?: string) => this.members.some((m) => m.playerId === playerId && !m.connected);
+    for (let i = 0; i < 100; i++) {
+      const sp = currentSpeaker(g);
+      if (!sp || !absent(sp.id)) break;
+      g = g.phase === 'reveal' ? revealCard(g, sp.id, revealOptions(g, sp)[0]) : endSpeech(g);
+    }
     for (const m of this.members) {
-      if (m.connected || !m.playerId) continue;
+      if (m.connected || !m.playerId || g.phase !== 'vote') continue;
       const p = g.players.find((x) => x.id === m.playerId);
-      if (!p || p.isEliminated) continue;
-      if (g.phase === 'reveal' && pendingReveal(g).some((x) => x.id === p.id)) {
-        g = revealCard(g, p.id, revealOptions(g, p)[0]);
-      } else if (g.phase === 'vote' && !g.votes[p.id]) {
-        const others = alive(g).filter((x) => x.id !== p.id);
-        if (others.length) g = castVote(g, p.id, others[Math.floor(Math.random() * others.length)].id);
-      }
+      if (!p || p.isEliminated || g.votes[p.id]) continue;
+      const others = alive(g).filter((x) => x.id !== p.id);
+      if (others.length) g = castVote(g, p.id, others[Math.floor(Math.random() * others.length)].id);
     }
     if (g.phase === 'vote' && allVoted(g)) g = resolveVote(g);
     if (g !== this.game) this.setGame(g);
@@ -435,9 +492,12 @@ export class OnlineClient {
   }
 }
 
+const EVENT_KINDS = ['shrink', 'plague', 'volunteer', 'leak', 'silence', 'newHazard', 'relief', 'prompt'] as const;
+const EVENT_TONES = ['good', 'bad', 'neutral'] as const;
+
 /* ---------- Недоверенное состояние от хоста ---------- */
 
-const PHASES = ['reveal', 'debate', 'vote', 'result', 'final'];
+const PHASES = ['event', 'reveal', 'speech', 'vote', 'result', 'final'];
 const MODS = ['positive', 'neutral', 'negative'];
 const text = (v: unknown, max: number) => (typeof v === 'string' ? clip(v, max) : '');
 const rec = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -453,6 +513,21 @@ function cleanCard(raw: unknown, category: Category): Card | null {
 }
 
 /** Хост — внешний источник: заново собираем состояние только из проверенных полей и обрезаем строки по лимитам. */
+function cleanEvent(raw: unknown): ActiveEvent | null {
+  const e = rec(raw);
+  const kind = EVENT_KINDS.find((k) => k === e.kind);
+  const tone = EVENT_TONES.find((t) => t === e.tone);
+  if (!kind || !tone || typeof e.title !== 'string') return null;
+  return {
+    id: text(e.id, 40),
+    kind,
+    tone,
+    title: text(e.title, 80),
+    text: text(e.text, 400),
+    outcome: Array.isArray(e.outcome) ? e.outcome.slice(0, 24).map((o) => text(o, 300)) : [],
+  };
+}
+
 export function sanitizeView(raw: unknown): GameState | null {
   const r = rec(raw);
   if (!Array.isArray(r.players) || r.players.length < 1 || r.players.length > MAX_ONLINE_PLAYERS) return null;
@@ -486,6 +561,12 @@ export function sanitizeView(raw: unknown): GameState | null {
       shelterSlots: int(cfg.shelterSlots, 1, 19),
       mode: 'online',
       voting: cfg.voting === 'open' ? 'open' : 'secret',
+      revealsPerVote: int(cfg.revealsPerVote, 1, 3),
+      speechSec: int(cfg.speechSec, 0, 300),
+      hazardCount: int(cfg.hazardCount, 0, L.maxHazardsPerGame),
+      difficulty: (['easy', 'normal', 'hard', 'nightmare'] as const).find((d) => d === cfg.difficulty) ?? 'normal',
+      roundEvents: cfg.roundEvents === true,
+      timeLimitMin: int(cfg.timeLimitMin, 0, 180),
       names: players.map((p) => p.name),
       seed: 0,
     },
@@ -494,6 +575,16 @@ export function sanitizeView(raw: unknown): GameState | null {
     round: int(r.round, 1, 50),
     schedule: Array.isArray(r.schedule) ? r.schedule.slice(0, 6).map((n) => int(n, 0, 19)) : [],
     phase: r.phase as GameState['phase'],
+    revealStep: int(r.revealStep, 1, 3),
+    ...(cleanEvent(r.event) ? { event: cleanEvent(r.event)! } : {}),
+    hazards: (Array.isArray(r.hazards) ? r.hazards.slice(0, L.maxHazardsPerGame) : [])
+      .map((h, i) => sanitizeHazard(h, i))
+      .filter((h): h is Hazard => !!h),
+    ...(r.timeLeftMs !== undefined ? { deadline: Date.now() + int(r.timeLeftMs, 0, 180 * 60_000) } : {}),
+    ...(r.speechLeftMs !== undefined ? { speechEndsAt: Date.now() + int(r.speechLeftMs, 0, 300_000) } : {}),
+    ...(rec(r.lastReveal).playerId !== undefined && CATEGORIES.includes(rec(r.lastReveal).category as Category)
+      ? { lastReveal: { playerId: text(rec(r.lastReveal).playerId, 12), category: rec(r.lastReveal).category as Category } }
+      : {}),
     revealedThisRound: Array.isArray(r.revealedThisRound) ? r.revealedThisRound.slice(0, MAX_ONLINE_PLAYERS).map((x) => text(x, 12)) : [],
     votes,
     log: Array.isArray(r.log) ? r.log.slice(-200).map((l) => ({ round: int(rec(l).round, 1, 50), text: text(rec(l).text, 400) })) : [],
@@ -504,6 +595,9 @@ export function sanitizeView(raw: unknown): GameState | null {
       eliminated: Array.isArray(lr.eliminated) ? lr.eliminated.slice(0, MAX_ONLINE_PLAYERS).map((x) => text(x, 12)) : [],
       tally,
       tieBreak: lr.tieBreak === true,
+      abstained: int(lr.abstained, 0, MAX_ONLINE_PLAYERS),
+      skipped: lr.skipped === true,
+      noVote: lr.noVote === true,
     };
   }
   return game;

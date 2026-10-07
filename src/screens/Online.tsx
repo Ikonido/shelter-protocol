@@ -1,16 +1,23 @@
 import { useEffect, useReducer, useState } from 'react';
-import { ArrowLeft, Copy, Gavel, Lock, LogIn, RefreshCw, Unlock, UserX, Users, Wifi, WifiOff, Zap } from 'lucide-react';
+import { ArrowLeft, Copy, Lock, LogIn, RefreshCw, Unlock, UserX, Users, Wifi, WifiOff, Zap } from 'lucide-react';
 import { useStore, type OnlineDraft } from '../store';
 import { OnlineClient, OnlineHost, type C2H, type Conn, type H2C } from '../lib/online';
 import { createRoom, isValidCode, isValidTicket, joinRoom, normalizeCode, probeLan, shareOrigin, type NetMode } from '../lib/net';
 import { randomToken } from '../lib/rng';
 import { copyText } from '../ui/clipboard';
 import { QR } from '../ui/QR';
-import { alive, quotaThisRound, revealOptions } from '../lib/game';
+import { ABSTAIN, alive, currentSpeaker, perVote, quotaThisRound, revealOptions, stepOf } from '../lib/game';
 import { CATEGORIES, CATEGORY_LABEL, type Category, type GameState } from '../types';
 import { CardFace, Stepper } from '../ui/bits';
-import { Board, DebateTimer } from './Game';
-import { Verdict } from './Final';
+import { Board } from '../ui/Board';
+import { GameHud } from '../ui/GameHud';
+import { SpeechTimer } from '../ui/SpeechTimer';
+import { ThreatsPanel } from '../ui/Threats';
+import { Avatar } from '../ui/Avatar';
+import { Tally } from '../ui/Tally';
+import { EventCard } from '../ui/EventCard';
+import { MatchClock } from '../ui/MatchClock';
+import { FinalReport } from './Final';
 
 type Send = (m: Exclude<C2H, { t: 'hello' }>) => void;
 
@@ -50,9 +57,12 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
   const [now, setNow] = useState(Date.now());
   useLive(host);
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    const t = setInterval(() => {
+      setNow(Date.now());
+      host?.tick(); // кончилась речь -> ходит следующий; вышло время партии -> овертайм
+    }, 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [host]);
   useEffect(() => {
     if (net) void shareOrigin(net).then(setOrigin);
   }, [net]);
@@ -89,7 +99,8 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
   const copy = async (text: string) => notify((await copyText(text)) ? 'Скопировано' : 'Не удалось скопировать');
 
   if (host.game) {
-    const view = host.viewFor(0)!;
+    // Хосту часы нужны по его же времени (клиенты получают «осталось» и пересчитывают у себя).
+    const view = { ...host.viewFor(0)!, deadline: host.game.deadline };
     return (
       <OnlineGame
         view={view}
@@ -267,123 +278,149 @@ function OnlineGame({ view, me, send, host, onExit }: { view: GameState; me: str
   const player = view.players.find((p) => p.id === me)!;
   const living = alive(view);
   const [pick, setPick] = useState<Category | null>(null);
-  const nameOf = (id: string) => view.players.find((p) => p.id === id)?.name ?? id;
-  const iRevealed = view.revealedThisRound.includes(me);
-  const options = view.phase === 'reveal' && !player.isEliminated && !iRevealed ? revealOptions(view, player) : [];
-  const canAction = (view.phase === 'reveal' || view.phase === 'debate') && !player.isEliminated && !player.slots.action.isRevealed;
+  const [storyOn, setStoryOn] = useState(true); // идёт хроника изоляции — остальное скрыто
+  const speaker = currentSpeaker(view);
+  const myTurn = speaker?.id === me;
+  const options = view.phase === 'reveal' && myTurn && !player.isEliminated ? revealOptions(view, player) : [];
+  const canAction = (view.phase === 'reveal' || view.phase === 'speech') && !player.isEliminated && !player.slots.action.isRevealed;
   const lonely = options.length === 1 ? options[0] : null;
   const chosen = pick && (options.includes(pick) || (pick === 'action' && canAction)) ? pick : lonely;
 
+  const live = view.phase !== 'final';
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-4 py-4">
-      <header className="flex flex-wrap items-center gap-2">
-        <button className="btn btn-sm" onClick={() => confirm('Выйти из партии?') && onExit()}><ArrowLeft size={16} /> Выйти</button>
-        <span className="text-sm text-amber">{view.scenario.title}</span>
-        <div className="ml-auto text-xs uppercase tracking-widest text-dim">
-          {view.phase !== 'final' && <>Раунд {view.round}/{view.schedule.length} · </>}
-          В игре <b className="text-amber">{living.length}</b> · Мест <b className="text-amber">{view.config.shelterSlots}</b>
-        </div>
-      </header>
+    <div className="mx-auto flex max-w-5xl flex-col gap-4 pb-6">
+      <GameHud game={view} backLabel="Выйти" onBack={() => confirm('Выйти из партии?') && onExit()} />
 
-      {view.phase === 'final' ? (
+      {!live ? (
         <>
-          <Verdict game={view} />
-          <details className="panel">
-            <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">Журнал партии</summary>
-            <ol className="mt-2 flex flex-col gap-1 text-xs text-dim">{view.log.map((l, i) => <li key={i}>[Р{l.round}] {l.text}</li>)}</ol>
-          </details>
-          <button className="btn btn-primary" onClick={onExit}>В меню</button>
+          <FinalReport game={view} onStoryChange={setStoryOn} />
+          {!storyOn && (
+            <>
+              <details className="panel">
+                <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">Журнал партии</summary>
+                <ol className="mt-2 flex flex-col gap-1 text-xs text-dim">{view.log.map((l, i) => <li key={i}>[Р{l.round}] {l.text}</li>)}</ol>
+              </details>
+              <button className="btn btn-primary" onClick={onExit}>В меню</button>
+            </>
+          )}
         </>
       ) : (
-        <>
-          <Board game={view} />
-
-          <section className="panel flex flex-col gap-2">
-            <h2 className="h-hud">{player.name}{player.isEliminated ? ' — вы наблюдатель' : ' — ваши карты'}</h2>
-            {CATEGORIES.map((c) => {
-              const selectable = options.includes(c) || (c === 'action' && canAction);
-              return (
-                <CardFace
-                  key={c}
-                  card={player.slots[c].card}
-                  showMod
-                  compact
-                  selected={chosen === c}
-                  onClick={selectable ? () => setPick(c) : undefined}
-                  extra={player.slots[c].isRevealed && <span className="text-[10px] uppercase text-dim">{c === 'action' ? 'использована' : 'открыта всем'}</span>}
-                />
-              );
-            })}
-            {chosen && (
-              <button className="btn btn-primary" onClick={() => { send(chosen === 'action' ? { t: 'action' } : { t: 'reveal', category: chosen }); setPick(null); }}>
-                {chosen === 'action' ? <><Zap size={16} /> Применить действие</> : `Открыть всем: ${CATEGORY_LABEL[chosen]}`}
-              </button>
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+          <div className="anim-rise flex min-w-0 flex-col gap-4" key={`${view.round}-${stepOf(view)}-${view.phase}-${speaker?.id ?? ''}`}>
+            {view.deadline && (
+              <MatchClock deadline={view.deadline} totalMin={view.config.timeLimitMin} onExtend={host ? () => host.extendTime(5 * 60_000) : undefined} />
             )}
-          </section>
 
-          {view.phase === 'reveal' && (
-            <p className="panel text-sm text-dim">
-              Раунд {view.round}: открытие карт. {iRevealed ? 'Вы открыли карту. ' : ''}Ждём:{' '}
-              {living.filter((p) => !view.revealedThisRound.includes(p.id) && revealOptions(view, p).length).map((p) => p.name).join(', ') || '—'}
-            </p>
-          )}
+            {view.phase === 'event' && view.event && (
+              <EventCard
+                round={view.round}
+                event={view.event}
+                volunteers={!player.isEliminated && quotaThisRound(view) >= 1 ? [player] : []}
+                onVolunteer={() => send({ t: 'volunteer' })}
+                action={host ? <button className="btn btn-primary" onClick={() => host.startRound()}>Начать раунд</button> : <p className="text-xs text-dim">Раунд начнёт хост, когда все прочитают.</p>}
+              />
+            )}
 
-          {view.phase === 'debate' && (
-            <section className="panel flex flex-col gap-3">
-              <h2 className="h-hud">Дебаты</h2>
-              <p className="text-xs text-dim">Обсуждайте голосом или в чате. В этом раунде уйдёт: {quotaThisRound(view)}.</p>
-              <DebateTimer />
-              {host ? (
-                <button className="btn btn-primary" onClick={() => host.toVote()}><Gavel size={18} /> К голосованию</button>
-              ) : (
-                <p className="text-xs text-dim">Голосование откроет хост.</p>
+            {view.phase === 'reveal' && speaker && (
+              <p className={`panel hud flex items-center gap-3 text-sm ${myTurn ? 'border-amber text-amber' : 'text-dim'}`}>
+                <Avatar id={speaker.id} name={speaker.name} size={40} ring={myTurn} />
+                <span>
+                  Вскрытие {stepOf(view)} из {perVote(view)}.{' '}
+                  {myTurn ? 'Ваш ход: выберите карту ниже и откройте её всем, затем объясните, чем вы полезны.' : <>Ходит: <b className="text-amber">{speaker.name}</b></>}
+                </span>
+              </p>
+            )}
+
+            {view.phase === 'speech' && speaker && view.lastReveal && (
+              <section className="panel hud flex flex-col gap-3">
+                <h2 className="h-hud flex items-center gap-3">
+                  <Avatar id={speaker.id} name={speaker.name} size={36} ring />
+                  {myTurn ? 'Объясните, чем вы полезны убежищу' : `${speaker.name} объясняет пользу`}
+                </h2>
+                <CardFace card={speaker.slots[view.lastReveal.category].card} showMod flip />
+                <SpeechTimer endsAt={view.speechEndsAt} totalSec={view.config.speechSec} />
+                {myTurn ? (
+                  <button className="btn btn-primary" onClick={() => send({ t: 'done' })}>Закончил — следующий игрок</button>
+                ) : host ? (
+                  <button className="btn btn-sm" onClick={() => host.skipSpeech()}>Пропустить речь (хост)</button>
+                ) : null}
+              </section>
+            )}
+
+            {view.phase === 'vote' && (
+              <section className="panel hud flex flex-col gap-2">
+                <h2 className="h-hud">{view.config.voting === 'secret' ? 'Тайное' : 'Открытое'} голосование</h2>
+                <p className="text-xs text-dim">Проголосовало {Object.keys(view.votes).length} из {living.length}. Голос можно менять, пока не проголосуют все. Воздержаться можно — если таких больше половины, никто не уходит.</p>
+                {player.isEliminated ? (
+                  <p className="text-sm text-dim">Вы выбыли и не голосуете.</p>
+                ) : (
+                  living.filter((p) => p.id !== me).map((p) => {
+                    const mine = view.votes[me] === p.id;
+                    const count = view.config.voting === 'open' ? Object.values(view.votes).filter((t) => t === p.id).length : null;
+                    return (
+                      <button key={p.id} className={`btn justify-start gap-3 normal-case ${mine ? 'btn-primary' : ''}`} onClick={() => send({ t: 'vote', target: p.id })}>
+                        <Avatar id={p.id} name={p.name} size={28} /> {p.name}
+                        {mine && <span className="ml-auto text-xs uppercase tracking-widest">✔ ваш выбор</span>}
+                        {!mine && !!count && <span className="ml-auto text-xs text-dim">{count}</span>}
+                      </button>
+                    );
+                  })
+                )}
+                {!player.isEliminated && (
+                  <button className={`btn border-dashed ${view.votes[me] === ABSTAIN ? 'btn-primary' : ''}`} onClick={() => send({ t: 'vote', target: ABSTAIN })}>
+                    {view.votes[me] === ABSTAIN ? '✔ ' : ''}Воздержаться
+                  </button>
+                )}
+              </section>
+            )}
+
+            {view.phase === 'result' && view.lastResult && (
+              <section className="panel hud flex flex-col gap-3">
+                <h2 className="h-hud">Итоги раунда {view.round}</h2>
+                {view.lastResult.noVote ? <p className="text-sm text-amber">Добровольцы закрыли квоту раунда — голосования не будет.</p> : <Tally players={view.players} result={view.lastResult} />}
+                {view.lastResult.tieBreak && <p className="text-xs text-amber">Ничья на границе — решено жребием.</p>}
+                {view.lastResult.skipped && <p className="text-sm text-amber">Большинство воздержалось ({view.lastResult.abstained} из {alive(view).length}) — никто не покидает игру. Пропущенное исключение перенесено в дополнительный раунд.</p>}
+                {!view.lastResult.skipped && !!view.lastResult.abstained && <p className="text-xs text-dim">Воздержались: {view.lastResult.abstained}.</p>}
+                {host ? <button className="btn btn-primary" onClick={() => host.next()}>Дальше</button> : <p className="text-xs text-dim">Следующий шаг запускает хост.</p>}
+              </section>
+            )}
+
+            <section className="panel flex flex-col gap-2">
+              <h2 className="h-hud flex items-center gap-2"><Avatar id={player.id} name={player.name} size={24} /> {player.name}{player.isEliminated ? ' — вы наблюдатель' : ' — ваши карты'}</h2>
+              {CATEGORIES.map((c) => {
+                const selectable = options.includes(c) || (c === 'action' && canAction);
+                return (
+                  <CardFace
+                    key={c}
+                    card={player.slots[c].card}
+                    showMod
+                    compact
+                    selected={chosen === c}
+                    onClick={selectable ? () => setPick(c) : undefined}
+                    extra={player.slots[c].isRevealed && <span className="text-[10px] uppercase text-dim">{c === 'action' ? 'использована' : 'открыта всем'}</span>}
+                  />
+                );
+              })}
+              {chosen && (
+                <button className="btn btn-primary" onClick={() => { send(chosen === 'action' ? { t: 'action' } : { t: 'reveal', category: chosen }); setPick(null); }}>
+                  {chosen === 'action' ? <><Zap size={16} /> Применить действие</> : `Открыть всем: ${CATEGORY_LABEL[chosen]}`}
+                </button>
               )}
             </section>
-          )}
 
-          {view.phase === 'vote' && (
-            <section className="panel flex flex-col gap-2">
-              <h2 className="h-hud">{view.config.voting === 'secret' ? 'Тайное' : 'Открытое'} голосование</h2>
-              <p className="text-xs text-dim">Проголосовало {Object.keys(view.votes).length} из {living.length}. Голос можно менять, пока не проголосуют все.</p>
-              {player.isEliminated ? (
-                <p className="text-sm text-dim">Вы выбыли и не голосуете.</p>
-              ) : (
-                living.filter((p) => p.id !== me).map((p) => {
-                  const mine = view.votes[me] === p.id;
-                  const count = view.config.voting === 'open' ? Object.values(view.votes).filter((t) => t === p.id).length : null;
-                  return (
-                    <button key={p.id} className={`btn ${mine ? 'btn-primary' : ''}`} onClick={() => send({ t: 'vote', target: p.id })}>
-                      {mine ? '✔ ' : ''}{p.name}{count ? ` · ${count}` : ''}
-                    </button>
-                  );
-                })
-              )}
-            </section>
-          )}
-
-          {view.phase === 'result' && view.lastResult && (
-            <section className="panel flex flex-col gap-2">
-              <h2 className="h-hud">Итоги раунда {view.round}</h2>
-              <ul className="text-sm">
-                {Object.entries(view.lastResult.tally).sort((a, b) => b[1] - a[1]).map(([id, v]) => (
-                  <li key={id} className={view.lastResult!.eliminated.includes(id) ? 'text-danger' : ''}>
-                    {nameOf(id)} — {v} гол. {view.lastResult!.eliminated.includes(id) && '← покидает игру'}
-                  </li>
-                ))}
-              </ul>
-              {view.lastResult.tieBreak && <p className="text-xs text-amber">Ничья на границе — решено жребием.</p>}
-              {host ? <button className="btn btn-primary" onClick={() => host.next()}>Дальше</button> : <p className="text-xs text-dim">Следующий шаг запускает хост.</p>}
-            </section>
-          )}
-
-          {host && host.disconnectedPending().length > 0 && (
-            <section className="panel border-danger/50">
-              <p className="text-sm text-danger">Отключены: {host.disconnectedPending().join(', ')}</p>
-              <p className="mb-2 text-xs text-dim">Они смогут вернуться по тому же коду. Чтобы не ждать — сделайте ход за них.</p>
-              <button className="btn btn-sm" onClick={() => host.autofillDisconnected()}>Автоход за отключённых</button>
-            </section>
-          )}
-        </>
+            {host && host.disconnectedPending().length > 0 && (
+              <section className="panel border-danger/50">
+                <p className="text-sm text-danger">Отключены: {host.disconnectedPending().join(', ')}</p>
+                <p className="mb-2 text-xs text-dim">Они смогут вернуться по тому же коду. Чтобы не ждать — сделайте ход за них.</p>
+                <button className="btn btn-sm" onClick={() => host.autofillDisconnected()}>Автоход за отключённых</button>
+              </section>
+            )}
+          </div>
+          <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-24">
+            <ThreatsPanel hazards={view.hazards ?? []} />
+            <Board game={view} speakerId={speaker?.id} meId={me} side />
+          </aside>
+        </div>
       )}
     </div>
   );

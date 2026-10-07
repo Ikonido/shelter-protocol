@@ -5,7 +5,9 @@ import { CardFace } from '../ui/bits';
 import { useStore } from '../store';
 import { rerollCard } from '../lib/generator';
 import { setEliminated } from '../lib/game';
-import { Verdict } from './Final';
+import { FinalReport } from './Final';
+import { Avatar } from '../ui/Avatar';
+import { ThreatsPanel } from '../ui/Threats';
 import { copyText } from '../ui/clipboard';
 
 /** Режим «генератор карточек»: раздаём персонажей на бумаге/в мессенджер, а исход считаем по отметкам выживших. */
@@ -23,6 +25,7 @@ export default function Tabletop({ game }: { game: GameState }) {
 
   return (
     <div className="flex flex-col gap-5">
+      <ThreatsPanel hazards={game.hazards ?? []} defaultOpen />
       <div className="no-print flex flex-wrap gap-2">
         <button className="btn btn-sm" onClick={() => window.print()}><Printer size={16} /> Печать карточек</button>
         <button className="btn btn-sm" onClick={() => setShown(Object.fromEntries(game.players.map((p) => [p.id, true])))}><Eye size={16} /> Показать все</button>
@@ -35,13 +38,15 @@ export default function Tabletop({ game }: { game: GameState }) {
           return (
             <section key={p.id} className={`panel print-card ${p.isEliminated ? 'opacity-50' : ''}`}>
               <div className="mb-3 flex items-center gap-2">
+                <Avatar id={p.id} name={p.name} size={32} dim={p.isEliminated} />
                 <h3 className="font-bold text-amber">{p.name}</h3>
                 <button className="btn btn-sm no-print ml-auto" onClick={() => setShown((s) => ({ ...s, [p.id]: !visible }))}>
                   {visible ? <EyeOff size={14} /> : <Eye size={14} />}{visible ? 'Скрыть' : 'Показать'}
                 </button>
                 <button className="btn btn-sm no-print" onClick={() => copyCard(p.id)}>Копир.</button>
               </div>
-              <div className="flex flex-col gap-2">
+              {!visible && <p className="no-print text-xs tracking-widest text-dim">▓▓▓▓▓▓ карточка скрыта — нажмите «Показать», когда её держит владелец</p>}
+              <div className={`flex flex-col gap-2 ${visible ? '' : 'hidden print:flex'}`}>
                 {CATEGORIES.map((c) => (
                   <CardFace
                     key={c}
@@ -76,7 +81,7 @@ export default function Tabletop({ game }: { game: GameState }) {
             </button>
           ))}
         </div>
-        <Verdict game={game} />
+        <FinalReport game={game} auto={false} />
       </section>
     </div>
   );

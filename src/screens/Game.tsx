@@ -1,21 +1,37 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Eye, Gavel, Play, Timer, Zap } from 'lucide-react';
+import { Eye, Play, UserRound, Zap } from 'lucide-react';
 import { CATEGORIES, CATEGORY_LABEL, type Category, type GameState, type PlayerCharacter } from '../types';
 import { useStore } from '../store';
 import {
   alive,
   allVoted,
   castVote,
+  continueEvent,
   nextRound,
   pendingReveal,
-  quotaThisRound,
   resolveVote,
   revealCard,
   revealOptions,
-  startVote,
+  ABSTAIN,
+  currentSpeaker,
+  endSpeech,
+  extendDeadline,
+  perVote,
+  quotaThisRound,
+  stepOf,
+  tickGame,
+  volunteer,
   playAction as applyAction,
 } from '../lib/game';
 import { CardFace, Modal } from '../ui/bits';
+import { MatchClock } from '../ui/MatchClock';
+import { SpeechTimer } from '../ui/SpeechTimer';
+import { ThreatsPanel } from '../ui/Threats';
+import { Board } from '../ui/Board';
+import { GameHud } from '../ui/GameHud';
+import { Avatar } from '../ui/Avatar';
+import { Tally } from '../ui/Tally';
+import { EventCard } from '../ui/EventCard';
 import { Gate } from '../ui/Gate';
 import Final from './Final';
 import Tabletop from './Tabletop';
@@ -25,6 +41,15 @@ type Update = (fn: (g: GameState) => GameState) => void;
 export default function Game() {
   const { game, setGame, go } = useStore();
   const [showBrief, setShowBrief] = useState(false);
+  const timed = !!game?.deadline && game.config.mode === 'pass-and-play' && game.phase !== 'final';
+  // Раз в секунду: кончилась речь → ходит следующий; вышло время партии → овертайм.
+  // tickGame возвращает тот же объект, пока ничего не изменилось, поэтому лишних перерисовок нет.
+  const ticking = game?.config.mode === 'pass-and-play' && (timed || game.phase === 'speech');
+  useEffect(() => {
+    if (!ticking) return;
+    const t = setInterval(() => setGame((g) => (g ? tickGame(g) : g)), 500);
+    return () => clearInterval(t);
+  }, [ticking, setGame]);
   if (!game) {
     return (
       <div className="py-10 text-center">
@@ -34,18 +59,13 @@ export default function Game() {
     );
   }
   const update: Update = (fn) => setGame((g) => (g ? fn(g) : g));
-  const living = alive(game);
+
+  const speaker = currentSpeaker(game);
+  const live = game.config.mode !== 'tabletop' && game.phase !== 'final';
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-4 py-4">
-      <header className="no-print flex flex-wrap items-center gap-2">
-        <button className="btn btn-sm" onClick={() => go({ name: 'home' })}><ArrowLeft size={16} /> Меню</button>
-        <button className="btn btn-sm" onClick={() => setShowBrief(true)}>{game.scenario.title}</button>
-        <div className="ml-auto text-xs uppercase tracking-widest text-dim">
-          {game.config.mode === 'pass-and-play' && game.phase !== 'final' && <>Раунд {game.round}/{game.schedule.length} · </>}
-          В игре <b className="text-amber">{living.length}</b> · Мест <b className="text-amber">{game.config.shelterSlots}</b>
-        </div>
-      </header>
+    <div className="mx-auto flex max-w-5xl flex-col gap-4 pb-6">
+      <GameHud game={game} onBack={() => go({ name: 'home' })} onTitle={() => setShowBrief(true)} />
 
       {showBrief && (
         <Modal title={game.scenario.title} onClose={() => setShowBrief(false)}>
@@ -60,42 +80,26 @@ export default function Game() {
         <Tabletop game={game} />
       ) : game.phase === 'final' ? (
         <Final game={game} />
-      ) : (
-        <>
-          <Board game={game} />
-          {game.phase === 'reveal' && <RevealPhase game={game} update={update} />}
-          {game.phase === 'debate' && <DebatePhase game={game} update={update} />}
-          {game.phase === 'vote' && <VotePhase game={game} update={update} />}
-          {game.phase === 'result' && <ResultPhase game={game} update={update} />}
-        </>
+      ) : null}
+
+      {live && (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+          <div className="anim-rise flex min-w-0 flex-col gap-4" key={`${game.round}-${stepOf(game)}-${game.phase}-${speaker?.id ?? ''}`}>
+            {timed && game.deadline && (
+              <MatchClock deadline={game.deadline} totalMin={game.config.timeLimitMin} onExtend={() => update((g) => extendDeadline(g, 5 * 60_000))} />
+            )}
+            {game.phase === 'event' && <EventPhase game={game} update={update} />}
+            {game.phase === 'reveal' && <RevealPhase game={game} update={update} />}
+            {game.phase === 'speech' && <SpeechPhase game={game} update={update} />}
+            {game.phase === 'vote' && <VotePhase game={game} update={update} />}
+            {game.phase === 'result' && <ResultPhase game={game} update={update} />}
+          </div>
+          <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-24">
+            <ThreatsPanel hazards={game.hazards ?? []} />
+            <Board game={game} speakerId={speaker?.id} side />
+          </aside>
+        </div>
       )}
-    </div>
-  );
-}
-
-/* ---------- Общая доска: открытые карты всех игроков ---------- */
-
-export function Board({ game }: { game: GameState }) {
-  return (
-    <div className="grid gap-2 sm:grid-cols-2">
-      {game.players.map((p) => {
-        const open = CATEGORIES.filter((c) => p.slots[c].isRevealed && c !== 'action');
-        return (
-          <details key={p.id} className={`panel p-3 ${p.isEliminated ? 'opacity-40' : ''}`}>
-            <summary className="cursor-pointer text-sm">
-              <b className={p.isEliminated ? 'line-through' : 'text-amber'}>{p.name}</b>
-              <span className="ml-2 text-xs text-dim">
-                {p.isEliminated ? 'исключён' : `открыто: ${open.length}/6`}
-                {p.slots.action.isRevealed && ' · действие использовано'}
-              </span>
-            </summary>
-            <div className="mt-2 flex flex-col gap-1">
-              {open.length === 0 && <span className="text-xs text-dim">Ничего не открыто</span>}
-              {open.map((c) => <CardFace key={c} card={p.slots[c].card} compact />)}
-            </div>
-          </details>
-        );
-      })}
     </div>
   );
 }
@@ -122,7 +126,7 @@ export function Dossier({
       <h3 className="h-hud">Досье: {player.name}</h3>
       {mode === 'reveal' && (
         <p className="text-xs text-dim">
-          {game.round === 1 ? 'В первом раунде нужно открыть профессию.' : 'Выберите карту, которую откроете всем.'}
+          {game.round === 1 ? 'В первом раунде открывается пол и возраст (биология), дальше — по желанию.' : 'Выберите карту, которую откроете всем.'}
         </p>
       )}
       {CATEGORIES.map((c) => {
@@ -156,64 +160,85 @@ export function Dossier({
   );
 }
 
-/* ---------- Фаза 1: открытие карт ---------- */
+/* ---------- Фаза 0: карта кризиса в начале раунда ---------- */
+
+function EventPhase({ game, update }: { game: GameState; update: Update }) {
+  if (!game.event) return null;
+  return (
+    <EventCard
+      round={game.round}
+      event={game.event}
+      volunteers={quotaThisRound(game) >= 1 ? alive(game) : []}
+      onVolunteer={(id) => update((g) => volunteer(g, id))}
+      action={<button className="btn btn-primary" onClick={() => update(continueEvent)}><Play size={18} /> Начать раунд</button>}
+    />
+  );
+}
+
+/* ---------- Фаза 1: ход игрока — открывает карту ---------- */
 
 function RevealPhase({ game, update }: { game: GameState; update: Update }) {
-  const [current, setCurrent] = useState<string | null>(null);
-  const pending = pendingReveal(game);
-  const player = pending.find((p) => p.id === current);
-  if (player) {
+  const [open, setOpen] = useState(false);
+  const speaker = currentSpeaker(game);
+  if (!speaker) return null;
+  if (open) {
     return (
-      <Gate name={player.name}>
+      <Gate name={speaker.name}>
         <Dossier
           game={game}
-          player={player}
+          player={speaker}
           mode="reveal"
-          onCancel={() => setCurrent(null)}
+          onCancel={() => setOpen(false)}
           onDone={(c) => {
-            if (c) update((g) => revealCard(g, player.id, c));
-            setCurrent(null);
+            if (c) update((g) => revealCard(g, speaker.id, c));
+            setOpen(false);
           }}
         />
       </Gate>
     );
   }
+  const total = alive(game).filter((p) => revealOptions(game, p).length > 0).length;
+  const done = game.revealedThisRound.length;
   return (
-    <section className="panel">
-      <h2 className="h-hud mb-1">Раунд {game.round}: открытие карт</h2>
-      <p className="mb-3 text-xs text-dim">Каждый по очереди берёт устройство и открывает одну карту. Осталось: {pending.length}.</p>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {pending.map((p) => (
-          <button key={p.id} className="btn" onClick={() => setCurrent(p.id)}><Eye size={16} /> {p.name}</button>
-        ))}
-      </div>
-    </section>
+    <>
+      <section className="panel hud flex flex-col items-center gap-3 text-center">
+        <h2 className="h-hud">Раунд {game.round} · вскрытие {stepOf(game)} из {perVote(game)}</h2>
+        <p className="text-xs text-dim">Игрок {done + 1} из {total}. Возьмите устройство, откройте карту и затем объясните, чем вы полезны убежищу.</p>
+        <Avatar id={speaker.id} name={speaker.name} size={72} ring />
+        <p className="text-3xl font-bold text-amber">{speaker.name}</p>
+        <button className="btn btn-primary w-full" onClick={() => setOpen(true)}><Eye size={18} /> Я — {speaker.name}: открыть карту</button>
+      </section>
+      <ActionsPanel game={game} update={update} />
+    </>
   );
 }
 
-/* ---------- Фаза 2: дебаты ---------- */
+/* ---------- Фаза 2: речь — игрок объясняет пользу, затем ходит следующий ---------- */
 
-export function DebateTimer() {
-  const [left, setLeft] = useState(0);
-  const [running, setRunning] = useState(false);
-  useEffect(() => {
-    if (!running) return;
-    const t = setInterval(() => setLeft((l) => (l <= 1 ? (setRunning(false), 0) : l - 1)), 1000);
-    return () => clearInterval(t);
-  }, [running]);
-  const start = (s: number) => { setLeft(s); setRunning(true); };
-  const fmt = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+function SpeechPhase({ game, update }: { game: GameState; update: Update }) {
+  const speaker = currentSpeaker(game);
+  const cat = game.lastReveal?.category;
+  if (!speaker || !cat) return null;
+  const upNext = pendingReveal(game)[0];
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Timer size={18} className="text-amber" />
-      <span className={`w-16 text-2xl ${running && left <= 10 ? 'text-danger' : 'text-amber'}`}>{fmt}</span>
-      {[60, 120, 180].map((s) => <button key={s} className="btn btn-sm" onClick={() => start(s)}>{s / 60} мин</button>)}
-      {running && <button className="btn btn-sm" onClick={() => setRunning(false)}>Стоп</button>}
-    </div>
+    <>
+      <section className="panel hud flex flex-col gap-3">
+        <h2 className="h-hud flex items-center gap-3"><Avatar id={speaker.id} name={speaker.name} size={36} ring /> <span><UserRound size={14} className="mr-1 inline" />{speaker.name} объясняет пользу</span></h2>
+        <CardFace card={speaker.slots[cat].card} showMod flip />
+        <SpeechTimer endsAt={game.speechEndsAt} totalSec={game.config.speechSec} />
+        <p className="text-center text-xs text-dim">
+          Почему именно вас нужно взять в убежище? {upNext ? `Затем ходит: ${upNext.name}.` : 'Это последняя речь вскрытия.'}
+        </p>
+        <button className="btn btn-primary" onClick={() => update(endSpeech)}><Play size={18} /> {upNext ? 'Следующий игрок' : 'Дальше'}</button>
+      </section>
+      <ActionsPanel game={game} update={update} />
+    </>
   );
 }
 
-function DebatePhase({ game, update }: { game: GameState; update: Update }) {
+/* ---------- Карты действий и просмотр своего досье (в любой момент вскрытий) ---------- */
+
+function ActionsPanel({ game, update }: { game: GameState; update: Update }) {
   const [actor, setActor] = useState<string | null>(null);
   const [peek, setPeek] = useState<string | null>(null);
   const living = alive(game);
@@ -221,26 +246,20 @@ function DebatePhase({ game, update }: { game: GameState; update: Update }) {
   const peekP = living.find((p) => p.id === peek);
   return (
     <>
-      <section className="panel flex flex-col gap-3">
-        <h2 className="h-hud">Дебаты</h2>
-        <p className="text-xs text-dim">Обсудите, кто нужнее убежищу. В этом раунде уйдёт: {quotaThisRound(game)}.</p>
-        <DebateTimer />
-        <div className="flex flex-wrap gap-2">
+      <details className="panel p-3">
+        <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">Карты действий и своё досье</summary>
+        <div className="mt-3 flex flex-wrap gap-2">
           {living.map((p) => (
             <button key={p.id} className="btn btn-sm" disabled={p.slots.action.isRevealed} onClick={() => setActor(p.id)}>
               <Zap size={14} /> {p.name}
             </button>
           ))}
         </div>
-        <p className="text-[10px] uppercase tracking-widest text-dim">↑ применить карту действия (один раз за партию)</p>
-        <details>
-          <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">Посмотреть своё досье</summary>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {living.map((p) => <button key={p.id} className="btn btn-sm" onClick={() => setPeek(p.id)}>{p.name}</button>)}
-          </div>
-        </details>
-        <button className="btn btn-primary" onClick={() => update(startVote)}><Gavel size={18} /> К голосованию</button>
-      </section>
+        <p className="mt-1 text-[10px] uppercase tracking-widest text-dim">↑ применить карту действия (один раз за партию)</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {living.map((p) => <button key={p.id} className="btn btn-sm" onClick={() => setPeek(p.id)}>Досье: {p.name}</button>)}
+        </div>
+      </details>
       {actorP && (
         <Modal>
           <Gate name={actorP.name}>
@@ -280,9 +299,10 @@ function VotePhase({ game, update }: { game: GameState; update: Update }) {
         <h2 className="h-hud">Открытое голосование</h2>
         {living.map((p) => (
           <label key={p.id} className="flex items-center gap-2 text-sm">
-            <span className="w-28 truncate text-amber">{p.name}</span>→
+            <Avatar id={p.id} name={p.name} size={28} /><span className="w-24 truncate text-amber">{p.name}</span>→
             <select className="input" value={game.votes[p.id] ?? ''} onChange={(e) => update((g) => castVote(g, p.id, e.target.value))}>
               <option value="" disabled>выберите…</option>
+              <option value={ABSTAIN}>— воздержаться —</option>
               {living.filter((t) => t.id !== p.id).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </label>
@@ -298,10 +318,12 @@ function VotePhase({ game, update }: { game: GameState; update: Update }) {
         <section className="panel flex flex-col gap-2">
           <h2 className="h-hud">{voter.name}: против кого вы голосуете?</h2>
           {living.filter((t) => t.id !== voter.id).map((t) => (
-            <button key={t.id} className="btn" onClick={() => { update((g) => castVote(g, voter.id, t.id)); setVoterId(null); }}>
-              {t.name}
+            <button key={t.id} className="btn justify-start gap-3 normal-case" onClick={() => { update((g) => castVote(g, voter.id, t.id)); setVoterId(null); }}>
+              <Avatar id={t.id} name={t.name} size={28} /> {t.name}
             </button>
           ))}
+          <button className="btn border-dashed" onClick={() => { update((g) => castVote(g, voter.id, ABSTAIN)); setVoterId(null); }}>Воздержаться</button>
+          <p className="text-xs text-dim">Если воздержится больше половины игроков — в этом раунде никто не покидает игру.</p>
           <button className="btn btn-sm" onClick={() => setVoterId(null)}>Отмена</button>
         </section>
       </Gate>
@@ -310,11 +332,12 @@ function VotePhase({ game, update }: { game: GameState; update: Update }) {
   return (
     <section className="panel flex flex-col gap-3">
       <h2 className="h-hud">Тайное голосование</h2>
-      <p className="text-xs text-dim">Проголосовало {living.length - waiting.length} из {living.length}. Голос можно изменить до подсчёта.</p>
+      <p className="text-xs text-dim">Проголосовало {living.length - waiting.length} из {living.length}. Голос можно изменить до подсчёта. Воздержаться тоже можно: если таких больше половины, никто не уходит.</p>
       <div className="grid gap-2 sm:grid-cols-2">
         {living.map((p) => (
-          <button key={p.id} className="btn" onClick={() => setVoterId(p.id)}>
-            {game.votes[p.id] ? '✔ ' : ''}{p.name}
+          <button key={p.id} className={`btn justify-start gap-3 normal-case ${game.votes[p.id] ? 'border-ok/50 text-ok' : ''}`} onClick={() => setVoterId(p.id)}>
+            <Avatar id={p.id} name={p.name} size={28} /> {p.name}
+            {game.votes[p.id] && <span className="ml-auto text-xs uppercase tracking-widest">✔ проголосовал</span>}
           </button>
         ))}
       </div>
@@ -328,19 +351,13 @@ function VotePhase({ game, update }: { game: GameState; update: Update }) {
 function ResultPhase({ game, update }: { game: GameState; update: Update }) {
   const r = game.lastResult;
   if (!r) return null;
-  const sorted = Object.entries(r.tally).sort((a, b) => b[1] - a[1]);
-  const nameOf = (id: string) => game.players.find((p) => p.id === id)?.name ?? id;
   const finishing = alive(game).length <= game.config.shelterSlots || game.round >= game.schedule.length;
   return (
     <section className="panel flex flex-col gap-3">
       <h2 className="h-hud">Итоги раунда {game.round}</h2>
-      <ul className="text-sm">
-        {sorted.map(([id, v]) => (
-          <li key={id} className={r.eliminated.includes(id) ? 'text-danger' : ''}>
-            {nameOf(id)} — {v} гол. {r.eliminated.includes(id) && '← покидает игру'}
-          </li>
-        ))}
-      </ul>
+      {r.noVote ? <p className="text-sm text-amber">Добровольцы закрыли квоту раунда — голосования не будет.</p> : <Tally players={game.players} result={r} />}
+      {r.skipped && <p className="text-sm text-amber">Большинство воздержалось ({r.abstained} из {alive(game).length}) — никто не покидает игру. Пропущенное исключение перенесено в дополнительный раунд.</p>}
+      {!r.skipped && !!r.abstained && <p className="text-xs text-dim">Воздержались: {r.abstained}.</p>}
       {r.tieBreak && <p className="text-xs text-amber">Ничья на границе — решено жребием.</p>}
       <button className="btn btn-primary" onClick={() => update(nextRound)}>
         {finishing ? 'К финалу' : 'Следующий раунд'}
