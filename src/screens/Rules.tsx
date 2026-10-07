@@ -1,4 +1,6 @@
-import { ArrowLeft } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowLeft, GraduationCap } from 'lucide-react';
+import { Onboarding } from '../ui/Onboarding';
 import { useStore } from '../store';
 
 const STEPS = [
@@ -18,10 +20,13 @@ const STEPS = [
 
 export default function Rules() {
   const { go } = useStore();
+  const [tour, setTour] = useState(false);
   return (
     <div className="mx-auto max-w-2xl py-6">
       <button className="btn btn-sm mb-4" onClick={() => go({ name: 'home' })}><ArrowLeft size={16} /> Назад</button>
+      {tour && <Onboarding onClose={() => setTour(false)} />}
       <h1 className="h-hud mb-4 text-base">Правила</h1>
+      <button className="btn mb-4 w-full" onClick={() => setTour(true)}><GraduationCap size={16} /> Показать краткое обучение</button>
       <ol className="flex flex-col gap-3">
         {STEPS.map(([t, d], i) => (
           <li key={t} className="panel">

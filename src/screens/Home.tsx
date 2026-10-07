@@ -4,6 +4,8 @@ import { buildQuickGame, loadLastSetup } from '../lib/quick';
 import { Emblem } from '../ui/Emblem';
 import { isStandalone } from '../lib/pwa';
 import { UpdateBanner, UpdateButton } from '../ui/UpdateButton';
+import { Onboarding, tourSeen } from '../ui/Onboarding';
+import { useState } from 'react';
 
 function MenuItem({ icon: Icon, title, hint, onClick }: { icon: LucideIcon; title: string; hint: string; onClick: () => void }) {
   return (
@@ -27,9 +29,12 @@ export default function Home() {
     notify(`Быстрая игра: ${g.scenario.title}`);
     go({ name: 'game' });
   };
+  const [tour, setTour] = useState(() => !tourSeen());
   const to = (s: Screen) => () => go(s);
   const resumable = game && game.phase !== 'final';
   return (
+    <>
+    {tour && <Onboarding onClose={() => setTour(false)} />}
     <div className="mx-auto grid max-w-5xl items-center gap-8 py-8 lg:min-h-dvh lg:grid-cols-2 lg:gap-14 lg:py-0">
       <header className="anim-rise text-center lg:text-left">
         <Emblem size={176} />
@@ -80,5 +85,6 @@ export default function Home() {
         <UpdateButton />
       </nav>
     </div>
+    </>
   );
 }

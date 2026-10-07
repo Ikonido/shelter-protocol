@@ -49,7 +49,7 @@ export interface LobbyMember {
 }
 export type H2C =
   | { t: 'lobby'; members: LobbyMember[]; scenario: string; slots: number; you: number; locked?: boolean; adult?: boolean }
-  | { t: 'view'; view: GameState; me: string }
+  | { t: 'view'; view: GameState; me: string; offline?: string[] }
   | { t: 'reject'; reason: string };
 
 /** Минимальный дуплексный канал: в проде — WebRTC DataChannel (PeerJS), в тестах — in-memory. */
@@ -407,7 +407,7 @@ export class OnlineHost {
   private changed() {
     this.members.forEach((m, i) => {
       if (!m.conn || !m.connected) return;
-      if (this.game && m.playerId) m.conn.send({ t: 'view', view: viewFor(this.game, m.playerId), me: m.playerId });
+      if (this.game && m.playerId) m.conn.send({ t: 'view', view: viewFor(this.game, m.playerId), me: m.playerId, offline: this.disconnectedPending() });
       else
         m.conn.send({
           t: 'lobby',
@@ -437,7 +437,7 @@ function uniqueNames(names: string[]): string[] {
 export type ClientState =
   | { status: 'connecting' }
   | { status: 'lobby'; members: LobbyMember[]; scenario: string; slots: number; you: number; adult: boolean }
-  | { status: 'game'; view: GameState; me: string }
+  | { status: 'game'; view: GameState; me: string; offline: string[] }
   | { status: 'closed' }
   | { status: 'rejected'; reason: string };
 
@@ -490,7 +490,9 @@ export class OnlineClient {
       });
     else if (m.t === 'view' && typeof m.me === 'string') {
       const view = sanitizeView(m.view);
-      if (view && view.players.some((p) => p.id === m.me)) this.set({ status: 'game', view, me: m.me });
+      // Имена отключившихся (нужны всем, чтобы понимать, кого ждём); приходят от хоста, поэтому чистим и ограничиваем.
+      const offline = Array.isArray(m.offline) ? m.offline.slice(0, MAX_ONLINE_PLAYERS).map((x) => clip(String(x ?? ''), 24)).filter(Boolean) : [];
+      if (view && view.players.some((p) => p.id === m.me)) this.set({ status: 'game', view, me: m.me, offline });
     }
   }
 }

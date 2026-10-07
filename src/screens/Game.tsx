@@ -28,6 +28,7 @@ import { MatchClock } from '../ui/MatchClock';
 import { SpeechTimer } from '../ui/SpeechTimer';
 import { ThreatsPanel } from '../ui/Threats';
 import { Board } from '../ui/Board';
+import { SkillsStrip } from '../ui/SkillsStrip';
 import { GameHud } from '../ui/GameHud';
 import { Avatar } from '../ui/Avatar';
 import { Tally } from '../ui/Tally';
@@ -86,6 +87,7 @@ export default function Game() {
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4 pb-6">
       <GameHud game={game} onBack={() => go({ name: 'home' })} onTitle={() => setShowBrief(true)} />
+      {game.config.mode !== 'tabletop' && game.phase !== 'final' && <SkillsStrip scenario={game.scenario} />}
 
       {showBrief && (
         <Modal title={game.scenario.title} onClose={() => setShowBrief(false)}>

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeft, Download, Link2, Plus, Trash2 } from 'lucide-react';
 import { useStore } from '../store';
+import { filterCards } from '../lib/cardFilter';
 import { CATEGORIES, CATEGORY_LABEL, type Card, type CardPack, type Category, type Hazard, type Modifier, type Scenario, type Severity } from '../types';
 import { exportPackFile, shareUrl } from '../lib/packs';
 import { uid } from '../lib/rng';
@@ -38,6 +39,10 @@ export default function Editor({ packId }: { packId: string }) {
   const pack = customPacks.find((p) => p.id === packId);
   const [tab, setTab] = useState<'info' | 'scenarios' | Category>('info');
   const [bulk, setBulk] = useState('');
+  const [query, setQuery] = useState('');
+  useEffect(() => {
+    setQuery('');
+  }, [tab]);
   if (!pack) {
     return <div className="py-10 text-center"><p className="mb-4">Пак не найден.</p><button className="btn" onClick={() => go({ name: 'packs' })}>К пакам</button></div>;
   }
@@ -134,8 +139,14 @@ export default function Editor({ packId }: { packId: string }) {
         const Icon = CATEGORY_ICON[cat];
         return (
           <div className="flex flex-col gap-3">
-            <h2 className="h-hud flex items-center gap-2"><Icon size={16} /> {CATEGORY_LABEL[cat]}</h2>
-            {pack.cards[cat].map((c) => {
+            <h2 className="h-hud flex items-center gap-2"><Icon size={16} /> {CATEGORY_LABEL[cat]} <span className="text-dim">({pack.cards[cat].length})</span></h2>
+            {pack.cards[cat].length > 6 && (
+              <div>
+                <input className="input" type="search" placeholder="Поиск по тексту, названию и тегам" aria-label="Поиск карт" value={query} onChange={(e) => setQuery(e.target.value)} />
+                {query.trim() && <p className="mt-1 text-xs text-dim">Найдено {filterCards(pack.cards[cat], query).length} из {pack.cards[cat].length}</p>}
+              </div>
+            )}
+            {filterCards(pack.cards[cat], query).map((c) => {
               const patch = (p: Partial<Card>) => setCards(cat, pack.cards[cat].map((x) => (x.id === c.id ? { ...x, ...p } : x)));
               return (
                 <div key={c.id} className="panel flex flex-col gap-2 p-3">

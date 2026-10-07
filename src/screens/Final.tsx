@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Home, Newspaper, Repeat, RotateCcw, Skull, TriangleAlert } from 'lucide-react';
+import { CheckCircle2, Home, ImageDown, Newspaper, Repeat, RotateCcw, Skull, TriangleAlert } from 'lucide-react';
 import type { GameState } from '../types';
 import { CATEGORIES } from '../types';
 import { evaluate } from '../lib/evaluate';
@@ -10,6 +10,7 @@ import { ScoreRing } from '../ui/ScoreRing';
 import { rulesFor } from '../lib/difficulty';
 import { replayGame } from '../lib/quick';
 import { useStore } from '../store';
+import { resultCard, shareResultImage } from '../lib/shareResult';
 
 function Meter({ label, value }: { label: string; value: number }) {
   return (
@@ -19,6 +20,23 @@ function Meter({ label, value }: { label: string; value: number }) {
       </div>
       <div className="h-2 rounded bg-edge"><div className="h-2 rounded bg-amber" style={{ width: `${value * 100}%` }} /></div>
     </div>
+  );
+}
+
+/** Итог картинкой: делимся в мессенджер или скачиваем файл. */
+function ShareButton({ game }: { game: GameState }) {
+  const { notify } = useStore();
+  return (
+    <button
+      className="btn"
+      onClick={async () => {
+        const r = await shareResultImage(resultCard(game));
+        if (r === 'downloaded') notify('Картинка с итогом сохранена');
+        else if (r === 'failed') notify('Не удалось сделать картинку');
+      }}
+    >
+      <ImageDown size={16} /> Поделиться итогом картинкой
+    </button>
   );
 }
 
@@ -97,6 +115,7 @@ export function FinalReport({ game, auto = true, onStoryChange }: { game: GameSt
     <div className="flex flex-col gap-4">
       <Verdict game={game} />
       <button className="btn" onClick={() => setStory(true)}><Newspaper size={16} /> Посмотреть хронику изоляции</button>
+      <ShareButton game={game} />
     </div>
   );
 }
