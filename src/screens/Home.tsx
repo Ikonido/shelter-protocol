@@ -1,4 +1,4 @@
-import { BookOpen, ChevronRight, Globe, Library, Play, RotateCcw, Smartphone, type LucideIcon } from 'lucide-react';
+import { BookOpen, ChevronRight, Globe, Library, Play, QrCode, RotateCcw, Smartphone, type LucideIcon } from 'lucide-react';
 import { useStore, type Screen } from '../store';
 import { Emblem } from '../ui/Emblem';
 import { isStandalone } from '../lib/pwa';
@@ -46,8 +46,11 @@ export default function Home() {
         <button className={`btn min-h-14 ${resumable ? '' : 'btn-primary hud'}`} onClick={to({ name: 'setup' })}>
           <Play size={18} /> Новая игра
         </button>
+        <button className="btn min-h-12 border-amber/50 text-amber" onClick={to({ name: 'setup', mode: 'online' })}>
+          <QrCode size={18} /> Создать онлайн-комнату <span className="hidden text-[10px] opacity-70 sm:inline">код и QR для друзей</span>
+        </button>
         <div className="grid gap-3 sm:grid-cols-2">
-          <MenuItem icon={Globe} title="В комнату" hint="по коду или QR" onClick={to({ name: 'join' })} />
+          <MenuItem icon={Globe} title="Войти в комнату" hint="по коду или QR от друга" onClick={to({ name: 'join' })} />
           <MenuItem icon={Library} title="Паки" hint="свои сценарии и карты" onClick={to({ name: 'packs' })} />
           {!isStandalone() && <MenuItem icon={Smartphone} title="На телефон" hint="установить, работает офлайн" onClick={to({ name: 'install' })} />}
           <MenuItem icon={BookOpen} title="Правила" hint="разберётесь за минуту" onClick={to({ name: 'rules' })} />

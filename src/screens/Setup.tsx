@@ -14,13 +14,13 @@ const DIFF_STYLE = {
   nightmare: { Icon: Skull, tone: { text: 'text-danger', border: 'border-danger', bg: 'bg-danger/10 shadow-[0_0_22px_-10px_var(--color-danger)]' } },
 } as const;
 
-export default function Setup() {
+export default function Setup({ initialMode }: { initialMode?: PlayMode }) {
   const { allPacks, go, setGame, notify } = useStore();
   const [packIds, setPackIds] = useState<string[]>(() => [allPacks[0].id]);
   const [scenarioId, setScenarioId] = useState<string>('random');
   const [n, setN] = useState(8);
   const [k, setK] = useState(4);
-  const [mode, setMode] = useState<PlayMode>('pass-and-play');
+  const [mode, setMode] = useState<PlayMode>(initialMode ?? 'pass-and-play');
   const [voting, setVoting] = useState<VotingMode>('secret');
   const [names, setNames] = useState<string[]>([]);
   const [revealsPerVote, setRevealsPerVote] = useState(2);

@@ -23,7 +23,7 @@ export default function App() {
     <main className="mx-auto min-h-dvh max-w-5xl px-4 pb-[env(safe-area-inset-bottom)]">
       <div key={screen.name} className="anim-rise">
       {screen.name === 'home' && <Home />}
-      {screen.name === 'setup' && <Setup />}
+      {screen.name === 'setup' && <Setup initialMode={screen.mode} />}
       {screen.name === 'game' && <Game />}
       {screen.name === 'packs' && <Packs />}
       {screen.name === 'editor' && <Editor packId={screen.packId} />}
