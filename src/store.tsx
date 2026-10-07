@@ -61,8 +61,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [incoming, setIncoming] = useState<CardPack | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  useEffect(() => savePacks(customPacks), [customPacks]);
-  useEffect(() => saveGame(game), [game]);
+  useEffect(() => {
+    savePacks(customPacks);
+  }, [customPacks]);
+  useEffect(() => {
+    saveGame(game);
+  }, [game]);
 
   // Ссылка-шеринг: #pack=... → предложение добавить пак.
   useEffect(() => {

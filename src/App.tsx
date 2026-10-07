@@ -14,7 +14,11 @@ import { packStats } from './lib/packs';
 export default function App() {
   const { screen, toast, incoming, acceptIncoming, dismissIncoming } = useStore();
   // Новый экран всегда открывается сверху, а не на прежней прокрутке.
-  useEffect(() => window.scrollTo(0, 0), [screen.name]);
+  // Фигурные скобки важны: эффект не должен возвращать результат scrollTo — некоторые браузеры возвращают не undefined,
+  // и React пытается вызвать это значение как функцию очистки.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [screen.name]);
   return (
     <main className="mx-auto min-h-dvh max-w-5xl px-4 pb-[env(safe-area-inset-bottom)]">
       <div key={screen.name} className="anim-rise">

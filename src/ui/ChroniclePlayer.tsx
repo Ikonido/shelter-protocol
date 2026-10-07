@@ -38,7 +38,9 @@ export function ChroniclePlayer({ game, onDone }: { game: GameState; onDone: () 
     return () => clearTimeout(t);
   }, [finished, epiShown, epilogue.length]);
 
-  useEffect(() => last.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), [shown, epiShown]);
+  useEffect(() => {
+    last.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [shown, epiShown]);
 
   const skip = () => {
     setShown(entries.length);
