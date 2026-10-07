@@ -30,7 +30,7 @@ import { ThreatsPanel } from '../ui/Threats';
 import { Board } from '../ui/Board';
 import { ActionTargetPicker } from '../ui/ActionTarget';
 import { canApply, needsTarget } from '../lib/actions';
-import { applyUndo, undoable } from '../lib/undo';
+import { applyUndo, canUndo } from '../lib/undo';
 import { SkillsStrip } from '../ui/SkillsStrip';
 import { GameHud } from '../ui/GameHud';
 import { Avatar } from '../ui/Avatar';
@@ -80,7 +80,7 @@ export default function Game() {
   }
   const update: Update = (fn) => setGame((g) => (g ? fn(g) : g));
   const undo: Undo | undefined =
-    undoSnap && game.config.mode === 'pass-and-play' && (game.phase === 'speech' || game.phase === 'reveal') && undoable(undoSnap.after, game)
+    undoSnap && game.config.mode === 'pass-and-play' && (game.phase === 'speech' || game.phase === 'reveal') && canUndo(undoSnap, game)
       ? { name: game.players.find((p) => p.id === game.lastReveal?.playerId)?.name ?? '', run: () => { setGame((cur) => (cur ? applyUndo(undoSnap.before, cur) : cur)); setUndoSnap(null); } }
       : undefined;
 
