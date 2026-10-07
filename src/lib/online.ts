@@ -121,7 +121,7 @@ export interface HostSetup {
   speechSec?: number; // секунд на объяснение пользы, по умолчанию 45; 0 — без таймера
   hazardCount?: number; // факторов угрозы из пула сценария, по умолчанию 2
   difficulty?: Difficulty; // по умолчанию normal
-  roundEvents?: boolean; // карта кризиса перед каждым раундом, по умолчанию да
+  roundEvents?: boolean; // карта кризиса перед каждым раундом, по умолчанию нет
   adult?: boolean; // в комнате пак 18+: гостям показывается предупреждение до начала игры
   timeLimitMin?: number; // 0 — без лимита; по умолчанию 0
 }
@@ -327,7 +327,7 @@ export class OnlineHost {
         speechSec: Math.min(300, Math.max(0, this.setup.speechSec ?? 45)),
         hazardCount: Math.min(L.maxHazardsPerGame, Math.max(0, this.setup.hazardCount ?? 2)),
         difficulty: this.setup.difficulty ?? 'normal',
-        roundEvents: this.setup.roundEvents ?? true,
+        roundEvents: this.setup.roundEvents ?? false,
         timeLimitMin: Math.min(180, Math.max(0, this.setup.timeLimitMin ?? 0)),
         names,
         seed: newSeed(),
