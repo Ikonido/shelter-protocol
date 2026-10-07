@@ -31,6 +31,7 @@ import {
   tickGame,
   volunteer,
 } from './game';
+import { canApply } from './actions';
 import { newSeed, randomCode } from './rng';
 import { LIMITS as L, clip } from './limits';
 import { sanitizeHazard, sanitizeScenario } from './packs';
@@ -52,7 +53,8 @@ export interface LobbyMember {
 export type H2C =
   | { t: 'lobby'; members: LobbyMember[]; scenario: string; slots: number; you: number; locked?: boolean; adult?: boolean }
   | { t: 'view'; view: GameState; me: string; offline?: string[] }
-  | { t: 'reject'; reason: string };
+  | { t: 'reject'; reason: string }
+  | { t: 'notice'; text: string }; // игра продолжается; хост объясняет, почему действие не сработало
 
 /** Минимальный дуплексный канал: в проде — WebRTC DataChannel (PeerJS), в тестах — in-memory. */
 export interface Conn<Out> {
@@ -276,24 +278,33 @@ export class OnlineHost {
     }
     const member = this.members.find((m) => m.conn === conn);
     if (!member) return;
+    let refusal: string | null = null;
     if (msg.t === 'reveal' && CATEGORIES.includes(msg.category as Category)) this.act(member, { t: 'reveal', category: msg.category as Category });
-    else if (msg.t === 'action') this.act(member, { t: 'action', ...(typeof msg.target === 'string' ? { target: msg.target.slice(0, 12) } : {}), ...(CATEGORIES.includes(msg.category as Category) ? { category: msg.category as Category } : {}) });
+    else if (msg.t === 'action') refusal = this.act(member, { t: 'action', ...(typeof msg.target === 'string' ? { target: msg.target.slice(0, 12) } : {}), ...(CATEGORIES.includes(msg.category as Category) ? { category: msg.category as Category } : {}) });
     else if (msg.t === 'done') this.act(member, { t: 'done' });
     else if (msg.t === 'volunteer') this.act(member, { t: 'volunteer' });
     else if (msg.t === 'vote' && typeof msg.target === 'string') this.act(member, { t: 'vote', target: msg.target });
+    if (refusal) member.conn?.send({ t: 'notice', text: refusal });
   }
 
   /** Действие игрока (в том числе самого хоста через index 0). Все проверки — здесь, клиенту не доверяем. */
-  act(member: Member, msg: Exclude<C2H, { t: 'hello' }>) {
+  act(member: Member, msg: Exclude<C2H, { t: 'hello' }>): string | null {
     const g = this.game;
     const id = member.playerId;
-    if (!g || !id) return;
+    if (!g || !id) return null;
     const me = g.players.find((p) => p.id === id);
-    if (!me || me.isEliminated) return;
+    if (!me || me.isEliminated) return null;
     let next = g;
+    let refusal: string | null = null;
     if (msg.t === 'reveal') next = revealCard(g, id, msg.category);
     else if (msg.t === 'action') {
-      if (g.phase === 'reveal' || g.phase === 'speech' || g.phase === 'vote') next = playAction(g, id, { target: msg.target, category: msg.category });
+      if (g.phase === 'reveal' || g.phase === 'speech' || g.phase === 'vote') {
+        const effect = g.config.autoActions ? me.slots.action.card.effect : undefined;
+        const check = effect && !me.slots.action.isRevealed ? canApply(g, id, effect, { target: msg.target, category: msg.category }) : null;
+        if (check && !check.ok) refusal = check.reason;
+        else next = playAction(g, id, { target: msg.target, category: msg.category });
+      } else refusal = 'Сейчас действие применить нельзя';
+      if (!refusal && next === g) refusal = me.slots.action.isRevealed ? 'Действие уже использовано' : 'Действие не сработало';
     } else if (msg.t === 'volunteer') {
       next = volunteer(g, id);
     } else if (msg.t === 'done') {
@@ -304,10 +315,12 @@ export class OnlineHost {
       if (allVoted(next)) next = resolveVote(next);
     }
     if (next !== g) this.setGame(next);
+    return refusal;
   }
 
-  actAsHost(msg: Exclude<C2H, { t: 'hello' }>) {
-    this.act(this.members[0], msg);
+  /** Действие самого хоста; если оно не сработало, возвращает причину (её показывает интерфейс хоста). */
+  actAsHost(msg: Exclude<C2H, { t: 'hello' }>): string | null {
+    return this.act(this.members[0], msg);
   }
 
   rename(name: string) {
@@ -442,13 +455,14 @@ function uniqueNames(names: string[]): string[] {
 export type ClientState =
   | { status: 'connecting' }
   | { status: 'lobby'; members: LobbyMember[]; scenario: string; slots: number; you: number; adult: boolean }
-  | { status: 'game'; view: GameState; me: string; offline: string[] }
+  | { status: 'game'; view: GameState; me: string; offline: string[]; notice?: { text: string; id: number } }
   | { status: 'closed' }
   | { status: 'rejected'; reason: string };
 
 export class OnlineClient {
   state: ClientState = { status: 'connecting' };
   private listeners = new Set<() => void>();
+  private noticeId = 0;
 
   constructor(
     private conn: Conn<C2H>,
@@ -497,7 +511,13 @@ export class OnlineClient {
       const view = sanitizeView(m.view);
       // Имена отключившихся (нужны всем, чтобы понимать, кого ждём); приходят от хоста, поэтому чистим и ограничиваем.
       const offline = Array.isArray(m.offline) ? m.offline.slice(0, MAX_ONLINE_PLAYERS).map((x) => clip(String(x ?? ''), 24)).filter(Boolean) : [];
-      if (view && view.players.some((p) => p.id === m.me)) this.set({ status: 'game', view, me: m.me, offline });
+      if (view && view.players.some((p) => p.id === m.me)) {
+        const prev = this.state.status === 'game' ? this.state.notice : undefined;
+        this.set({ status: 'game', view, me: m.me, offline, ...(prev ? { notice: prev } : {}) });
+      }
+    } else if (m.t === 'notice' && typeof m.text === 'string' && this.state.status === 'game') {
+      this.noticeId += 1;
+      this.set({ ...this.state, notice: { text: clip(m.text, 100), id: this.noticeId } });
     }
   }
 }

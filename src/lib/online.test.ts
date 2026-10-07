@@ -92,9 +92,11 @@ describe('online', () => {
     // карта «Карманник» у первого гостя (p2)
     host.game = { ...g, players: g.players.map((pl) => (pl.id === 'p2' ? { ...pl, slots: { ...pl.slots, action: { card: { ...pl.slots.action.card, title: 'Карманник', effect: 'stealLuggage' as const }, isRevealed: false } } } : pl)) };
     const victim = host.game.players[2].slots.luggage.card.id;
-    guests[0].c.send({ t: 'action' }); // без цели: ничего не происходит
+    guests[0].c.send({ t: 'action' }); // без цели: ничего не происходит, но гость узнаёт почему
     await tick();
     expect(host.game!.players[1].slots.action.isRevealed).toBe(false);
+    const refused = guests[0].c.state;
+    expect(refused.status === 'game' && refused.notice?.text).toContain('другого');
     guests[0].c.send({ t: 'action', target: 'p3' });
     await tick();
     expect(host.game!.players[1].slots.luggage.card.id).toBe(victim);
@@ -102,6 +104,27 @@ describe('online', () => {
     // гость видит результат, но не колоду
     const st = guests[1].c.state;
     expect(st.status === 'game' && 'deck' in st.view).toBe(false);
+  });
+
+  it('tells the host and the guest why an action did nothing', async () => {
+    const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[0], packs: [CLASSIC_PACK], slots: 1, voting: 'open', revealsPerVote: 1, speechSec: 0, roundEvents: false, autoActions: true }, 'Хост');
+    const p = pair();
+    const guest = new OnlineClient(p.clientSide, 'Гость', 'tk');
+    host.addConn(p.hostSide);
+    await tick();
+    host.start();
+    await tick();
+    const healer = (id: string) => (pl: (typeof host.game & object)['players'][number]) =>
+      pl.id === id ? { ...pl, slots: { ...pl.slots, health: { ...pl.slots.health, card: { ...pl.slots.health.card, modifier: 'positive' as const } }, action: { card: { ...pl.slots.action.card, title: 'Лечение', effect: 'heal' as const }, isRevealed: false } } } : pl;
+    host.game = { ...host.game!, players: host.game!.players.map((pl) => healer(pl.id === 'p1' || pl.id === 'p2' ? pl.id : '')(pl)) };
+    const hostWhy = host.actAsHost({ t: 'action' });
+    expect(hostWhy).toContain('здоровьем');
+    expect(host.game!.players[0].slots.action.isRevealed).toBe(false);
+    guest.send({ t: 'action' });
+    await tick();
+    const st = guest.state;
+    expect(st.status === 'game' && st.notice?.text).toContain('здоровьем');
+    expect(host.game!.players[1].slots.action.isRevealed).toBe(false);
   });
 
   it('plays a round: reveal → debate → secret vote → result; rejects bad input', async () => {

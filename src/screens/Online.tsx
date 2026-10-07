@@ -110,7 +110,10 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
       <OnlineGame
         view={view}
         me={host.members[0].playerId!}
-        send={(m) => host.actAsHost(m)}
+        send={(m) => {
+          const refusal = host.actAsHost(m);
+          if (refusal) notify(refusal);
+        }}
         host={host}
         onExit={() => go({ name: 'home' })}
       />
@@ -236,6 +239,7 @@ export function Join({ initialCode, initialTicket }: { initialCode?: string; ini
         view={st.view}
         me={st.me}
         offline={st.offline}
+        notice={st.notice}
         send={(m) => client.send(m)}
         onExit={() => {
           removeLS(`shelter:token:${normalizeCode(code)}`); // токен переподключения больше не нужен
@@ -300,9 +304,14 @@ export function Join({ initialCode, initialTicket }: { initialCode?: string; ini
 
 /* ---------- Общий игровой экран (хост и гости) ---------- */
 
-function OnlineGame({ view, me, send, host, onExit, offline = [] }: { view: GameState; me: string; send: Send; host?: OnlineHost; onExit: () => void; offline?: string[] }) {
+function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { view: GameState; me: string; send: Send; host?: OnlineHost; onExit: () => void; offline?: string[]; notice?: { text: string; id: number } }) {
+  const { notify: say } = useStore();
   const player = view.players.find((p) => p.id === me)!;
   const living = alive(view);
+  const noticeId = notice?.id;
+  useEffect(() => {
+    if (noticeId && notice) say(notice.text);
+  }, [noticeId]);
   const [pick, setPick] = useState<Category | null>(null);
   const [picking, setPicking] = useState(false);
   const [storyOn, setStoryOn] = useState(true); // идёт хроника изоляции — остальное скрыто

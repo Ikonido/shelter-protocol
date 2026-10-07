@@ -45,6 +45,28 @@ describe('luggage effects', () => {
     expect(r.log.at(-1)!.text).toContain('П1');
   });
 
+  it('drawLuggage log does not reveal the outcome and keeps a hidden card hidden', () => {
+    const logs = new Set<string>();
+    let sawKeep = false, sawDiscard = false;
+    for (let seed = 1; seed < 40 && !(sawKeep && sawDiscard); seed++) {
+      const g = give(createGame({ ...cfg(5), seed }, CLASSIC_PACK.scenarios[0], [CLASSIC_PACK]), 'p1', 'drawLuggage');
+      const before = luggage(g, 'p1').id;
+      const r = runEffect(g, 'p1', 'drawLuggage');
+      logs.add(r.log.at(-1)!.text);
+      expect(P(r, 'p1').slots.luggage.isRevealed).toBe(false);
+      if (luggage(r, 'p1').id === before) sawDiscard = true;
+      else sawKeep = true;
+    }
+    expect(sawKeep && sawDiscard).toBe(true);
+    expect(logs.size).toBe(1);
+  });
+
+  it('giveLuggage keeps the victim card hidden if it was hidden', () => {
+    const g = give(fresh(), 'p1', 'giveLuggage');
+    const r = runEffect(g, 'p1', 'giveLuggage', { target: 'p2' });
+    expect(P(r, 'p2').slots.luggage.isRevealed).toBe(false);
+  });
+
   it('stealLuggage moves the card and leaves the victim with an empty slot', () => {
     const g = give(fresh(), 'p1', 'stealLuggage');
     const victimCard = luggage(g, 'p2');
