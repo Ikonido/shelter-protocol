@@ -12,7 +12,7 @@
   --color-danger: #f87171;
   --color-ok: #4ade80;
   --font-mono: ui-monospace, "JetBrains Mono", "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
-  --animate-rise: rise .35s cubic-bezier(.2,.8,.2,1) both;
+  --animate-rise: rise .35s cubic-bezier(.2,.8,.2,1) backwards;
   --animate-flip: flip .6s cubic-bezier(.2,.8,.2,1) both;
   --animate-ring: ring 1.8s ease-out infinite;
   --animate-spin-slow: spin 40s linear infinite;

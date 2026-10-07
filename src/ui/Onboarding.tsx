@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 const KEY = 'shelter:tourDone';
@@ -9,7 +10,7 @@ export const tourSeen = () => {
     return true; // без хранилища не навязываем обучение при каждом запуске
   }
 };
-const markSeen = () => {
+export const markTourSeen = () => {
   try {
     localStorage.setItem(KEY, '1');
   } catch {
@@ -42,15 +43,25 @@ export const TOUR: { title: string; text: string; points?: string[] }[] = [
 /** Короткое обучение в пять экранов: открывается при первом запуске и по кнопке в «Правилах». */
 export function Onboarding({ onClose }: { onClose: () => void }) {
   const [i, setI] = useState(0);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        markTourSeen();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
   const step = TOUR[i];
   const last = i === TOUR.length - 1;
   const close = () => {
-    markSeen();
+    markTourSeen();
     onClose();
   };
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Обучение">
-      <div className="panel hud anim-rise flex max-h-[92dvh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-b-none sm:rounded-b-lg">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Обучение" onClick={close}>
+      <div className="flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-t-lg border border-edge bg-panel p-4 sm:rounded-lg" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <span className="chip">{i + 1} из {TOUR.length}</span>
           <button className="btn btn-sm" onClick={close} aria-label="Пропустить обучение"><X size={14} /> Пропустить</button>
@@ -70,6 +81,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
