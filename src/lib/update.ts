@@ -45,7 +45,7 @@ export async function checkForUpdate(
 }
 
 export interface UpdateDeps {
-  registrations: () => Promise<readonly { unregister: () => Promise<unknown> }[]>;
+  registrations: () => Promise<readonly { unregister: () => Promise<unknown>; scope?: string }[]>;
   cacheKeys: () => Promise<string[]>;
   deleteCache: (key: string) => Promise<unknown>;
   refetch: (url: string) => Promise<unknown>;
@@ -69,7 +69,12 @@ const browserDeps = (): UpdateDeps => ({
  */
 export async function applyUpdate(deps: UpdateDeps = browserDeps()): Promise<void> {
   const steps: Promise<unknown>[] = [];
-  for (const reg of await deps.registrations().catch(() => [])) steps.push(reg.unregister().catch(() => undefined));
+  // Только свой service worker: на одном адресе (GitHub Pages) могут жить другие приложения владельца.
+  const own = new URL('./', deps.base).toString();
+  for (const reg of await deps.registrations().catch(() => [])) {
+    if (reg.scope !== undefined && !reg.scope.startsWith(own)) continue;
+    steps.push(reg.unregister().catch(() => undefined));
+  }
   for (const key of await deps.cacheKeys().catch(() => [])) if (key.startsWith('shelter-')) steps.push(deps.deleteCache(key).catch(() => undefined));
   await Promise.all(steps);
   await Promise.all([deps.refetch(new URL('./', deps.base).toString()), deps.refetch(new URL('index.html', deps.base).toString())].map((p) => p.catch(() => undefined)));

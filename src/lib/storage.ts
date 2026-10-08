@@ -1,6 +1,7 @@
 import { CATEGORIES, type CardPack, type Category, type GameState } from '../types';
 import { emptyCard } from './generator';
 import { sanitizePack } from './packs';
+import { t } from './i18n';
 
 const K_PACKS = 'shelter:customPacks';
 const K_GAME = 'shelter:game';
@@ -28,7 +29,9 @@ export const loadPacks = (): CardPack[] => {
   if (!Array.isArray(raw)) return [];
   return raw.flatMap((x) => {
     try {
-      const pack = sanitizePack(x);
+      // Свой пак с пустым названием (его только что стёрли, чтобы ввести новое) — не повод терять содержимое.
+      const named = isObj(x) && !(isStr(x.name) && x.name.trim()) ? { ...x, name: t('Пак без названия') } : x;
+      const pack = sanitizePack(named);
       return pack ? [pack] : [];
     } catch {
       return [];
@@ -71,7 +74,10 @@ const validScenario = (s: unknown) =>
 const validConfig = (c: unknown) =>
   isObj(c) && isNum(c.playerCount) && isNum(c.shelterSlots) && MODES.includes(c.mode as string) && VOTINGS.includes(c.voting as string) &&
   (c.revealsPerVote === undefined || isNum(c.revealsPerVote)) && (c.names === undefined || strList(c.names));
-const validEvent = (e: unknown) => isObj(e) && isStr(e.title) && isStr(e.text) && strList(e.outcome ?? []);
+const EVENT_TONES = ['good', 'bad', 'neutral'];
+const EVENT_KINDS = ['shrink', 'plague', 'volunteer', 'leak', 'silence', 'newHazard', 'relief', 'prompt'];
+const validEvent = (e: unknown) =>
+  isObj(e) && isStr(e.title) && isStr(e.text) && Array.isArray(e.outcome) && e.outcome.every(isStr) && EVENT_TONES.includes(e.tone as string) && EVENT_KINDS.includes(e.kind as string);
 const validPerks = (p: unknown) => p === undefined || (Array.isArray(p) && p.every((x) => isObj(x) && isStr(x.playerId) && ['steal', 'heal', 'reveal'].includes(x.kind as string)));
 const validResult = (r: unknown) => r === undefined || (isObj(r) && Array.isArray(r.eliminated) && r.eliminated.every(isStr) && isObj(r.tally) && Object.values(r.tally).every(isNum));
 const validFx = (fx: unknown) =>

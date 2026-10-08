@@ -5,7 +5,7 @@ import { categoryLabel, type Card, type CardPack, type Category, type Hazard, ty
 import { HAZARD_TEMPLATES, SCENARIO_TEMPLATES } from '../data/templates';
 import { LIMITS as L } from '../lib/limits';
 import { uid } from '../lib/rng';
-import { MY_PACK_ID, blankScenario, buildMyPack, newHazard } from '../lib/builder';
+import { MY_PACK_ID, blankScenario, buildMyPack, canSaveScenario, newHazard, ownCardCount } from '../lib/builder';
 import { cardLabel, cardsWithSkill, skillCards, skillVocabulary, validateScenario, type SkillInfo } from '../lib/vocab';
 import { mergePools } from '../lib/generator';
 import { t, plural } from '../lib/i18n';
@@ -186,6 +186,8 @@ function StepAbilities({
   setRemoved: (ids: string[]) => void;
 }) {
   const [cat, setCat] = useState<Category>('profession');
+  // Лимит относится к своим картам категории, а не к общей колоде вместе со встроенными паками.
+  const ownFull = ownCardCount(preview, cat) >= L.cardsPerCategory;
   const [onlyRelevant, setOnlyRelevant] = useState(draft.requiredSkills.length + (draft.hazards?.length ?? 0) > 0);
   const [q, setQ] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
@@ -194,7 +196,7 @@ function StepAbilities({
   const pool = useMemo(() => mergePools(preview)[cat].filter((c) => !removed.includes(c.id)), [preview, cat, removed]);
   const needed = useMemo(() => [...draft.requiredSkills, ...(draft.hazards ?? []).flatMap((h) => h.counters)], [draft]);
   const relevant = (c: Card) => needed.some((s) => cardsWithSkill([c], s).length > 0);
-  const rows = pool.filter((c) => (!onlyRelevant || relevant(c) || overrides[c.id] !== undefined || newCards.some((n) => n.id === c.id)) && (!q || matchesQuery(cardLabel(c), q)));
+  const rows = pool.filter((c) => (!onlyRelevant || relevant(c) || Object.prototype.hasOwnProperty.call(overrides, c.id) || newCards.some((n) => n.id === c.id)) && (!q || matchesQuery(cardLabel(c), q)));
   const origin = (id: string) => base[cat].find((c) => c.id === id)?.tags ?? [];
 
   const setTags = (c: Card, tags: string[]) => {
@@ -206,7 +208,7 @@ function StepAbilities({
   const isMine = (id: string) => newCards.some((n) => n.id === id);
   const addCard = () => {
     const text = form.text.trim();
-    if (!text || pool.length >= L.cardsPerCategory) return;
+    if (!text || ownFull) return;
     setNewCards([...newCards, { id: uid('c'), category: cat, description: text.slice(0, L.cardDescription), modifier: form.modifier, ...(form.tags.length ? { tags: form.tags } : {}) }]);
     setForm({ text: '', modifier: 'positive', tags: [] });
   };
@@ -232,7 +234,7 @@ function StepAbilities({
 
       <ul className="flex flex-col gap-2">
         {rows.map((c) => {
-          const changed = overrides[c.id] !== undefined;
+          const changed = Object.prototype.hasOwnProperty.call(overrides, c.id);
           const isOpen = openId === c.id;
           return (
             <li key={c.id} className={`cat-${c.category} rounded-md border bg-bg ${isOpen ? 'border-[var(--c)]' : 'border-edge'}`}>
@@ -275,7 +277,8 @@ function StepAbilities({
           </select>
           <span className="label">{t('Что умеет нейтрализовать')}</span>
           <ChipPicker options={vocab} value={form.tags} max={L.cardTags} onChange={(tags) => setForm({ ...form, tags })} />
-          <button className="btn btn-primary" disabled={!form.text.trim() || pool.length >= L.cardsPerCategory} onClick={addCard}><Plus size={16} /> {t('Добавить карту')}</button>
+          <button className="btn btn-primary" disabled={!form.text.trim() || ownFull} onClick={addCard}><Plus size={16} /> {t('Добавить карту')}</button>
+          {ownFull && <p className="text-xs text-danger">{t('Достигнут лимит своих карт в этой категории ({n})', { n: L.cardsPerCategory })}</p>}
         </div>
       </details>
     </div>
@@ -375,6 +378,11 @@ export default function Builder({ scenarioId }: { scenarioId?: string }) {
     go({ name: 'home' });
   };
   const save = (play: boolean) => {
+    // Штатная загрузка оставляет не больше L.scenarios сценариев: лишний нельзя «сохранить», чтобы он потом не исчез.
+    if (!canSaveScenario(myPack, draft.id)) {
+      notify(t('Достигнут лимит сценариев ({n}). Удалите один из своих сценариев, чтобы добавить новый.', { n: L.scenarios }));
+      return;
+    }
     const pack = buildMyPack(myPack, draft, newCards, overrides, removed);
     upsertPack(pack);
     snap.current = JSON.stringify([draft, overrides, newCards, removed]);

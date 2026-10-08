@@ -1,6 +1,7 @@
-import type { Card, CardPack, Hazard, Scenario } from '../types';
+import type { Card, CardPack, Category, Hazard, Scenario } from '../types';
 import { CATEGORIES } from '../types';
 import { uid } from './rng';
+import { LIMITS as L } from './limits';
 
 /** Пак, в который конструктор складывает сценарии, свои карты и «переобученные» способности. */
 export const MY_PACK_ID = 'my-scenarios';
@@ -39,3 +40,10 @@ export function buildMyPack(base: CardPack | undefined, scenario: Scenario, newC
   if (!next.tagOverrides) delete next.tagOverrides;
   return next;
 }
+
+/** Сколько своих карт категории в итоговом «Мои сценарии» (общая колода со встроенными паками сюда не входит). */
+export const ownCardCount = (packs: CardPack[], cat: Category): number => packs.find((p) => p.id === MY_PACK_ID)?.cards[cat]?.length ?? 0;
+
+/** Можно ли сохранить сценарий: новый не должен выходить за лимит, иначе он пропадёт при следующей загрузке; существующий можно править всегда. */
+export const canSaveScenario = (myPack: CardPack | undefined, scenarioId: string): boolean =>
+  !myPack || myPack.scenarios.some((s) => s.id === scenarioId) || myPack.scenarios.length < L.scenarios;

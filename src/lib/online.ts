@@ -35,6 +35,7 @@ import {
   MAX_TOTAL_ROUNDS,
 } from './game';
 import { canApply } from './actions';
+import { MAX_ITEMS } from './inventory';
 import { applyPerk, canApplyPerk, skipPerk } from './perks';
 import { newSeed, randomCode } from './rng';
 import { LIMITS as L, clip } from './limits';
@@ -561,7 +562,10 @@ function cleanCard(raw: unknown, category: Category): Card | null {
   const card: Card = { id: text(r.id, 60), category, description: text(r.description, L.cardDescription) };
   if (typeof r.title === 'string') card.title = text(r.title, L.cardTitle);
   if (MODS.includes(r.modifier as string)) card.modifier = r.modifier as Card['modifier'];
-  if (Array.isArray(r.tags)) card.tags = r.tags.slice(0, L.cardTags).map((t) => text(t, L.tagLen)).filter(Boolean);
+  // Составной багаж объединяет навыки до четырёх предметов: лимит одной карты к нему не применим.
+  const tagLimit = category === 'luggage' ? L.cardTags * MAX_ITEMS : L.cardTags;
+  if (Array.isArray(r.tags)) card.tags = r.tags.slice(0, tagLimit).map((t) => text(t, L.tagLen)).filter(Boolean);
+  if (r.strictTags === true) card.strictTags = true;
   if (category === 'action' && ACTION_EFFECT_IDS.includes(r.effect as ActionEffect)) card.effect = r.effect as ActionEffect;
   return card;
 }
