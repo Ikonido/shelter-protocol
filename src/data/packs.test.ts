@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BUILTIN_PACKS, CLASSIC_PACK } from './classicPack';
+import { ADULT_PACK } from './packAdult';
 import { generateCharacters, mergePools } from '../lib/generator';
 import { BASE_CHARACTER, BASE_PHYSIQUE } from './baseCards';
 import { mulberry32 } from '../lib/rng';
@@ -183,5 +184,19 @@ describe('особые бонусы профессий', () => {
     const cards = BUILTIN_PACKS.flatMap((p) => p.cards.profession).filter((c) => c.bonus);
     expect(new Set(cards.map((c) => c.id)).size).toBe(cards.length);
     for (const c of cards) expect(c.description.trim(), c.id).not.toBe('');
+  });
+});
+
+describe('expanded luggage collection', () => {
+  it('adds unique new entries to classic and adult packs', () => {
+    for (const [pack, sample] of [[CLASSIC_PACK, 'Рулон армированного скотча'], [ADULT_PACK, 'Контейнер с биоматериалом']] as const) {
+      expect(pack.cards.luggage.some((c) => c.description === sample)).toBe(true);
+      expect(new Set(pack.cards.luggage.map((c) => c.description)).size).toBe(pack.cards.luggage.length);
+    }
+  });
+  it('does not give arbitrary odd baggage useful skill tags', () => {
+    const weird = ADULT_PACK.cards.luggage.find((c) => c.description === 'Пустой гроб');
+    expect(weird?.modifier).toBe('neutral');
+    expect(weird?.tags ?? []).toEqual([]);
   });
 });
