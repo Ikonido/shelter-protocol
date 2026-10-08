@@ -38,6 +38,8 @@ const stem = (s: string) => (s.length >= 6 ? s.slice(0, s.length - 2) : s);
 export function cardMatchesSkill(card: Card, skill: string): boolean {
   const k = norm(skill);
   if (!k) return false;
+  // Составной багаж: у каждого предмета свои способности (в том числе отключённые в конструкторе).
+  if (card.items?.length) return card.items.some((item) => cardMatchesSkill(item, skill));
   if (card.tags?.some((tag) => norm(tag) === k)) return true;
   // Пользователь сознательно задал способности карты (в том числе пустые): текст описания их не заменяет.
   if (card.strictTags) return false;

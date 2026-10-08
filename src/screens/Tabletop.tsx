@@ -55,7 +55,8 @@ export default function Tabletop({ game }: { game: GameState }) {
                   <CardFace
                     key={c}
                     card={p.slots[c].card}
-                    hidden={!visible}
+                    // На экране скрытый блок не показывается вовсе, а на бумагу карточки печатаются с содержимым.
+                    hidden={false}
                     compact
                     extra={visible && (
                       <button

@@ -47,7 +47,7 @@ describe('applyUpdate', () => {
   function deps(over: Partial<UpdateDeps> = {}) {
     const calls: string[] = [];
     const d: UpdateDeps = {
-      registrations: async () => [{ unregister: async () => calls.push('unregister:1') }, { unregister: async () => calls.push('unregister:2') }],
+      registrations: async () => [{ scope: base, unregister: async () => calls.push('unregister:1') }, { scope: base, unregister: async () => calls.push('unregister:2') }],
       cacheKeys: async () => ['shelter-v2', 'other-app', 'shelter-v1'],
       deleteCache: async (k) => calls.push(`delete:${k}`),
       refetch: async (u) => calls.push(`refetch:${u}`),

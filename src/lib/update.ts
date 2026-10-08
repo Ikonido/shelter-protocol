@@ -72,10 +72,15 @@ export async function applyUpdate(deps: UpdateDeps = browserDeps()): Promise<voi
   // Только свой service worker: на одном адресе (GitHub Pages) могут жить другие приложения владельца.
   const own = new URL('./', deps.base).toString();
   for (const reg of await deps.registrations().catch(() => [])) {
-    if (reg.scope !== undefined && !reg.scope.startsWith(own)) continue;
+    // Ровно своя область: иначе при установке в корне домена под префикс попадают чужие приложения.
+    if (reg.scope !== own) continue;
     steps.push(reg.unregister().catch(() => undefined));
   }
-  for (const key of await deps.cacheKeys().catch(() => [])) if (key.startsWith('shelter-')) steps.push(deps.deleteCache(key).catch(() => undefined));
+  // Кеш называется «shelter-<версия>@<путь установки>»: чужие копии игры на том же домене не трогаем. Кеши прежнего вида (без «@») — наши.
+  const ownPath = new URL('./', deps.base).pathname;
+  for (const key of await deps.cacheKeys().catch(() => [])) {
+    if (key.startsWith('shelter-') && (!key.includes('@') || key.endsWith(`@${ownPath}`))) steps.push(deps.deleteCache(key).catch(() => undefined));
+  }
   await Promise.all(steps);
   await Promise.all([deps.refetch(new URL('./', deps.base).toString()), deps.refetch(new URL('index.html', deps.base).toString())].map((p) => p.catch(() => undefined)));
   deps.reload();

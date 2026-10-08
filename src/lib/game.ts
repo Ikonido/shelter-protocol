@@ -18,7 +18,7 @@ import { dealStartingItems } from './inventory';
 import { EVENTS, drawEvent, hiddenForLeak, unusedHazards } from './events';
 import { mulberry32, shuffle } from './rng';
 import { packT, t, tPacked } from './i18n';
-import { grantPerksForNewReveals, onProfessionRevealed } from './perks';
+import { applyPerk, grantPerksForNewReveals, onProfessionRevealed } from './perks';
 
 export const MAX_ROUNDS = 6;
 /** Потолок раундов, включая добавленные из-за воздержавшихся. */
@@ -130,12 +130,26 @@ export function revealCard(g: GameState, playerId: string, category: Category): 
   return afterTurn(withPerk);
 }
 
+/**
+ * Действие (принудительное вскрытие, кража последнего предмета) могло открыть последнюю скрытую карту того, чей сейчас ход:
+ * очередь опустела, а фаза так и осталась «вскрытие». Завершаем текущий шаг, как после обычного вскрытия.
+ */
+export function settleReveal(g: GameState): GameState {
+  return g.phase === 'reveal' && pendingReveal(g).length === 0 ? afterTurn(g) : g;
+}
+
+/** Бонус профессии с последующей проверкой очереди вскрытий (допрос тоже может открыть последнюю карту). */
+export function playPerk(g: GameState, playerId: string, params?: ActionParams): GameState {
+  const next = applyPerk(g, playerId, params);
+  return next === g ? g : settleReveal(next);
+}
+
 export function playAction(g: GameState, playerId: string, params?: ActionParams): GameState {
   const p = g.players.find((x) => x.id === playerId);
   if (!p || p.isEliminated || p.slots.action.isRevealed) return g;
   const card = p.slots.action.card;
   // Автоисполнение (по желанию игроков): эффект карты выполняется в игре. Невозможное действие ничего не меняет.
-  if (g.config.autoActions && card.effect) return grantPerksForNewReveals(g, runEffect(g, playerId, card.effect, params));
+  if (g.config.autoActions && card.effect) return settleReveal(grantPerksForNewReveals(g, runEffect(g, playerId, card.effect, params)));
   return {
     ...g,
     players: g.players.map((x) =>
