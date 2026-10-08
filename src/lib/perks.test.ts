@@ -282,6 +282,16 @@ describe('profession perks', () => {
     expect(names.filter((n) => n === 'Гаечный ключ')).toHaveLength(1);
   });
 
+  it('preserves neutral quality of a plumber\'s beer', () => {
+    const plumber = { id: 'pl', category: 'profession' as const, description: 'Сантехник', bonus: 'plumber' };
+    let g = fresh();
+    g = { ...g, round: 2, players: g.players.map((p) => p.id === 'p1' ? { ...p, slots: { ...p.slots, profession: { ...p.slots.profession, card: plumber } } } : p) };
+    g = revealCard(g, 'p1', 'profession');
+    const items = itemsOf(g.players[0].slots.luggage.card);
+    expect(items.find((i) => i.description === 'Бутылка пива')?.modifier).toBe('neutral');
+    expect(items.find((i) => i.description === 'Гаечный ключ')?.modifier).toBe('positive');
+  });
+
   it('a special bonus survives renaming the profession (it is keyed by the card, not its text)', () => {
     const renamed = { id: 'x', category: 'profession' as const, description: 'Совсем другое название', bonus: 'lawyer' };
     expect(perkFor(renamed)).toEqual({ kind: 'bond', tags: [] });

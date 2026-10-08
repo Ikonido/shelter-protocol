@@ -16,6 +16,8 @@ import { t } from './i18n';
 interface ItemDef {
   d: string;
   tags: string[];
+  /** Individual item quality; unrelated to the profession's value. */
+  modifier?: Card['modifier'];
 }
 interface ItemPerk {
   kind: 'item';
@@ -73,9 +75,9 @@ export const BONUSES: Record<string, BonusDef> = {
   astrologer: { pool: ['Карта созвездия: Орион', 'Карта созвездия: Большая Медведица', 'Карта созвездия: Кассиопея'].map((d) => ({ d, tags: [] })) },
   'unemployed-hero': { fixed: [{ d: 'Меч', tags: [] }] },
   manicurist: { fixed: [{ d: 'Легковоспламеняющаяся химия', tags: [] }] },
-  plumber: { fixed: [{ d: 'Гаечный ключ', tags: ['ремонт'] }, { d: 'Бутылка пива', tags: ['бухло'] }] },
-  sysadmin: { pool: [{ d: 'Ноутбук', tags: ['мозги'] }, { d: 'Комплект кабелей', tags: ['ремонт'] }, { d: 'Роутер без блока питания', tags: [] }] },
-  pathologist: { fixed: [{ d: 'Хирургические инструменты', tags: ['медицина'] }, { d: 'Медицинский контейнер для образцов', tags: [] }] },
+  plumber: { fixed: [{ d: 'Гаечный ключ', tags: ['ремонт'] }, { d: 'Бутылка пива', tags: ['бухло'], modifier: 'neutral' }] },
+  sysadmin: { pool: [{ d: 'Ноутбук', tags: ['мозги'] }, { d: 'Комплект кабелей', tags: ['ремонт'] }, { d: 'Роутер без блока питания', tags: [], modifier: 'neutral' }] },
+  pathologist: { fixed: [{ d: 'Хирургические инструменты', tags: ['медицина'] }, { d: 'Медицинский контейнер для образцов', tags: [], modifier: 'neutral' }] },
   'tax-collector': { kind: 'steal' },
   'relic-dealer': { kind: 'steal_junk' },
   jester: { kind: 'immunity' },
@@ -181,7 +183,7 @@ export function perkFor(card: Card): ItemPerk | TargetPerk | FixedPerk | undefin
 /** Фиксированный набор предметов (сомелье, меч): добавляется целиком, без жребия. */
 function addFixed(g: GameState, playerId: string, items: ItemDef[]): GameState {
   let next = g;
-  for (const def of items) next = addItemTo(next, playerId, { id: `perk-${def.d}`, category: 'luggage', description: def.d, modifier: 'positive', ...(def.tags.length ? { tags: def.tags } : {}) });
+  for (const def of items) next = addItemTo(next, playerId, { id: `perk-${def.d}`, category: 'luggage', description: def.d, modifier: def.modifier ?? 'positive', ...(def.tags.length ? { tags: def.tags } : {}) });
   const p = g.players.find((x) => x.id === playerId)!;
   return { ...next, log: [...next.log, { round: g.round, text: t('{who} получает бонус профессии: {items}', { who: p.name, items: items.map((n) => t(n.d)).join(', ') }) }] };
 }
@@ -207,7 +209,7 @@ function addItems(g: GameState, playerId: string, perk: ItemPerk, level: PerkLev
   let items = itemsOf(slot.card);
   const dropped: Card[] = [];
   for (const def of chosen) {
-    const bag = addToBag(items, { id: `perk-${def.d}`, category: 'luggage', description: def.d, modifier: 'positive', tags: def.tags });
+    const bag = addToBag(items, { id: `perk-${def.d}`, category: 'luggage', description: def.d, modifier: def.modifier ?? 'positive', tags: def.tags });
     items = bag.items;
     if (bag.dropped) dropped.push(bag.dropped);
   }
