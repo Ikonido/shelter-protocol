@@ -100,7 +100,8 @@ export type ActionEffect =
   | 'veto'
   | 'doubleVote'
   | 'ally'
-  | 'immunity';
+  | 'immunity'
+  | 'healOther';
 
 export const ACTION_EFFECTS: Record<ActionEffect, string> = {
   drawLuggage: 'Взять новый багаж и оставить лучший',
@@ -120,6 +121,7 @@ export const ACTION_EFFECTS: Record<ActionEffect, string> = {
   doubleVote: 'Двойной голос',
   ally: 'Тайный союзник',
   immunity: 'Неприкосновенность на раунд',
+  healOther: 'Вылечить другого игрока',
 };
 
 /** Действия на голосовании, накапливаются до подсчёта голосов. */
@@ -190,6 +192,8 @@ export interface SessionConfig {
   roundEvents: boolean;
   /** Карты действий исполняются в игре сами (бета); иначе их только объявляют, а выполняют игроки. */
   autoActions?: boolean;
+  /** Открытая профессия даёт бонус (предмет в багаж, лечение, кража, допрос); по умолчанию нет. */
+  professionPerks?: boolean;
   /** Пресет сложности: влияет на пороги и штрафы финальной оценки (нет в старых сохранениях → normal). */
   difficulty: Difficulty;
   /** Секунд на объяснение пользы после вскрытия, 0 — без таймера (только кнопка). */
@@ -238,6 +242,13 @@ export interface RoundResult {
   skipped?: boolean;
 }
 
+/** Бонус открытой профессии: что владелец может сделать, пока не началось голосование. */
+export type PerkKind = 'steal' | 'heal' | 'reveal';
+export interface Perk {
+  playerId: string;
+  kind: PerkKind;
+}
+
 export interface GameState {
   config: SessionConfig;
   scenario: Scenario; // снимок: правка пака не ломает идущую партию
@@ -273,6 +284,8 @@ export interface GameState {
   discard?: Partial<Record<DeckCategory, Card[]>>;
   /** Действия, влияющие на подсчёт голосов этого раунда. Клиентам не передаются (тайный союз). */
   fx?: ActionFx;
+  /** Неиспользованные бонусы профессий (открыты всем). Сбрасываются с началом голосования. */
+  perks?: Perk[];
   lastResult?: RoundResult;
   log: LogEntry[];
   /** Tabletop-режим: выжившие отмечаются вручную перед финалом. */

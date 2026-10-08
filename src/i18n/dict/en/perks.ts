@@ -1,0 +1,23 @@
+/** Бонусы профессий: подписи, журнал, предметы багажа и настройка партии. */
+export default {
+  'Бонус профессии': 'Profession bonus',
+  'Бонусы профессий': 'Profession bonuses',
+  'Вылечить другого игрока': 'Heal another player',
+  'Вылечить игрока': 'Heal a player',
+  'Украсть багаж': 'Steal luggage',
+  'Допросить игрока': 'Interrogate a player',
+  'У этого игрока нет проблем со здоровьем': 'This player has no health problems',
+  '{who} применяет «{title}»: {victim} вылечен': '{who} uses “{title}”: {victim} is healed',
+  '{who} получает бонус профессии: {item}': '{who} gets a profession bonus: {item}',
+  '{who} получает бонус профессии: «{label}»': '{who} gets a profession bonus: “{label}”',
+  'Нет неиспользованного бонуса профессии': 'No unused profession bonus',
+  'Сейчас бонус применить нельзя': 'The bonus can’t be used right now',
+  'Набор инструментов': 'Toolkit',
+  'Мешок припасов': 'Sack of supplies',
+  'Бронежилет и фонарь': 'Body armor and a flashlight',
+  'Рация и карта местности': 'Radio and a map of the area',
+  'Набор для дезинфекции': 'Disinfection kit',
+  'Стопка учебников': 'A stack of textbooks',
+  'Бонусы профессий (необязательно)': 'Profession bonuses (optional)',
+  'Открытая профессия даёт бонус: инженер получает инструменты в багаж, врач лечит игрока, шпион крадёт багаж, психолог допрашивает. Цель выбираете в меню.': 'An opened profession gives a bonus: an engineer gets tools in their luggage, a doctor heals a player, a spy steals luggage, a psychologist interrogates. You pick the target from a menu.',
+};

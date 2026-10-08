@@ -12,9 +12,11 @@ import { t } from './i18n';
 export interface ActionParams {
   target?: string;
   category?: Category;
+  /** Бонус профессии, а не карта действия: карта не расходуется. */
+  perk?: boolean;
 }
 
-const NEEDS_TARGET: ActionEffect[] = ['stealLuggage', 'giveLuggage', 'swapLuggage', 'sabotage', 'forceReveal', 'ally'];
+const NEEDS_TARGET: ActionEffect[] = ['stealLuggage', 'giveLuggage', 'swapLuggage', 'sabotage', 'forceReveal', 'ally', 'healOther'];
 export const needsTarget = (e: ActionEffect) => NEEDS_TARGET.includes(e);
 export const needsCategory = (e: ActionEffect) => e === 'forceReveal';
 
@@ -70,7 +72,7 @@ const emptyFx = (): ActionFx => ({ double: [], veto: [], immune: [], allies: [] 
 export function canApply(g: GameState, actorId: string, effect: ActionEffect, params: ActionParams = {}): { ok: true } | { ok: false; reason: string } {
   const actor = find(g, actorId);
   if (!actor || actor.isEliminated) return { ok: false, reason: t('Игрок выбыл') };
-  if (actor.slots.action.isRevealed) return { ok: false, reason: t('Действие уже использовано') };
+  if (actor.slots.action.isRevealed && !params.perk) return { ok: false, reason: t('Действие уже использовано') };
   const fail = (reason: string) => ({ ok: false as const, reason });
   const target = find(g, params.target);
   if (needsTarget(effect)) {
@@ -106,6 +108,9 @@ export function canApply(g: GameState, actorId: string, effect: ActionEffect, pa
       const doctor = !full || living(g).some((p) => p.id !== actorId && (['profession', 'biology', 'hobby', 'fact', 'luggage'] as const).some((c) => HEALING.some((s) => cardMatchesSkill(p.slots[c].card, s))));
       return doctor ? { ok: true } : fail(t('Среди живых нет врача или лекаря'));
     }
+    case 'healOther':
+      // В «виде» онлайн-клиента чужое здоровье скрыто: проверку повторяет хост.
+      return full && target && target.slots.health.card.modifier !== 'negative' ? fail(t('У этого игрока нет проблем со здоровьем')) : { ok: true };
     case 'ally':
       return g.fx?.allies.some(([a]) => a === actorId) ? fail(t('Союзник уже выбран')) : { ok: true };
     default:
@@ -118,9 +123,9 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
   if (!canApply(g, actorId, effect, params).ok) return g;
   const actor = find(g, actorId)!;
   const target = find(g, params.target);
-  const title = actor.slots.action.card.title ?? t('Действие');
+  const title = params.perk ? t('Бонус профессии') : (actor.slots.action.card.title ?? t('Действие'));
   const vars = { who: actor.name, title };
-  let n = used(g, actorId);
+  let n = params.perk ? g : used(g, actorId);
 
   const reroll = (victim: PlayerCharacter, cat: 'physique' | 'biology'): GameState => {
     const d = draw(n, cat);
@@ -207,6 +212,12 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
       const h = actor.slots.health;
       const next = withSlot(n, actorId, 'health', { card: { ...h.card, modifier: 'neutral', description: t('{desc} (вылечен)', { desc: h.card.description }) }, isRevealed: h.isRevealed });
       return say(next, t('{who} применяет «{title}»: его вылечили', vars));
+    }
+    case 'healOther': {
+      const tg = target!;
+      const h = tg.slots.health;
+      const next = withSlot(n, tg.id, 'health', { card: { ...h.card, modifier: 'neutral', description: `${h.card.description} (вылечен)` }, isRevealed: h.isRevealed });
+      return say(next, t('{who} применяет «{title}»: {victim} вылечен', { ...vars, victim: tg.name }));
     }
     case 'veto':
       return say({ ...n, fx: { ...(n.fx ?? emptyFx()), veto: [...(n.fx?.veto ?? []), actorId] } }, t('{who} применяет «{title}»: один голос против него будет отменён', vars));

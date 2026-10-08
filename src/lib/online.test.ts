@@ -127,6 +127,42 @@ describe('online', () => {
     expect(host.game!.players[1].slots.action.isRevealed).toBe(false);
   });
 
+  it('profession perks: the owner applies one from a guest, invalid targets are refused with a reason, others cannot use it', async () => {
+    const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[0], packs: [CLASSIC_PACK], slots: 1, voting: 'open', revealsPerVote: 1, speechSec: 0, roundEvents: false, professionPerks: true }, 'Хост');
+    const pairs = [pair(), pair()];
+    const guests = pairs.map((p, i) => ({ p, c: new OnlineClient(p.clientSide, `Гость${i + 1}`, `pk${i}`) }));
+    pairs.forEach((p) => host.addConn(p.hostSide));
+    await tick();
+    host.start();
+    await tick();
+    expect(host.game!.config.professionPerks).toBe(true);
+    const g = host.game!;
+    const sick = (id: string, mod: 'negative' | 'neutral') => (pl: (typeof g.players)[number]) => (pl.id === id ? { ...pl, slots: { ...pl.slots, health: { ...pl.slots.health, card: { ...pl.slots.health.card, modifier: mod } } } } : pl);
+    host.game = { ...g, perks: [{ playerId: 'p2', kind: 'heal' }], players: g.players.map(sick('p1', 'neutral')).map(sick('p3', 'negative')) };
+    await tick();
+    // чужой бонус использовать нельзя: у p3 (гость 2) бонуса нет
+    guests[1].c.send({ t: 'perk', target: 'p3' });
+    await tick();
+    expect(host.game!.perks).toHaveLength(1);
+    // здоровая цель: отказ с причиной, бонус остаётся
+    guests[0].c.send({ t: 'perk', target: 'p1' });
+    await tick();
+    const refused = guests[0].c.state;
+    expect(refused.status === 'game' && refused.notice?.text).toBeTruthy();
+    expect(host.game!.perks).toHaveLength(1);
+    // больная цель: лечится, бонус сгорает, карта действия цела
+    guests[0].c.send({ t: 'perk', target: 'p3' });
+    await tick();
+    expect(host.game!.players[2].slots.health.card.modifier).toBe('neutral');
+    expect(host.game!.perks).toBeUndefined();
+    expect(host.game!.players[1].slots.action.isRevealed).toBe(false);
+    // клиенты видят бонус у других открыто, но не колоду
+    host.game = { ...host.game!, perks: [{ playerId: 'p2', kind: 'steal' }] };
+    guests[0].c.send({ t: 'perk', skip: true });
+    await tick();
+    expect(host.game!.perks).toBeUndefined();
+  });
+
   it('plays a round: reveal → debate → secret vote → result; rejects bad input', async () => {
     const { host, clients } = await setup();
     host.start();

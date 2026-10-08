@@ -17,6 +17,7 @@ import { IMMUNE_VOTE, effectiveVotes, initialDeck, markImmune, runEffect, type A
 import { EVENTS, drawEvent, hiddenForLeak, unusedHazards } from './events';
 import { mulberry32, shuffle } from './rng';
 import { packT, t, tPacked } from './i18n';
+import { onProfessionRevealed } from './perks';
 
 export const MAX_ROUNDS = 6;
 /** Потолок раундов, включая добавленные из-за воздержавшихся. */
@@ -118,9 +119,10 @@ export function revealCard(g: GameState, playerId: string, category: Category): 
       { round: g.round, text: t('{who} открывает «{cat}»: {desc}', { who: p.name, cat: categoryLabel(category), desc: p.slots[category].card.description }) },
     ],
   };
+  const withPerk = category === 'profession' ? onProfessionRevealed(next, playerId) : next;
   const sec = g.config.speechSec ?? 0;
-  if (sec > 0) return { ...next, phase: 'speech', speechEndsAt: Date.now() + sec * 1000 * (g.speechFactor ?? 1) };
-  return afterTurn(next);
+  if (sec > 0) return { ...withPerk, phase: 'speech', speechEndsAt: Date.now() + sec * 1000 * (g.speechFactor ?? 1) };
+  return afterTurn(withPerk);
 }
 
 export function playAction(g: GameState, playerId: string, params?: ActionParams): GameState {
@@ -172,6 +174,11 @@ export function allVoted(g: GameState): boolean {
  * (детерминированным от seed и раунда).
  */
 export function resolveVote(g: GameState): GameState {
+  const next = resolveVoteCore(g);
+  return next.perks ? { ...next, perks: undefined } : next;
+}
+
+function resolveVoteCore(g: GameState): GameState {
   const living = alive(g);
   const fx = g.fx;
   // Действия игроков: союзники, вето и неприкосновенность применяются к голосам перед подсчётом.
@@ -342,8 +349,8 @@ export function volunteer(g: GameState, playerId: string): GameState {
 
 export function nextRound(g: GameState): GameState {
   const done = alive(g).length <= g.config.shelterSlots || g.round >= g.schedule.length;
-  if (done) return { ...g, phase: 'final' };
-  return openRound({ ...g, round: g.round + 1, revealStep: 1, votes: {} });
+  if (done) return { ...g, phase: 'final', perks: undefined };
+  return openRound({ ...g, round: g.round + 1, revealStep: 1, votes: {}, perks: undefined });
 }
 
 /* ---------- Время партии ---------- */
