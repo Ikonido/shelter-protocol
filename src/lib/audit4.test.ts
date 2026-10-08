@@ -164,11 +164,13 @@ describe('audit round 4: regressions', () => {
     const oldW = worker('old', oldAsset); await fire(oldW.install); await fire(oldW.activate);
     const newW = worker('new', './assets/jsQR-NEW.js'); await fire(newW.install);
     // новая версия установлена, но ждёт: кеш старой цел, старая страница получает свой модуль
-    expect(skips + claims).toBe(0);
+    expect(skips).toBe(0);
+    expect(claims).toBe(1); // единственный claim — при первой установке старой версии
     expect(await caches.match(oldAsset)).toBeDefined();
     // когда старые вкладки закрыты и новая версия активировалась, старый кеш можно удалить
     await fire(newW.activate);
     expect(await caches.match(oldAsset)).toBeUndefined();
+    expect(claims).toBe(1); // обновление страницы старой сборки не перехватывает
   });
 
   it('R1: damaged nested luggage items are rejected on load and cannot reach the verdict', () => {

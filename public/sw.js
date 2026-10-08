@@ -22,9 +22,15 @@ self.addEventListener('install', (e) => {
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches
-      .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('shelter-') && k !== CACHE && (!k.includes('@') || k.endsWith(`@${SCOPE_PATH}`))).map((k) => caches.delete(k)))),
+    caches.keys().then((keys) => {
+      const mine = (k) => k.startsWith('shelter-') && (!k.includes('@') || k.endsWith(`@${SCOPE_PATH}`));
+      const older = keys.filter((k) => mine(k) && k !== CACHE);
+      return Promise.all(older.map((k) => caches.delete(k))).then(() => {
+        // Первая установка: старых страниц и кешей нет, берём открытую страницу под управление — офлайн работает уже без перезагрузки.
+        // Обновление версии: страницы старой сборки не трогаем (иначе они потеряют ещё нужные им файлы), новая версия подхватит их после перезагрузки.
+        if (older.length === 0) return self.clients.claim();
+      });
+    }),
   );
 });
 
