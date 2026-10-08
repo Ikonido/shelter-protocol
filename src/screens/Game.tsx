@@ -30,6 +30,8 @@ import { SpeechTimer } from '../ui/SpeechTimer';
 import { ThreatsPanel } from '../ui/Threats';
 import { Board } from '../ui/Board';
 import { ActionTargetPicker } from '../ui/ActionTarget';
+import { PerkPanel } from '../ui/PerkPanel';
+import { applyPerk, skipPerk } from '../lib/perks';
 import { canApply, needsTarget } from '../lib/actions';
 import { applyUndo, canUndo } from '../lib/undo';
 import { SkillsStrip } from '../ui/SkillsStrip';
@@ -279,6 +281,7 @@ function ActionsPanel({ game, update }: { game: GameState; update: Update }) {
   const lastAction = [...game.log].reverse().find((l) => l.round === game.round && l.kind === 'action');
   return (
     <>
+      <PerkPanel game={game} onApply={(id, params) => update((g) => applyPerk(g, id, params))} onSkip={(id) => update((g) => skipPerk(g, id))} />
       {lastAction && <p className="panel border-[#e879f9]/60 text-sm" role="status"><Zap size={14} className="mr-1 inline text-[#e879f9]" />{t(lastAction.text)}</p>}
       <details className="panel p-3" open>
         <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">{t('Карты действий и своё досье')}</summary>

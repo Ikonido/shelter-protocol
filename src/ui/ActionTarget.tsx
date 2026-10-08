@@ -10,6 +10,7 @@ export function ActionTargetPicker({
   actorId,
   effect,
   title,
+  perk,
   onConfirm,
   onCancel,
 }: {
@@ -17,6 +18,8 @@ export function ActionTargetPicker({
   actorId: string;
   effect: ActionEffect;
   title: string;
+  /** Бонус профессии (карта действия не нужна). */
+  perk?: boolean;
   onConfirm: (p: ActionParams) => void;
   onCancel: () => void;
 }) {
@@ -25,7 +28,7 @@ export function ActionTargetPicker({
   const targets = game.players.filter((p) => !p.isEliminated && p.id !== actorId);
   const chosen = game.players.find((p) => p.id === target);
   const hidden = chosen ? CATEGORIES.filter((c) => c !== 'action' && !chosen.slots[c].isRevealed) : [];
-  const params: ActionParams = { target: target ?? undefined, category: category ?? undefined };
+  const params: ActionParams = { target: target ?? undefined, category: category ?? undefined, ...(perk ? { perk: true } : {}) };
   const check = canApply(game, actorId, effect, params);
   return (
     <div className="flex flex-col gap-2">
@@ -35,6 +38,8 @@ export function ActionTargetPicker({
           <button
             key={p.id}
             className={`btn btn-sm justify-start gap-2 normal-case ${target === p.id ? 'btn-primary' : ''}`}
+            // Лечить можно только больного: остальных не предлагаем (в онлайне чужое здоровье скрыто, там проверяет хост).
+            disabled={effect === 'healOther' && !canApply(game, actorId, effect, { target: p.id, ...(perk ? { perk: true } : {}) }).ok}
             aria-pressed={target === p.id}
             onClick={() => {
               setTarget(p.id);

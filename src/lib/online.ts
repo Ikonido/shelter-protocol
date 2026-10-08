@@ -10,6 +10,7 @@ import {
   type GameState,
   type Hazard,
   type PlayerCharacter,
+  type Perk,
   type Scenario,
   type VotingMode,
 } from '../types';
@@ -32,6 +33,7 @@ import {
   volunteer,
 } from './game';
 import { canApply } from './actions';
+import { applyPerk, canApplyPerk, skipPerk } from './perks';
 import { newSeed, randomCode } from './rng';
 import { LIMITS as L, clip } from './limits';
 import { sanitizeHazard, sanitizeScenario } from './packs';
@@ -43,6 +45,7 @@ export type C2H =
   | { t: 'hello'; name: string; token: string; ticket?: string }
   | { t: 'reveal'; category: Category }
   | { t: 'action'; target?: string; category?: Category }
+  | { t: 'perk'; target?: string; category?: Category; skip?: boolean } // бонус открытой профессии
   | { t: 'vote'; target: string }
   | { t: 'done' } // ходящий закончил речь раньше времени
   | { t: 'volunteer' }; // вызваться добровольцем (событие раунда)
@@ -129,6 +132,7 @@ export interface HostSetup {
   difficulty?: Difficulty; // по умолчанию normal
   roundEvents?: boolean; // карта кризиса перед каждым раундом, по умолчанию нет
   autoActions?: boolean; // карты действий исполняются в игре сами (бета), по умолчанию нет
+  professionPerks?: boolean; // открытая профессия даёт бонус, по умолчанию нет
   adult?: boolean; // в комнате пак 18+: гостям показывается предупреждение до начала игры
   timeLimitMin?: number; // 0 — без лимита; по умолчанию 0
 }
@@ -282,6 +286,7 @@ export class OnlineHost {
     let refusal: string | null = null;
     if (msg.t === 'reveal' && CATEGORIES.includes(msg.category as Category)) this.act(member, { t: 'reveal', category: msg.category as Category });
     else if (msg.t === 'action') refusal = this.act(member, { t: 'action', ...(typeof msg.target === 'string' ? { target: msg.target.slice(0, 12) } : {}), ...(CATEGORIES.includes(msg.category as Category) ? { category: msg.category as Category } : {}) });
+    else if (msg.t === 'perk') refusal = this.act(member, { t: 'perk', ...(msg.skip === true ? { skip: true } : {}), ...(typeof msg.target === 'string' ? { target: msg.target.slice(0, 12) } : {}), ...(CATEGORIES.includes(msg.category as Category) ? { category: msg.category as Category } : {}) });
     else if (msg.t === 'done') this.act(member, { t: 'done' });
     else if (msg.t === 'volunteer') this.act(member, { t: 'volunteer' });
     else if (msg.t === 'vote' && typeof msg.target === 'string') this.act(member, { t: 'vote', target: msg.target });
@@ -306,6 +311,15 @@ export class OnlineHost {
         else next = playAction(g, id, { target: msg.target, category: msg.category });
       } else refusal = t('Сейчас действие применить нельзя');
       if (!refusal && next === g) refusal = me.slots.action.isRevealed ? t('Действие уже использовано') : t('Действие не сработало');
+    } else if (msg.t === 'perk') {
+      if (g.phase === 'reveal' || g.phase === 'speech' || g.phase === 'vote') {
+        if (msg.skip) next = skipPerk(g, id);
+        else {
+          const check = canApplyPerk(g, id, { target: msg.target, category: msg.category });
+          if (check.ok) next = applyPerk(g, id, { target: msg.target, category: msg.category });
+          else refusal = check.reason;
+        }
+      } else refusal = t('Сейчас бонус применить нельзя');
     } else if (msg.t === 'volunteer') {
       next = volunteer(g, id);
     } else if (msg.t === 'done') {
@@ -347,6 +361,7 @@ export class OnlineHost {
         difficulty: this.setup.difficulty ?? 'normal',
         roundEvents: this.setup.roundEvents ?? false,
         autoActions: this.setup.autoActions === true,
+        professionPerks: this.setup.professionPerks === true,
         timeLimitMin: Math.min(180, Math.max(0, this.setup.timeLimitMin ?? 0)),
         names,
         seed: newSeed(),
@@ -545,6 +560,17 @@ function cleanCard(raw: unknown, category: Category): Card | null {
   return card;
 }
 
+const PERK_KINDS = ['steal', 'heal', 'reveal'] as const;
+
+function cleanPerks(raw: unknown): Perk[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.slice(0, MAX_ONLINE_PLAYERS).flatMap((x) => {
+    const r = rec(x);
+    const kind = PERK_KINDS.find((k) => k === r.kind);
+    return kind && typeof r.playerId === 'string' ? [{ playerId: text(r.playerId, 12), kind }] : [];
+  });
+}
+
 /** Хост — внешний источник: заново собираем состояние только из проверенных полей и обрезаем строки по лимитам. */
 function cleanEvent(raw: unknown): ActiveEvent | null {
   const e = rec(raw);
@@ -600,6 +626,7 @@ export function sanitizeView(raw: unknown): GameState | null {
       difficulty: (['easy', 'normal', 'hard', 'nightmare'] as const).find((d) => d === cfg.difficulty) ?? 'normal',
       roundEvents: cfg.roundEvents === true,
       autoActions: cfg.autoActions === true,
+      professionPerks: cfg.professionPerks === true,
       timeLimitMin: int(cfg.timeLimitMin, 0, 180),
       names: players.map((p) => p.name),
       seed: 0,
@@ -611,6 +638,7 @@ export function sanitizeView(raw: unknown): GameState | null {
     phase: r.phase as GameState['phase'],
     revealStep: int(r.revealStep, 1, 3),
     ...(cleanEvent(r.event) ? { event: cleanEvent(r.event)! } : {}),
+    ...(cleanPerks(r.perks).length ? { perks: cleanPerks(r.perks) } : {}),
     hazards: (Array.isArray(r.hazards) ? r.hazards.slice(0, L.maxHazardsPerGame) : [])
       .map((h, i) => sanitizeHazard(h, i))
       .filter((h): h is Hazard => !!h),

@@ -1,0 +1,23 @@
+/** Бонусы профессий: подписи, журнал, предметы багажа и настройка партии. */
+export default {
+  'Бонус профессии': 'Berufsbonus',
+  'Бонусы профессий': 'Berufsboni',
+  'Вылечить другого игрока': 'Anderen Spieler heilen',
+  'Вылечить игрока': 'Spieler heilen',
+  'Украсть багаж': 'Gepäck stehlen',
+  'Допросить игрока': 'Spieler verhören',
+  'У этого игрока нет проблем со здоровьем': 'Dieser Spieler hat keine Gesundheitsprobleme',
+  '{who} применяет «{title}»: {victim} вылечен': '{who} setzt „{title}“ ein: {victim} ist geheilt',
+  '{who} получает бонус профессии: {item}': '{who} erhält einen Berufsbonus: {item}',
+  '{who} получает бонус профессии: «{label}»': '{who} erhält einen Berufsbonus: „{label}“',
+  'Нет неиспользованного бонуса профессии': 'Kein unbenutzter Berufsbonus',
+  'Сейчас бонус применить нельзя': 'Der Bonus kann gerade nicht eingesetzt werden',
+  'Набор инструментов': 'Werkzeugkasten',
+  'Мешок припасов': 'Vorratssack',
+  'Бронежилет и фонарь': 'Schutzweste und Taschenlampe',
+  'Рация и карта местности': 'Funkgerät und Karte der Gegend',
+  'Набор для дезинфекции': 'Desinfektionsset',
+  'Стопка учебников': 'Ein Stapel Lehrbücher',
+  'Бонусы профессий (необязательно)': 'Berufsboni (optional)',
+  'Открытая профессия даёт бонус: инженер получает инструменты в багаж, врач лечит игрока, шпион крадёт багаж, психолог допрашивает. Цель выбираете в меню.': 'Ein aufgedeckter Beruf gibt einen Bonus: Ingenieure bekommen Werkzeug ins Gepäck, Ärzte heilen einen Spieler, Spione stehlen Gepäck, Psychologen verhören. Das Ziel wählst du im Menü.',
+};

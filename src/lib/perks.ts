@@ -70,7 +70,7 @@ function addItem(g: GameState, playerId: string, perk: ItemPerk): GameState {
   return {
     ...g,
     players: g.players.map((x) => (x.id === playerId ? { ...x, slots: { ...x.slots, luggage: { ...slot, card } } } : x)),
-    log: [...g.log, { round: g.round, text: t('{who} получает бонус профессии: {item}', { who: p.name, item: perk.item }) }],
+    log: [...g.log, { round: g.round, text: t('{who} получает бонус профессии: {item}', { who: p.name, item: t(perk.item) }) }],
   };
 }
 

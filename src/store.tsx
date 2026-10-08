@@ -16,6 +16,7 @@ export interface OnlineDraft {
   difficulty: Difficulty;
   roundEvents: boolean;
   autoActions?: boolean;
+  professionPerks?: boolean;
   adult?: boolean;
   speechSec: number;
   timeLimitMin: number;
