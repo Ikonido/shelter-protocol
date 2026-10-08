@@ -75,3 +75,12 @@ describe('plural()', () => {
     expect(plural(2, ['карта', 'карты', 'карт'], ['картка', 'картки', 'карток'])).toBe('карты');
   });
 });
+
+describe('default player names', () => {
+  it('shows the number of a default name in both languages', async () => {
+    const { initialOf } = await import('../ui/Avatar');
+    expect(initialOf('Игрок 3')).toBe('3');
+    expect(initialOf('Гравець 3')).toBe('3');
+    expect(initialOf('Анна')).toBe('А');
+  });
+});
