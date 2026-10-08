@@ -162,4 +162,7 @@ export default {
   '{level} СЛОЖНОСТЬ': '{level} DIFFICULTY',
   'ВЫЖИЛИ ({n})': 'SURVIVORS ({n})',
   'УГРОЗЫ': 'THREATS',
+  'Достигнут лимит своих карт в этой категории ({n})': 'You’ve reached the limit of your own cards in this category ({n})',
+  'Достигнут лимит сценариев ({n}). Удалите один из своих сценариев, чтобы добавить новый.': 'Scenario limit reached ({n}). Delete one of your scenarios to add a new one.',
+  'Пак без названия': 'Untitled pack',
 };

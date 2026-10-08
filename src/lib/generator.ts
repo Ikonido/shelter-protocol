@@ -27,10 +27,11 @@ export function mergePools(packs: CardPack[]): Record<Category, Card[]> {
     if (!ov) continue;
     for (const cat of CATEGORIES) {
       pools[cat] = pools[cat].map((c) => {
-        const tags = ov[c.id];
-        if (!tags) return c;
+        // Только собственные ключи: id вроде «constructor» не должен подхватить унаследованное свойство объекта.
+        const tags = Object.prototype.hasOwnProperty.call(ov, c.id) ? ov[c.id] : undefined;
+        if (!Array.isArray(tags)) return c;
         const { tags: _old, ...rest } = c;
-        return tags.length ? { ...rest, tags: tags.slice() } : rest;
+        return tags.length ? { ...rest, tags: tags.slice(), strictTags: true } : { ...rest, strictTags: true };
       });
     }
   }

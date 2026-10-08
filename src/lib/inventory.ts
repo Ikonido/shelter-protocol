@@ -40,7 +40,9 @@ export function addToBag(items: Card[], item: Card): { items: Card[]; dropped?: 
   if (items.length < MAX_ITEMS) return { items: [...items, item] };
   const worst = items.reduce((w, c) => (score(c) < score(w) ? c : w), items[0]);
   if (score(item) <= score(worst)) return { items, dropped: item };
-  return { items: [...items.filter((c) => c !== worst), item], dropped: worst };
+  // Убираем ровно один предмет по позиции: одинаковые экземпляры (короткая колода) не должны исчезать вместе.
+  const at = items.indexOf(worst);
+  return { items: [...items.slice(0, at), ...items.slice(at + 1), item], dropped: worst };
 }
 
 /**

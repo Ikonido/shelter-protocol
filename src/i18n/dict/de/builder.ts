@@ -162,4 +162,7 @@ export default {
   '{level} СЛОЖНОСТЬ': '{level} · SCHWIERIGKEIT',
   'ВЫЖИЛИ ({n})': 'ÜBERLEBENDE ({n})',
   'УГРОЗЫ': 'BEDROHUNGEN',
+  'Достигнут лимит своих карт в этой категории ({n})': 'Das Limit eigener Karten in dieser Kategorie ist erreicht ({n})',
+  'Достигнут лимит сценариев ({n}). Удалите один из своих сценариев, чтобы добавить новый.': 'Das Szenario-Limit ist erreicht ({n}). Lösche eines deiner Szenarien, um ein neues hinzuzufügen.',
+  'Пак без названия': 'Paket ohne Namen',
 };

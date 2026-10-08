@@ -39,6 +39,8 @@ export function cardMatchesSkill(card: Card, skill: string): boolean {
   const k = norm(skill);
   if (!k) return false;
   if (card.tags?.some((tag) => norm(tag) === k)) return true;
+  // Пользователь сознательно задал способности карты (в том числе пустые): текст описания их не заменяет.
+  if (card.strictTags) return false;
   const hay = norm(`${card.title ?? ''} ${card.description}`);
   return hay.includes(stem(k));
 }
@@ -115,7 +117,7 @@ export function evaluate(scenario: Scenario, survivors: PlayerCharacter[], slots
   // Неснятая критическая угроза — это конец; для полной победы нужно убрать вообще все факторы угрозы.
   const fatal = criticalOpen.length >= rules.fatalCriticals;
   const verdict =
-    fatal || skillRatio < rules.failSkill || score < rules.failScore
+    survivors.length === 0 || fatal || skillRatio < rules.failSkill || score < rules.failScore
       ? 'failed'
       : score >= rules.winScore && skillRatio === 1 && open.length === 0
         ? 'survived'
