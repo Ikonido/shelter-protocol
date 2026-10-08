@@ -5,7 +5,7 @@ import { createGame, nextRound, playAction, resolveVote, revealCard, startVote }
 import { composeItems, itemsOf } from './inventory';
 import { t } from './i18n';
 import { BUILTIN_PACKS as BUILT } from '../data/classicPack';
-import { applyPerk, BONUSES, canApplyPerk, onSkillRevealed, perkFor, skipPerk } from './perks';
+import { applyPerk, BONUSES, bonusKeyOf, canApplyPerk, onSkillRevealed, perkFor, skipPerk } from './perks';
 import { clonePack, sanitizePack } from '../lib/packs';
 import { updateSettings } from './settings';
 
@@ -303,6 +303,18 @@ describe('profession perks', () => {
     expect(lawyer, 'адвокат в копии').toBeDefined();
     expect(perkFor(lawyer!)).toEqual({ kind: 'bond', tags: [] });
     expect(sanitizePack(JSON.parse(JSON.stringify(copy)))!.cards.profession.find((c) => c.bonus === 'lawyer')).toBeDefined();
+  });
+
+  it('keys and texts from a custom pack never hit inherited Object properties', () => {
+    for (const bad of ['constructor', '__proto__', 'toString', 'hasOwnProperty']) {
+      expect(bonusKeyOf({ id: 'a', category: 'profession', description: bad }), bad).toBeUndefined();
+      expect(perkFor({ id: 'b', category: 'profession', description: 'Кто-то', bonus: bad }), bad).toBeUndefined();
+      const g = { ...fresh(), round: 2 };
+      const crafted = { ...g, players: g.players.map((p) => (p.id === 'p1' ? { ...p, slots: { ...p.slots, profession: { ...p.slots.profession, card: { id: 'c', category: 'profession' as const, description: 'Врач', tags: ['медицина'], bonus: bad } } } } : p)) };
+      const after = revealCard(crafted, 'p1', 'profession');
+      const perk = after.perks?.find((x) => x.playerId === 'p1');
+      expect(perk?.charges, bad).toBeUndefined();
+    }
   });
 
   it('old saves (cards without the bonus field) still get the bonus by their former profession text', () => {

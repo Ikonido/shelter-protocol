@@ -335,7 +335,7 @@ export default {
   'Вытяните новую карту багажа из колоды и оставьте лучшую из двух': 'Draw a new luggage card from the deck and keep the better of the two',
   'Украдите карту багажа у любого игрока вместо своей': 'Steal another player\'s luggage card instead of your own',
   'Тырим': 'Lifting',
-  'Замените карту багажа любого игрока случайной картой из колоды': 'Replace any player\'s luggage card with a random card from the deck',
+  'Замените карту багажа любого игрока случайной картой из колоды': 'Replace any player’s luggage card with a random card from the deck',
   'Сюрприз': 'Surprise',
   'Игрок перед вами в порядке хода получает новое телосложение из колоды': 'The player before you in turn order receives a new build from the deck',
   'Пластика': 'Plastic Surgery',

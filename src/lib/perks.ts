@@ -118,7 +118,8 @@ const LEGACY_BONUS: Record<string, string> = {
 };
 
 /** Ключ особого бонуса карты (профессии); для старых карт без поля — запасной поиск. */
-export const bonusKeyOf = (card: Card): string | undefined => (card.bonus ?? LEGACY_BONUS[card.description]);
+export const bonusKeyOf = (card: Card): string | undefined =>
+  card.bonus ?? (Object.hasOwn(LEGACY_BONUS, card.description) ? LEGACY_BONUS[card.description] : undefined);
 
 /** Опытность: у врача задаёт шанс вылечить, у остальных — сколько предметов, краж или открытых карт (от и до, максимум 3). */
 export const LEVELS: Record<PerkLevel, { chance: number; label: string; count: [number, number] }> = {
@@ -238,7 +239,8 @@ export function onSkillRevealed(g: GameState, playerId: string, category: Catego
   if (perk.kind === 'item') return addItems(g, playerId, perk, level);
   if (g.players.filter((x) => !x.isEliminated).length < 2) return g;
   if (perkOf(g, playerId)) return g;
-  const charges = BONUS_CHARGES[bonusKeyOf(p.slots.profession.card) ?? ''];
+  const chargeKey = bonusKeyOf(p.slots.profession.card);
+  const charges = chargeKey && Object.hasOwn(BONUS_CHARGES, chargeKey) ? BONUS_CHARGES[chargeKey] : undefined;
   return {
     ...g,
     // Продавец зелий (обычный навык): зелье даёт второе использование бонуса.
