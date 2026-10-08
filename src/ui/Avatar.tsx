@@ -9,8 +9,8 @@ export function avatarHue(seed: string): number {
 }
 
 export function initialOf(name: string): string {
-  // Имя по умолчанию «Игрок N» (или «Гравець N» в украинском интерфейсе): показываем номер, а не первую букву.
-  const m = /^(?:Игрок|Гравець)\s+(\d+)$/i.exec(name.trim());
+  // Имя по умолчанию «Игрок N» на любом языке интерфейса (Гравець, Player, Spieler): показываем номер, а не первую букву.
+  const m = /^(?:Игрок|Гравець|Player|Spieler)\s+(\d+)$/i.exec(name.trim());
   return m ? m[1] : (name.trim()[0] ?? '?').toUpperCase();
 }
 

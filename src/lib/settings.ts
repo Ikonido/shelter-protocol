@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
-export type Lang = 'ru' | 'uk';
+export type Lang = 'ru' | 'uk' | 'en' | 'de';
+const LANGS: Lang[] = ['ru', 'uk', 'en', 'de'];
 
 /** Личные настройки устройства: звук, вибрация, тема, размер текста и язык. Хранятся только в этом браузере. */
 export interface Settings {
@@ -11,8 +12,11 @@ export interface Settings {
   lang: Lang;
 }
 
-/** Язык по умолчанию: украинский, если браузер на украинском, иначе русский. Переключатель в настройках меняет его. */
-export const detectLang = (): Lang => (typeof navigator !== 'undefined' && /^uk\b/i.test(navigator.language) ? 'uk' : 'ru');
+/** Язык по умолчанию — по языку браузера: украинский, немецкий, английский; иначе русский. Переключатель в настройках меняет его. */
+export const detectLang = (): Lang => {
+  const l = typeof navigator !== 'undefined' ? navigator.language.toLowerCase() : '';
+  return l.startsWith('uk') ? 'uk' : l.startsWith('de') ? 'de' : l.startsWith('en') ? 'en' : 'ru';
+};
 
 export const DEFAULT_SETTINGS: Settings = { sound: true, vibrate: true, theme: 'dark', textSize: 'normal', lang: 'ru' };
 const KEY = 'shelter:settings';
@@ -26,7 +30,7 @@ export function parseSettings(raw: unknown): Settings {
     vibrate: typeof r.vibrate === 'boolean' ? r.vibrate : DEFAULT_SETTINGS.vibrate,
     theme: r.theme === 'light' ? 'light' : 'dark',
     textSize: r.textSize === 'large' || r.textSize === 'xl' ? r.textSize : 'normal',
-    lang: r.lang === 'uk' || r.lang === 'ru' ? r.lang : detectLang(),
+    lang: LANGS.includes(r.lang as Lang) ? (r.lang as Lang) : detectLang(),
   };
 }
 

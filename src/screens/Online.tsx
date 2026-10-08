@@ -182,7 +182,7 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
           {host.locked ? <><Unlock size={14} /> {t('Открыть комнату')}</> : <><Lock size={14} /> {t('Закрыть комнату для новых игроков')}</>}
         </button>
         <button className="btn btn-primary" disabled={n < 2 || !code} onClick={() => host.start()}>
-          {t('Начать игру ({n} {w})', { n, w: plural(n, ['игрок', 'игрока', 'игроков'], ['гравець', 'гравці', 'гравців']) })}
+          {t('Начать игру ({n} {w})', { n, w: plural(n, { ru: ['игрок', 'игрока', 'игроков'], uk: ['гравець', 'гравці', 'гравців'], en: ['player', 'players'], de: ['Spieler', 'Spieler'] }) })}
         </button>
         {n < 2 && <p className="text-xs text-dim">{t('Нужен хотя бы ещё один игрок.')}</p>}
       </section>

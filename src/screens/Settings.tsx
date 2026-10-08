@@ -35,7 +35,7 @@ export default function Settings() {
       <section className="panel flex flex-col gap-3">
         <h2 className="step-title">{t('Язык')}</h2>
         <div className="grid grid-cols-2 gap-2">
-          {([['ru', 'Русский'], ['uk', 'Українська']] as [Lang, string][]).map(([v, label]) => (
+          {([['ru', 'Русский'], ['uk', 'Українська'], ['en', 'English'], ['de', 'Deutsch']] as [Lang, string][]).map(([v, label]) => (
             <button key={v} className={`btn ${s.lang === v ? 'btn-primary' : ''}`} aria-pressed={s.lang === v} lang={v} onClick={() => updateSettings({ lang: v })}>{label}</button>
           ))}
         </div>

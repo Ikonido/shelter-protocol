@@ -33,7 +33,7 @@ const pirates = ship.hazards!.find((h) => h.id.endsWith('fl-pirates'))!;
 describe('chronicle helpers', () => {
   const d = (months: number) => Math.round(months * 30.4375);
   it('russian plurals and time labels', () => {
-    expect([1, 2, 5, 11, 21, 22, 25].map((n) => plural(n, ['месяц', 'месяца', 'месяцев']))).toEqual(['месяц', 'месяца', 'месяцев', 'месяцев', 'месяц', 'месяца', 'месяцев']);
+    expect([1, 2, 5, 11, 21, 22, 25].map((n) => plural(n, { ru: ['месяц', 'месяца', 'месяцев'] }))).toEqual(['месяц', 'месяца', 'месяцев', 'месяцев', 'месяц', 'месяца', 'месяцев']);
     expect(whenLabel(0)).toBe('День 1');
     expect([1, 3, 5, 13].map(whenLabel)).toEqual(['Через 1 день', 'Через 3 дня', 'Через 5 дней', 'Через 13 дней']);
     expect([14, 21, 30, 45].map(whenLabel)).toEqual(['Через 2 недели', 'Через 3 недели', 'Через 4 недели', 'Через 6 недель']);
@@ -159,5 +159,19 @@ describe('chronicle in Ukrainian', () => {
     } finally {
       updateSettings({ lang: 'ru' });
     }
+  });
+});
+
+describe('isolation duration units', () => {
+  it('understands English and German units too', async () => {
+    const { isolationDays } = await import('./chronicle');
+    expect(isolationDays('3 years')).toBe(isolationDays('3 года'));
+    expect(isolationDays('6 months')).toBe(isolationDays('6 месяцев'));
+    expect(isolationDays('2 weeks')).toBe(isolationDays('2 недели'));
+    expect(isolationDays('10 days')).toBe(isolationDays('10 дней'));
+    expect(isolationDays('2 Jahre')).toBe(isolationDays('2 года'));
+    expect(isolationDays('6 Monate')).toBe(isolationDays('6 месяцев'));
+    expect(isolationDays('3 Tage')).toBe(3);
+    expect(isolationDays('nobody knows')).toBe(isolationDays('неизвестно'));
   });
 });
