@@ -239,7 +239,7 @@ describe('match timer', () => {
     const plain = g.players.map((p) => {
       const slots = { ...p.slots };
       for (const c of ['profession', 'hobby', 'fact', 'luggage'] as const) {
-        slots[c] = { ...slots[c], card: { ...slots[c].card, description: 'Обычный человек', title: undefined, tags: [] } };
+        slots[c] = { ...slots[c], card: { ...slots[c].card, items: undefined, description: 'Обычный человек', title: undefined, tags: [] } };
       }
       return { ...p, slots };
     });
@@ -256,7 +256,7 @@ describe('health severity', () => {
     return g.players.map((p) => {
       const slots = { ...p.slots };
       for (const c of ['profession', 'hobby', 'fact', 'luggage', 'biology', 'physique', 'character'] as const) {
-        slots[c] = { ...slots[c], card: { ...slots[c].card, description: 'Обычный человек', title: undefined, tags: [], modifier: 'neutral' as const } };
+        slots[c] = { ...slots[c], card: { ...slots[c].card, items: undefined, description: 'Обычный человек', title: undefined, tags: [], modifier: 'neutral' as const } };
       }
       slots.health = { ...slots.health, card: { ...slots.health.card, description: 'Здоров', tags: [], modifier: 'neutral' as const } };
       return { ...p, slots };
@@ -297,7 +297,7 @@ describe('threat factors', () => {
   const withTags = (g: ReturnType<typeof newGame>, tagsByPlayer: string[][]) =>
     g.players.map((p, i) => {
       const plain = (c: 'profession' | 'hobby' | 'fact' | 'luggage', tags: string[]) => ({
-        card: { ...p.slots[c].card, description: 'Обычный человек', title: undefined, tags },
+        card: { ...p.slots[c].card, items: undefined, description: 'Обычный человек', title: undefined, tags },
         isRevealed: p.slots[c].isRevealed,
       });
       return { ...p, slots: { ...p.slots, profession: plain('profession', tagsByPlayer[i] ?? []), hobby: plain('hobby', []), fact: plain('fact', []), luggage: plain('luggage', []) } };
@@ -379,7 +379,7 @@ describe('difficulty', () => {
     g0.players.slice(0, tags.length).map((p, i) => ({
       ...p,
       slots: Object.fromEntries(Object.entries(p.slots).map(([c, sl]) => [c, ['profession', 'hobby', 'fact', 'luggage'].includes(c)
-        ? { ...sl, card: { ...sl.card, description: 'Обычный человек', title: undefined, tags: c === 'profession' ? tags[i] : [] } } : sl])) as typeof p.slots,
+        ? { ...sl, card: { ...sl.card, items: undefined, description: 'Обычный человек', title: undefined, tags: c === 'profession' ? tags[i] : [] } } : sl])) as typeof p.slots,
     }));
 
   it('presets are ordered from forgiving to harsh', async () => {

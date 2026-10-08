@@ -1,5 +1,5 @@
 import { CATEGORIES, categoryLabel, type ActionEffect, type ActionFx, type Card, type CardPack, type Category, type DeckCategory, type GameState, type PlayerCharacter } from '../types';
-import { cardMatchesSkill } from './evaluate';
+import { cardMatchesSkill, SKILL_CATEGORIES } from './evaluate';
 import { mergePools } from './generator';
 import { mulberry32, shuffle } from './rng';
 import { packT, t } from './i18n';
@@ -107,7 +107,7 @@ export function canApply(g: GameState, actorId: string, effect: ActionEffect, pa
     }
     case 'heal': {
       if (actor.slots.health.card.modifier !== 'negative') return fail(t('У вас нет проблем со здоровьем'));
-      const doctor = !full || living(g).some((p) => p.id !== actorId && (['profession', 'biology', 'hobby', 'fact', 'luggage'] as const).some((c) => HEALING.some((s) => cardMatchesSkill(p.slots[c].card, s))));
+      const doctor = !full || living(g).some((p) => p.id !== actorId && SKILL_CATEGORIES.some((c) => HEALING.some((s) => cardMatchesSkill(p.slots[c].card, s))));
       return doctor ? { ok: true } : fail(t('Среди живых нет врача или лекаря'));
     }
     case 'stealLuggage':

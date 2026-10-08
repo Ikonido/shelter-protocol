@@ -22,6 +22,7 @@ import {
   createGame,
   nextRound,
   playAction,
+  playPerk,
   resolveVote,
   revealCard,
   revealOptions,
@@ -36,7 +37,7 @@ import {
 } from './game';
 import { canApply } from './actions';
 import { MAX_ITEMS } from './inventory';
-import { applyPerk, canApplyPerk, skipPerk } from './perks';
+import { canApplyPerk, skipPerk } from './perks';
 import { newSeed, randomCode } from './rng';
 import { LIMITS as L, clip } from './limits';
 import { sanitizeHazard, sanitizeScenario } from './packs';
@@ -142,7 +143,8 @@ export interface HostSetup {
   timeLimitMin?: number; // 0 — без лимита; по умолчанию 0
 }
 
-const cleanName = (v: unknown) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, 24) : '');
+const NAME_MAX = 24;
+const cleanName = (v: unknown) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, NAME_MAX) : '');
 
 export class OnlineHost {
   members: Member[];
@@ -321,7 +323,7 @@ export class OnlineHost {
         if (msg.skip) next = skipPerk(g, id);
         else {
           const check = canApplyPerk(g, id, { target: msg.target, category: msg.category });
-          if (check.ok) next = applyPerk(g, id, { target: msg.target, category: msg.category });
+          if (check.ok) next = playPerk(g, id, { target: msg.target, category: msg.category });
           else refusal = check.reason;
         }
       } else refusal = t('Сейчас бонус применить нельзя');
@@ -464,12 +466,27 @@ export class OnlineHost {
   }
 }
 
+/**
+ * Делает имена уникальными: первое вхождение остаётся как есть, повтор получает суффикс « 2», « 3»… Суффикс укладывается
+ * в общий лимит имени, и результат сверяется со всеми занятыми именами (включая «A 2», введённое игроком).
+ */
 function uniqueNames(names: string[]): string[] {
-  const seen = new Map<string, number>();
-  return names.map((n) => {
-    const c = (seen.get(n) ?? 0) + 1;
-    seen.set(n, c);
-    return c > 1 ? `${n} ${c}` : n;
+  const taken = new Set<string>();
+  const out = names.map((n) => {
+    if (taken.has(n)) return null;
+    taken.add(n);
+    return n;
+  });
+  return out.map((first, i) => {
+    if (first !== null) return first;
+    for (let k = 2; ; k++) {
+      const suffix = ` ${k}`;
+      const name = `${names[i].slice(0, NAME_MAX - suffix.length)}${suffix}`;
+      if (!taken.has(name)) {
+        taken.add(name);
+        return name;
+      }
+    }
   });
 }
 
@@ -556,7 +573,7 @@ const MODS = ['positive', 'neutral', 'negative'];
 const text = (v: unknown, max: number) => (typeof v === 'string' ? clip(v, max) : '');
 const rec = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 
-function cleanCard(raw: unknown, category: Category): Card | null {
+function cleanCard(raw: unknown, category: Category, nested = false): Card | null {
   const r = rec(raw);
   if (typeof r.description !== 'string') return null;
   const card: Card = { id: text(r.id, 60), category, description: text(r.description, L.cardDescription) };
@@ -566,6 +583,11 @@ function cleanCard(raw: unknown, category: Category): Card | null {
   const tagLimit = category === 'luggage' ? L.cardTags * MAX_ITEMS : L.cardTags;
   if (Array.isArray(r.tags)) card.tags = r.tags.slice(0, tagLimit).map((t) => text(t, L.tagLen)).filter(Boolean);
   if (r.strictTags === true) card.strictTags = true;
+  // Предметы составного багажа нужны клиенту, чтобы считать навыки так же, как хост.
+  if (category === 'luggage' && !nested && Array.isArray(r.items)) {
+    const items = r.items.slice(0, MAX_ITEMS).map((i) => cleanCard(i, 'luggage', true)).filter((c): c is Card => !!c);
+    if (items.length) card.items = items;
+  }
   if (category === 'action' && ACTION_EFFECT_IDS.includes(r.effect as ActionEffect)) card.effect = r.effect as ActionEffect;
   return card;
 }
@@ -667,7 +689,15 @@ export function sanitizeView(raw: unknown): GameState | null {
       : {}),
     revealedThisRound: Array.isArray(r.revealedThisRound) ? r.revealedThisRound.slice(0, MAX_ONLINE_PLAYERS).map((x) => text(x, 12)) : [],
     votes,
-    log: Array.isArray(r.log) ? r.log.slice(-200).map((l) => ({ round: int(rec(l).round, 1, 50), text: text(rec(l).text, 400) })) : [],
+    log: Array.isArray(r.log)
+      ? r.log.slice(-200).map((l) => ({
+          round: int(rec(l).round, 1, 50),
+          text: text(rec(l).text, 400),
+          // Признаки записи нужны интерфейсу и хронике: баннер последнего действия и добровольцы в эпилоге.
+          ...(rec(l).kind === 'action' ? { kind: 'action' as const } : {}),
+          ...(typeof rec(l).volunteer === 'string' ? { volunteer: text(rec(l).volunteer, 24) } : {}),
+        }))
+      : [],
     seed: 0,
   };
   if (r.lastResult) {

@@ -1,7 +1,18 @@
 /* Service worker: офлайн-оболочка приложения. Версию поднимайте при изменении логики кеширования. */
 const VERSION = 'v2'; // v2: version.json не кешируется; старые кеши (с накопленными запросами проверки версии) удаляются при активации
-const CACHE = `shelter-${VERSION}`;
-const SHELL = ['./', './index.html', './manifest.webmanifest', './favicon.svg', './icon-192.png', './icon-512.png'];
+const BUILD = '__BUILD__'; // подставляется при сборке (у каждой сборки свой кеш: хешированные файлы прошлых версий не копятся)
+// Собранные JS и CSS: список подставляется при сборке (vite.config.ts), иначе первый офлайн-запуск остался бы без кода приложения.
+const PRECACHE = /*__PRECACHE__*/[];
+// Путь установки входит в имя кеша: несколько копий игры на одном домене не делят и не стирают чужие кеши.
+const SCOPE_PATH = (() => {
+  try {
+    return new URL('.', (self.registration && self.registration.scope) || (self.location && self.location.href) || 'http://localhost/').pathname;
+  } catch (e) {
+    return '/';
+  }
+})();
+const CACHE = `shelter-${VERSION}-${BUILD}@${SCOPE_PATH}`;
+const SHELL = ['./', './index.html', './manifest.webmanifest', './favicon.svg', './icon-192.png', './icon-512.png', ...PRECACHE];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -9,7 +20,10 @@ self.addEventListener('install', (e) => {
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k.startsWith('shelter-') && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()),
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('shelter-') && k !== CACHE && (!k.includes('@') || k.endsWith(`@${SCOPE_PATH}`))).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim()),
   );
 });
 
