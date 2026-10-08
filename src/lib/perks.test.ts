@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { CLASSIC_PACK } from '../data/classicPack';
 import type { GameState, SessionConfig } from '../types';
 import { createGame, nextRound, resolveVote, revealCard, startVote } from './game';
-import { itemsOf } from './inventory';
+import { composeItems, itemsOf } from './inventory';
+import { t } from './i18n';
 import { applyPerk, canApplyPerk, perkFor, skipPerk } from './perks';
 import { updateSettings } from './settings';
 
@@ -34,25 +35,42 @@ describe('profession perks', () => {
     expect(g.perks).toBeUndefined();
   });
 
-  it('adds an item to the luggage of an engineer when the profession is opened', () => {
-    let g = withProfession(fresh(), 'p1', ['инженерия']);
-    // в 1-м раунде открывается только биология, поэтому открываем профессию напрямую через состояние 2-го вскрытия
-    g = { ...g, round: 2 };
-    const before = g.players[0].slots.luggage.card;
-    g = revealCard(g, 'p1', 'profession');
-    const after = g.players[0].slots.luggage.card;
-    expect(after.description).toContain('Набор инструментов');
-    expect(after.description).toContain(before.description);
-    expect(after.tags).toContain('ремонт');
-    expect(g.log.at(-1)!.text).toContain('Набор инструментов');
-    expect(g.perks).toBeUndefined();
+  const POOL = ['Набор инструментов', 'Сварочный аппарат', 'Ящик запчастей'];
+  const LEVEL_RANGE: Record<string, [number, number]> = { новичок: [1, 1], опытный: [1, 2], эксперт: [2, 3] };
+
+  it('an engineer gets 1–3 random distinct items from the profession pool, the count depends on experience', () => {
+    const seen = new Map<string, Set<number>>();
+    const names = new Set<string>();
+    for (let seed = 1; seed <= 80; seed++) {
+      let g = withProfession({ ...fresh(), seed }, 'p1', ['инженерия']);
+      // у игрока ровно один исходный предмет
+      g = { ...g, round: 2, players: g.players.map((p) => (p.id === 'p1' ? { ...p, slots: { ...p.slots, luggage: { ...p.slots.luggage, card: itemsOf(p.slots.luggage.card)[0] } } } : p)) };
+      const before = itemsOf(g.players[0].slots.luggage.card);
+      g = revealCard(g, 'p1', 'profession');
+      const after = itemsOf(g.players[0].slots.luggage.card);
+      const added = after.filter((c) => !before.some((b) => b.id === c.id));
+      expect(added.length).toBeGreaterThanOrEqual(1);
+      expect(added.length).toBeLessThanOrEqual(3);
+      expect(new Set(added.map((c) => c.description)).size).toBe(added.length); // без повторов
+      for (const c of added) { expect(POOL).toContain(c.description); expect(c.tags).toContain('ремонт'); names.add(c.description); }
+      const level = Object.keys(LEVEL_RANGE).find((l) => g.log.at(-1)!.text.includes(`(${l})`))!;
+      expect(level, g.log.at(-1)!.text).toBeTruthy();
+      expect(added.length).toBeGreaterThanOrEqual(LEVEL_RANGE[level][0]);
+      expect(added.length).toBeLessThanOrEqual(LEVEL_RANGE[level][1]);
+      (seen.get(level) ?? seen.set(level, new Set()).get(level)!).add(added.length);
+      expect(g.perks).toBeUndefined();
+    }
+    expect([...(seen.get('эксперт') ?? [])].sort()).toEqual([2, 3]); // у эксперта бывает и два, и три
+    expect(names.size).toBe(3); // из пула выпадают разные предметы
   });
 
-  it('replaces an empty luggage with the item', () => {
+  it('an item perk fills an empty luggage without the stolen placeholder', () => {
     let g = withProfession(fresh(), 'p1', ['инженерия']);
     g = { ...g, round: 2, players: g.players.map((p) => (p.id === 'p1' ? { ...p, slots: { ...p.slots, luggage: { card: { id: 'stolen-luggage', category: 'luggage' as const, description: 'Багаж украден: пусто' }, isRevealed: true } } } : p)) };
     g = revealCard(g, 'p1', 'profession');
-    expect(g.players[0].slots.luggage.card.description).toBe('Набор инструментов');
+    const desc = g.players[0].slots.luggage.card.description;
+    expect(desc).not.toContain('украден');
+    expect(desc.split(' + ').every((d) => POOL.includes(d))).toBe(true);
   });
 
   const doctorGame = (level: 'novice' | 'experienced' | 'expert', seed = 7) => {
@@ -115,17 +133,38 @@ describe('profession perks', () => {
     expect(skipPerk(g, 'p1').perks).toBeUndefined();
   });
 
-  it('a detective opens a chosen hidden card of a chosen player', () => {
-    let g = withProfession(fresh(), 'p1', ['расследование', 'безопасность']);
-    g = { ...g, round: 2 };
-    g = revealCard(g, 'p1', 'profession');
-    expect(g.perks).toEqual([{ playerId: 'p1', kind: 'reveal' }]);
-    expect(canApplyPerk(g, 'p1', { target: 'p2' }).ok).toBe(false); // не выбрана карта
-    expect(g.players[1].slots.fact.isRevealed).toBe(false);
-    const done = applyPerk(g, 'p1', { target: 'p2', category: 'fact' });
-    expect(done.players[1].slots.fact.isRevealed).toBe(true);
-    expect(done.perks).toBeUndefined();
-    expect(done.players[0].slots.action.isRevealed).toBe(false);
+  it('a detective always opens the chosen card and, by experience, up to two more hidden cards of that player', () => {
+    const hiddenCount = (g: GameState) => Object.values(g.players[1].slots).filter((x) => !x.isRevealed).length;
+    const run = (level: 'novice' | 'experienced' | 'expert', seed: number) => {
+      let g = withProfession({ ...fresh(), seed }, 'p1', ['расследование']);
+      g = { ...g, round: 2 };
+      g = { ...revealCard(g, 'p1', 'profession'), perks: [{ playerId: 'p1', kind: 'reveal' as const, level }] };
+      const before = hiddenCount(g);
+      const done = applyPerk(g, 'p1', { target: 'p2', category: 'fact' });
+      return { g, done, opened: before - hiddenCount(done) };
+    };
+    const base = run('novice', 1);
+    expect(canApplyPerk(base.g, 'p1', { target: 'p2' }).ok).toBe(false); // не выбрана карта
+    expect(base.done.players[1].slots.fact.isRevealed).toBe(true);
+    expect(base.done.perks).toBeUndefined();
+    expect(base.done.players[0].slots.action.isRevealed).toBe(false);
+    const counts = (level: 'novice' | 'experienced' | 'expert') => new Set(Array.from({ length: 60 }, (_, i) => run(level, i + 1).opened));
+    expect([...counts('novice')]).toEqual([1]);
+    expect([...counts('experienced')].sort()).toEqual([1, 2]);
+    expect([...counts('expert')].sort()).toEqual([2, 3]);
+  });
+
+  it('a spy steals one to three items depending on experience, never more than the victim has', () => {
+    const run = (level: 'novice' | 'experienced' | 'expert', seed: number, victimItems: number) => {
+      let g = withProfession({ ...fresh(), seed }, 'p1', ['шпионаж']);
+      const stock = Array.from({ length: victimItems }, (_, i) => ({ id: `v${i}`, category: 'luggage' as const, description: `Вещь ${i}` }));
+      g = { ...g, players: g.players.map((p) => (p.id === 'p2' ? { ...p, slots: { ...p.slots, luggage: { ...p.slots.luggage, card: composeItems(stock, () => p.slots.luggage.card) } } } : p.id === 'p1' ? { ...p, slots: { ...p.slots, luggage: { ...p.slots.luggage, card: p.slots.luggage.card } } } : p)), perks: [{ playerId: 'p1', kind: 'steal' as const, level }] };
+      const done = applyPerk(g, 'p1', { target: 'p2' });
+      return victimItems - itemsOf(done.players[1].slots.luggage.card).length;
+    };
+    expect(new Set(Array.from({ length: 60 }, (_, i) => run('novice', i + 1, 4)))).toEqual(new Set([1]));
+    expect([...new Set(Array.from({ length: 60 }, (_, i) => run('expert', i + 1, 4)))].sort()).toEqual([2, 3]);
+    expect(run('expert', 5, 1)).toBe(1); // у жертвы всего один предмет
   });
 
   it('the classic pack has the detective profession with the investigation skill', () => {
@@ -146,9 +185,14 @@ describe('profession perks', () => {
     expect(nextRound({ ...done, perks: [{ playerId: 'p1', kind: 'reveal' }] }).perks).toBeUndefined();
   });
 
-  it('works in other languages: the item keeps both parts translatable', () => {
+  it('a composite luggage stays translatable part by part', () => {
+    let g = withProfession(fresh(), 'p1', ['инженерия']);
+    g = revealCard({ ...g, round: 2 }, 'p1', 'profession');
+    const desc = g.players[0].slots.luggage.card.description;
+    expect(desc).toContain(' + ');
+    updateSettings({ lang: 'en' });
+    const shown = t(desc);
     updateSettings({ lang: 'ru' });
-    const g = revealCard({ ...withProfession(fresh(), 'p1', ['инженерия']), round: 2 }, 'p1', 'profession');
-    expect(g.players[0].slots.luggage.card.description).toMatch(/ \+ Набор инструментов$/);
+    expect(shown).not.toMatch(/[А-Яа-яЁё]{4,} \+ /); // части переведены, а не склеены по-русски целиком
   });
 });

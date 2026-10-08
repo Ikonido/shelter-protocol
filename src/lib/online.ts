@@ -576,7 +576,7 @@ function cleanPerks(raw: unknown): Perk[] {
     const r = rec(x);
     const kind = PERK_KINDS.find((k) => k === r.kind);
     const level = (['novice', 'experienced', 'expert'] as const).find((l) => l === r.level);
-    return kind && typeof r.playerId === 'string' ? [{ playerId: text(r.playerId, 12), kind, ...(kind === 'heal' && level ? { level } : {}) }] : [];
+    return kind && typeof r.playerId === 'string' ? [{ playerId: text(r.playerId, 12), kind, ...(level ? { level } : {}) }] : [];
   });
 }
 

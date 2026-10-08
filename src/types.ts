@@ -251,7 +251,7 @@ export type PerkLevel = 'novice' | 'experienced' | 'expert';
 export interface Perk {
   playerId: string;
   kind: PerkKind;
-  /** Только для врача. */
+  /** Опытность: задаёт силу бонуса. */
   level?: PerkLevel;
 }
 

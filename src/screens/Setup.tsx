@@ -266,7 +266,7 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
             </label>
             <label className="flex w-full max-w-md cursor-pointer items-start gap-3 rounded-md border border-edge p-3">
               <input type="checkbox" className="mt-1 size-4 accent-amber" checked={professionPerks} onChange={(e) => setProfessionPerks(e.target.checked)} />
-              <span className="text-sm"><b>{t('Бонусы профессий (необязательно)')}</b><br /><span className="text-xs text-dim">{t('Открытая профессия даёт бонус: инженер получает инструменты в багаж, врач лечит игрока, шпион крадёт багаж, психолог допрашивает. Цель выбираете в меню.')}</span></span>
+              <span className="text-sm"><b>{t('Бонусы профессий (необязательно)')}</b><br /><span className="text-xs text-dim">{t('Открытая профессия даёт бонус: инженер получает предметы в багаж, врач лечит игрока, шпион крадёт багаж, психолог и детектив открывают чужие карты. Опытность (новичок, опытный, эксперт) выпадает по жребию и решает силу бонуса: от 1 до 3 предметов, краж или открытых карт, а у врача — шанс вылечить. Цель выбираете в меню.')}</span></span>
             </label>
           <div>
             <Stepper label={t('Вскрытий до голосования')} value={revealsPerVote} min={1} max={3} onChange={setRevealsPerVote} />
