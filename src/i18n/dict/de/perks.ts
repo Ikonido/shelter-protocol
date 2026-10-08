@@ -69,4 +69,12 @@ export default {
   '{who} применяет «{title}»: меняет характер {victim}': '{who} setzt „{title}“ ein: ändert den Charakter von {victim}',
   'Колода пуста': 'Der Stapel ist leer',
   '{who} получает бонус профессии: {items}': '{who} erhält einen Berufsbonus: {items}',
+  'Связать двух игроков': 'Zwei Spieler verbinden',
+  'Голос за два (если кто-то выгнан)': 'Doppelte Stimme (wenn jemand raus ist)',
+  'Связать': 'Verbinden',
+  'Выберите двух других живых игроков': 'Wähle zwei andere lebende Spieler',
+  'Связь нельзя: после выгнания двоих в убежище не останется мест': 'Die Verbindung ist nicht möglich: Nach dem Rauswurf zweier wären zu wenige Plätze im Schutzraum',
+  '{who} связывает {a} и {b}: если одного выгонят, выйдет и второй': '{who} verbindet {a} und {b}: wird einer rausgeworfen, geht auch der andere',
+  'Пока никого не выгнали': 'Noch niemand wurde rausgeworfen',
+  '{who} выпивает зелье: бонус можно применить ещё раз': '{who} trinkt den Trank: der Bonus kann noch einmal genutzt werden',
 };

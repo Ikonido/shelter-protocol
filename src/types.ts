@@ -256,7 +256,7 @@ export interface RoundResult {
 
 /** Бонус открытой профессии: что владелец может сделать, пока не началось голосование. */
 /** Бонусы профессий. steal_junk — кража с подменой статуэткой; reroll_* — случайная карта выбранного игрока; swap_bag — обмен багажом. */
-export type PerkKind = 'steal' | 'heal' | 'reveal' | 'steal_junk' | 'immunity' | 'reroll_health' | 'reroll_character' | 'swap_bag';
+export type PerkKind = 'steal' | 'heal' | 'reveal' | 'steal_junk' | 'immunity' | 'reroll_health' | 'reroll_character' | 'swap_bag' | 'double' | 'bond';
 /** Опытность врача: от неё зависит шанс вылечить. */
 export type PerkLevel = 'novice' | 'experienced' | 'expert';
 export interface Perk {
@@ -264,6 +264,15 @@ export interface Perk {
   kind: PerkKind;
   /** Опытность: задаёт силу бонуса. */
   level?: PerkLevel;
+  /** Сколько раз можно применить (по умолчанию 1; у продавца зелий после зелья — 2). */
+  charges?: number;
+}
+
+/** Связь адвоката: если одного из пары выгоняют, выбывает и второй. Действует, пока votes > 0. */
+export interface Bond {
+  a: string;
+  b: string;
+  votes: number;
 }
 
 /** Итог бонуса, который видит только его владелец (в «виде» чужого игрока вырезается). */
@@ -315,6 +324,8 @@ export interface GameState {
   /** Неиспользованные бонусы профессий (открыты всем). Сбрасываются с началом голосования. */
   perks?: Perk[];
   perkResult?: PerkResult;
+  /** Связи адвоката по разводам. */
+  bonds?: Bond[];
   lastResult?: RoundResult;
   log: LogEntry[];
   /** Tabletop-режим: выжившие отмечаются вручную перед финалом. */

@@ -69,4 +69,12 @@ export default {
   '{who} применяет «{title}»: меняет характер {victim}': '{who} uses “{title}”: changes {victim}’s character',
   'Колода пуста': 'The deck is empty',
   '{who} получает бонус профессии: {items}': '{who} gets a profession bonus: {items}',
+  'Связать двух игроков': 'Link two players',
+  'Голос за два (если кто-то выгнан)': 'Double vote (if someone is out)',
+  'Связать': 'Link',
+  'Выберите двух других живых игроков': 'Choose two other living players',
+  'Связь нельзя: после выгнания двоих в убежище не останется мест': 'The link is not possible: expelling two would leave too few places in the shelter',
+  '{who} связывает {a} и {b}: если одного выгонят, выйдет и второй': '{who} links {a} and {b}: if one is expelled, the other leaves too',
+  'Пока никого не выгнали': 'No one has been expelled yet',
+  '{who} выпивает зелье: бонус можно применить ещё раз': '{who} drinks the potion: the bonus can be used once more',
 };

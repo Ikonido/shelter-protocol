@@ -17,6 +17,8 @@ export interface ActionParams {
   perk?: boolean;
   /** Шанс успеха лечения (по умолчанию 1). */
   chance?: number;
+  /** Второй игрок (связь адвоката). */
+  target2?: string;
 }
 
 const NEEDS_TARGET: ActionEffect[] = ['stealLuggage', 'giveLuggage', 'swapLuggage', 'sabotage', 'forceReveal', 'ally', 'healOther', 'rerollHealth', 'rerollCharacter'];
@@ -119,6 +121,9 @@ export function canApply(g: GameState, actorId: string, effect: ActionEffect, pa
     case 'rerollCharacter':
       // Случайная карта выбранного игрока из колоды: себя не выбираем, колода должна быть не пуста.
       return hasDeck(effect === 'rerollHealth' ? 'health' : 'character') ? { ok: true } : fail(t('Колода пуста'));
+    case 'doubleVote':
+      // Голос менеджера считается за два, только когда кто-то уже выгнан.
+      return params.perk && !g.players.some((p) => p.isEliminated) ? fail(t('Пока никого не выгнали')) : { ok: true };
     case 'healOther':
       // Лечить можно любого: меню не должно выдавать, кто болен. Что получилось, знает только врач.
       // Себя врач перебрасывает на случайное состояние из колоды здоровья: без колоды делать нечего.

@@ -83,7 +83,7 @@ const EVENT_TONES = ['good', 'bad', 'neutral'];
 const EVENT_KINDS = ['shrink', 'plague', 'volunteer', 'leak', 'silence', 'newHazard', 'relief', 'prompt'];
 const validEvent = (e: unknown) =>
   isObj(e) && isStr(e.title) && isStr(e.text) && Array.isArray(e.outcome) && e.outcome.every(isStr) && EVENT_TONES.includes(e.tone as string) && EVENT_KINDS.includes(e.kind as string);
-const PERK_KIND_LIST = ['steal', 'heal', 'reveal', 'steal_junk', 'immunity', 'reroll_health', 'reroll_character', 'swap_bag'];
+const PERK_KIND_LIST = ['steal', 'heal', 'reveal', 'steal_junk', 'immunity', 'reroll_health', 'reroll_character', 'swap_bag', 'double', 'bond'];
 const validPerks = (p: unknown) => p === undefined || (Array.isArray(p) && p.every((x) => isObj(x) && isStr(x.playerId) && PERK_KIND_LIST.includes(x.kind as string)));
 const validResult = (r: unknown) => r === undefined || (isObj(r) && Array.isArray(r.eliminated) && r.eliminated.every(isStr) && isObj(r.tally) && Object.values(r.tally).every(isNum));
 const validFx = (fx: unknown) =>
@@ -114,6 +114,7 @@ export function validateSavedGame(raw: unknown): GameState | null {
   if (raw.usedEvents !== undefined && !strList(raw.usedEvents)) return null;
   if (raw.lastReveal !== undefined && !(isObj(raw.lastReveal) && isStr(raw.lastReveal.playerId) && CATEGORIES.includes(raw.lastReveal.category as Category))) return null;
   if (!validResult(raw.lastResult) || !validPerks(raw.perks) || !validDeck(raw.deck) || !validDeck(raw.discard)) return null;
+  if (raw.bonds !== undefined && !(Array.isArray(raw.bonds) && raw.bonds.every((b) => isObj(b) && isStr(b.a) && isStr(b.b) && isNum(b.votes)))) return null;
   if (raw.perkResult !== undefined && !(isObj(raw.perkResult) && isStr(raw.perkResult.playerId) && isStr(raw.perkResult.text))) return null;
   if (raw.fx !== undefined && !validFx(raw.fx)) return null;
   for (const p of raw.players) {

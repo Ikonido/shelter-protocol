@@ -45,7 +45,9 @@ const PERKS: (ItemPerk | TargetPerk)[] = [
 ];
 
 /** Какой эффект выполняет бонус с выбором игрока. */
-export const PERK_EFFECT: Record<PerkKind, ActionEffect> = {
+/** Бонусы, которые работают через обычное действие. Связь адвоката (bond) проверяется отдельно. */
+export const PERK_EFFECT: Partial<Record<PerkKind, ActionEffect>> = {
+  double: 'doubleVote',
   heal: 'healOther',
   steal: 'stealLuggage',
   reveal: 'forceReveal',
@@ -57,7 +59,7 @@ export const PERK_EFFECT: Record<PerkKind, ActionEffect> = {
 };
 
 /** Бонусы, которым не нужна цель-игрок: применяются сразу, без выбора. */
-const NO_TARGET: PerkKind[] = ['immunity'];
+const NO_TARGET: PerkKind[] = ['immunity', 'double'];
 export const perkNeedsTarget = (kind: PerkKind) => !NO_TARGET.includes(kind);
 
 /** Особые бонусы профессий (по названию карты): предметы, выбор кражи и т.д. Профессия без навыка получает бонус только отсюда. */
@@ -74,6 +76,8 @@ const SPECIAL: Record<string, { kind: PerkKind } | { fixed: string[] } | { pool:
   'Блогер-«эксперт по жизни»': { kind: 'reroll_character' },
   'Коуч по «поиску себя»': { kind: 'reroll_character' },
   'Менеджер по продажам': { kind: 'swap_bag' },
+  'Адвокат по разводам': { kind: 'bond' },
+  'Менеджер среднего звена: «ну я же сказал»': { kind: 'double' },
 };
 
 /** Опытность: у врача задаёт шанс вылечить, у остальных — сколько предметов, краж или открытых карт (от и до, максимум 3). */
@@ -113,6 +117,8 @@ export const perkLabel = (kind: PerkKind, level?: PerkLevel) => {
     reroll_character: 'Сменить характер игрока',
     swap_bag: 'Обменяться багажом',
   };
+  plain.double = 'Голос за два (если кто-то выгнан)';
+  plain.bond = 'Связать двух игроков';
   if (plain[kind]) return t(plain[kind]!);
   if (!level) return t(kind === 'heal' ? 'Вылечить игрока' : kind === 'steal' ? 'Украсть багаж' : 'Допросить игрока');
   const vars = { level: t(LEVELS[level].label), n: Math.round(LEVELS[level].chance * 100), range: rangeText(level) };
@@ -193,7 +199,8 @@ export function onSkillRevealed(g: GameState, playerId: string, category: Catego
   if (perkOf(g, playerId)) return g;
   return {
     ...g,
-    perks: [...(g.perks ?? []), { playerId, kind: perk.kind, level }],
+    // Продавец зелий (обычный навык): зелье даёт второе использование бонуса.
+    perks: [...(g.perks ?? []), { playerId, kind: perk.kind, level, ...(p.slots.profession.card.description === 'Продавец «зелий бодрости»' ? { charges: 2 } : {}) }],
     log: [...g.log, { round: g.round, text: t('{who} получает бонус навыка: «{label}»', { who: p.name, label: perkLabel(perk.kind, level) }) }],
   };
 }
@@ -221,7 +228,20 @@ export const perkOf = (g: GameState, playerId: string): Perk | undefined => g.pe
 export function canApplyPerk(g: GameState, playerId: string, params: ActionParams = {}): { ok: true } | { ok: false; reason: string } {
   const perk = perkOf(g, playerId);
   if (!perk) return { ok: false, reason: t('Нет неиспользованного бонуса профессии') };
-  return canApply(g, playerId, PERK_EFFECT[perk.kind], { ...params, perk: true });
+  if (perk.kind === 'bond') return canBond(g, playerId, params);
+  const effect = PERK_EFFECT[perk.kind];
+  if (!effect) return { ok: false, reason: t('Нет неиспользованного бонуса профессии') };
+  return canApply(g, playerId, effect, { ...params, perk: true });
+}
+
+/** Связь адвоката: двое других живых; после того как двое выбудут, в убежище должно остаться не меньше мест. */
+function canBond(g: GameState, playerId: string, params: ActionParams): { ok: true } | { ok: false; reason: string } {
+  const a = g.players.find((p) => p.id === params.target && !p.isEliminated && p.id !== playerId);
+  const b = g.players.find((p) => p.id === params.target2 && !p.isEliminated && p.id !== playerId);
+  if (!a || !b || a.id === b.id) return { ok: false, reason: t('Выберите двух других живых игроков') };
+  const living = g.players.filter((p) => !p.isEliminated).length;
+  if (living - 2 < g.config.shelterSlots) return { ok: false, reason: t('Связь нельзя: после выгнания двоих в убежище не останется мест') };
+  return { ok: true };
 }
 
 const withoutPerk = (g: GameState, playerId: string): GameState => {
@@ -236,9 +256,18 @@ export function applyPerk(g: GameState, playerId: string, params: ActionParams =
   const level = perk.level ?? 'experienced';
   const effect = PERK_EFFECT[perk.kind];
   const base: ActionParams = { ...params, perk: true };
+  if (perk.kind === 'bond') {
+    if (!canBond(g, playerId, params).ok) return g;
+    const pair = { a: params.target!, b: params.target2!, votes: 2 };
+    const p = g.players.find((x) => x.id === playerId)!;
+    const a = g.players.find((x) => x.id === pair.a)!.name;
+    const b = g.players.find((x) => x.id === pair.b)!.name;
+    return withoutPerk({ ...g, bonds: [...(g.bonds ?? []), pair], log: [...g.log, { round: g.round, text: t('{who} связывает {a} и {b}: если одного выгонят, выйдет и второй', { who: p.name, a, b }) }] }, playerId);
+  }
+  if (!effect) return g;
   if (perk.kind === 'heal') {
     const next = runEffect(g, playerId, effect, { ...base, chance: LEVELS[level].chance });
-    return next === g ? g : withoutPerk(next, playerId);
+    return next === g ? g : consumePerk(next, playerId, perk);
   }
   let cur = runEffect(g, playerId, effect, base);
   if (cur === g) return g;
@@ -262,7 +291,13 @@ export function applyPerk(g: GameState, playerId: string, params: ActionParams =
       cur = runEffect(cur, playerId, effect, { ...base, category: hidden[Math.floor(rng() * hidden.length)] });
     }
   }
-  return grantPerksForNewReveals(g, withoutPerk(cur, playerId));
+  return grantPerksForNewReveals(g, consumePerk(cur, playerId, perk));
+}
+
+/** После применения: бонус тратится; у продавца зелий с зельем остаётся на второй раз. */
+function consumePerk(g: GameState, playerId: string, perk: Perk): GameState {
+  if ((perk.charges ?? 1) > 1) return { ...g, perks: (g.perks ?? []).map((x) => (x.playerId === playerId ? { ...x, charges: (x.charges ?? 1) - 1 } : x)), log: [...g.log, { round: g.round, text: t('{who} выпивает зелье: бонус можно применить ещё раз', { who: g.players.find((x) => x.id === playerId)!.name }) }] };
+  return withoutPerk(g, playerId);
 }
 
 /** Отказаться от бонуса. */
