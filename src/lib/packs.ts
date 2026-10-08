@@ -30,6 +30,8 @@ function sanitizeCard(raw: unknown, category: Category, i: number, mode: Mode = 
   const tags = strList(r.tags, L.cardTags, L.tagLen);
   if (tags.length) card.tags = tags;
   if (category === 'action' && ACTION_EFFECT_IDS.includes(r.effect as string)) card.effect = r.effect as ActionEffect;
+  const bonus = str(r.bonus, 40);
+  if (bonus) card.bonus = bonus;
   return card;
 }
 

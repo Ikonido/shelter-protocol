@@ -86,9 +86,9 @@ export const FANTASY_PACK: CardPack = {
       ['Королевский писарь', 'positive', ['грамота']],
       ['Истребитель чудовищ', 'positive', ['оборона']],
       ['Некромант-самоучка', 'negative', ['магия']],
-      ['Безработный герой', 'neutral'],
-      ['Продавец «зелий бодрости»', 'negative'],
-      ['Придворный фокусник', 'neutral'],
+      ['Безработный герой', 'neutral', undefined, undefined, undefined, 'unemployed-hero'],
+      ['Продавец «зелий бодрости»', 'negative', undefined, undefined, undefined, 'potion-seller'],
+      ['Придворный фокусник', 'neutral', undefined, undefined, undefined, 'court-magician'],
     ]),
     biology: cards(P, 'biology', [
       ['Существо, 2689 лет, раса неизвестна', 'neutral'],

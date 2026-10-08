@@ -24,7 +24,7 @@ interface ItemPerk {
 }
 interface FixedPerk {
   kind: 'fixed';
-  fixed: string[];
+  fixed: ItemDef[];
 }
 interface TargetPerk {
   kind: PerkKind;
@@ -62,23 +62,61 @@ export const PERK_EFFECT: Partial<Record<PerkKind, ActionEffect>> = {
 const NO_TARGET: PerkKind[] = ['immunity', 'double'];
 export const perkNeedsTarget = (kind: PerkKind) => !NO_TARGET.includes(kind);
 
-/** Особые бонусы профессий (по названию карты): предметы, выбор кражи и т.д. Профессия без навыка получает бонус только отсюда. */
-const SPECIAL: Record<string, { kind: PerkKind } | { fixed: string[] } | { pool: string[] }> = {
-  'Видеоблогер-инфлюенсер': { pool: ['Телефон', 'Камера'] },
-  'Сомелье': { fixed: ['5 бутылок вина', 'Кусок сыра'] },
-  'Придворный астролог': { pool: ['Карта созвездия: Орион', 'Карта созвездия: Большая Медведица', 'Карта созвездия: Кассиопея'] },
-  'Безработный герой': { fixed: ['Меч'] },
-  'Мастер маникюра': { fixed: ['Легковоспламеняющаяся химия'] },
-  'Сборщик налогов': { kind: 'steal' },
-  'Торговец поддельными реликвиями': { kind: 'steal_junk' },
-  'Королевский шут': { kind: 'immunity' },
-  'Придворный фокусник': { kind: 'reroll_health' },
-  'Блогер-«эксперт по жизни»': { kind: 'reroll_character' },
-  'Коуч по «поиску себя»': { kind: 'reroll_character' },
-  'Менеджер по продажам': { kind: 'swap_bag' },
-  'Адвокат по разводам': { kind: 'bond' },
-  'Менеджер среднего звена: «ну я же сказал»': { kind: 'double' },
+/**
+ * Особые бонусы профессий по стабильному ключу, который карта несёт в поле `bonus`. Ключ не зависит от текста и перевода:
+ * профессию можно переименовать, а копия пака сохранит бонус. Фиксированные предметы и пул — с тегами, как у обычных предметов.
+ */
+type BonusDef = { kind: PerkKind } | { fixed: ItemDef[] } | { pool: ItemDef[] };
+export const BONUSES: Record<string, BonusDef> = {
+  'video-blogger': { pool: [{ d: 'Телефон', tags: [] }, { d: 'Камера', tags: [] }] },
+  sommelier: { fixed: [{ d: '5 бутылок вина', tags: [] }, { d: 'Кусок сыра', tags: [] }] },
+  astrologer: { pool: ['Карта созвездия: Орион', 'Карта созвездия: Большая Медведица', 'Карта созвездия: Кассиопея'].map((d) => ({ d, tags: [] })) },
+  'unemployed-hero': { fixed: [{ d: 'Меч', tags: [] }] },
+  manicurist: { fixed: [{ d: 'Легковоспламеняющаяся химия', tags: [] }] },
+  plumber: { fixed: [{ d: 'Гаечный ключ', tags: ['ремонт'] }, { d: 'Бутылка пива', tags: ['бухло'] }] },
+  sysadmin: { pool: [{ d: 'Ноутбук', tags: ['мозги'] }, { d: 'Комплект кабелей', tags: ['ремонт'] }, { d: 'Роутер без блока питания', tags: [] }] },
+  pathologist: { fixed: [{ d: 'Хирургические инструменты', tags: ['медицина'] }, { d: 'Медицинский контейнер для образцов', tags: [] }] },
+  'tax-collector': { kind: 'steal' },
+  'relic-dealer': { kind: 'steal_junk' },
+  jester: { kind: 'immunity' },
+  'court-magician': { kind: 'reroll_health' },
+  'life-expert': { kind: 'reroll_character' },
+  coach: { kind: 'reroll_character' },
+  'sales-manager': { kind: 'swap_bag' },
+  lawyer: { kind: 'bond' },
+  'middle-manager': { kind: 'double' },
 };
+
+/** Продавец зелий: бонус идёт обычным навыком, а зелье даёт второе применение. Ключ профессии → сколько применений. */
+const BONUS_CHARGES: Record<string, number> = { 'potion-seller': 2 };
+
+/** Известен ли ключ бонуса (особый бонус или отметка продавца зелий). Неизвестный ключ просто ничего не даёт. */
+export const isKnownBonus = (key: string) => Object.hasOwn(BONUSES, key) || Object.hasOwn(BONUS_CHARGES, key);
+
+/**
+ * Старые сохранения и карты, созданные до поля `bonus`: по тексту прежней профессии. Используется только как запасной вариант
+ * для уже сохранённых карт; новые карты получают ключ явно.
+ */
+const LEGACY_BONUS: Record<string, string> = {
+  'Видеоблогер-инфлюенсер': 'video-blogger',
+  'Сомелье': 'sommelier',
+  'Придворный астролог': 'astrologer',
+  'Безработный герой': 'unemployed-hero',
+  'Мастер маникюра': 'manicurist',
+  'Сборщик налогов': 'tax-collector',
+  'Торговец поддельными реликвиями': 'relic-dealer',
+  'Королевский шут': 'jester',
+  'Придворный фокусник': 'court-magician',
+  'Блогер-«эксперт по жизни»': 'life-expert',
+  'Коуч по «поиску себя»': 'coach',
+  'Менеджер по продажам': 'sales-manager',
+  'Адвокат по разводам': 'lawyer',
+  'Менеджер среднего звена: «ну я же сказал»': 'middle-manager',
+  'Продавец «зелий бодрости»': 'potion-seller',
+};
+
+/** Ключ особого бонуса карты (профессии); для старых карт без поля — запасной поиск. */
+export const bonusKeyOf = (card: Card): string | undefined => (card.bonus ?? LEGACY_BONUS[card.description]);
 
 /** Опытность: у врача задаёт шанс вылечить, у остальных — сколько предметов, краж или открытых карт (от и до, максимум 3). */
 export const LEVELS: Record<PerkLevel, { chance: number; label: string; count: [number, number] }> = {
@@ -129,10 +167,11 @@ const norm = (s: string) => s.trim().toLowerCase().replace(/ё/g, 'е');
 
 /** Бонус профессии по её навыкам; нет подходящего навыка — нет бонуса. */
 export function perkFor(card: Card): ItemPerk | TargetPerk | FixedPerk | undefined {
-  const special = card.category === 'profession' ? SPECIAL[card.description] : undefined;
+  const key = card.category === 'profession' ? bonusKeyOf(card) : undefined;
+  const special = key && Object.hasOwn(BONUSES, key) ? BONUSES[key] : undefined;
   if (special) {
     if ('fixed' in special) return { kind: 'fixed', fixed: special.fixed };
-    if ('pool' in special) return { kind: 'item', tags: [], pool: special.pool.map((d) => ({ d, tags: [] })) };
+    if ('pool' in special) return { kind: 'item', tags: [], pool: special.pool };
     return { kind: special.kind, tags: [] };
   }
   const tags = (card.tags ?? []).map(norm);
@@ -140,11 +179,11 @@ export function perkFor(card: Card): ItemPerk | TargetPerk | FixedPerk | undefin
 }
 
 /** Фиксированный набор предметов (сомелье, меч): добавляется целиком, без жребия. */
-function addFixed(g: GameState, playerId: string, names: string[]): GameState {
+function addFixed(g: GameState, playerId: string, items: ItemDef[]): GameState {
   let next = g;
-  for (const name of names) next = addItemTo(next, playerId, { id: `perk-${name}`, category: 'luggage', description: name, modifier: 'positive' });
+  for (const def of items) next = addItemTo(next, playerId, { id: `perk-${def.d}`, category: 'luggage', description: def.d, modifier: 'positive', ...(def.tags.length ? { tags: def.tags } : {}) });
   const p = g.players.find((x) => x.id === playerId)!;
-  return { ...next, log: [...next.log, { round: g.round, text: t('{who} получает бонус профессии: {items}', { who: p.name, items: names.map((n) => t(n)).join(', ') }) }] };
+  return { ...next, log: [...next.log, { round: g.round, text: t('{who} получает бонус профессии: {items}', { who: p.name, items: items.map((n) => t(n.d)).join(', ') }) }] };
 }
 
 /** Кладёт один предмет в багаж игрока; пустой (потерянный или украденный) багаж заменяется им, полный — самым ценным. */
@@ -197,10 +236,11 @@ export function onSkillRevealed(g: GameState, playerId: string, category: Catego
   if (perk.kind === 'item') return addItems(g, playerId, perk, level);
   if (g.players.filter((x) => !x.isEliminated).length < 2) return g;
   if (perkOf(g, playerId)) return g;
+  const charges = BONUS_CHARGES[bonusKeyOf(p.slots.profession.card) ?? ''];
   return {
     ...g,
     // Продавец зелий (обычный навык): зелье даёт второе использование бонуса.
-    perks: [...(g.perks ?? []), { playerId, kind: perk.kind, level, ...(p.slots.profession.card.description === 'Продавец «зелий бодрости»' ? { charges: 2 } : {}) }],
+    perks: [...(g.perks ?? []), { playerId, kind: perk.kind, level, ...(charges ? { charges } : {}) }],
     log: [...g.log, { round: g.round, text: t('{who} получает бонус навыка: «{label}»', { who: p.name, label: perkLabel(perk.kind, level) }) }],
   };
 }

@@ -5,7 +5,8 @@ import { createGame, nextRound, playAction, resolveVote, revealCard, startVote }
 import { composeItems, itemsOf } from './inventory';
 import { t } from './i18n';
 import { BUILTIN_PACKS as BUILT } from '../data/classicPack';
-import { applyPerk, canApplyPerk, onSkillRevealed, perkFor, skipPerk } from './perks';
+import { applyPerk, BONUSES, canApplyPerk, onSkillRevealed, perkFor, skipPerk } from './perks';
+import { clonePack, sanitizePack } from '../lib/packs';
 import { updateSettings } from './settings';
 
 const cfg = (perks = true): SessionConfig => ({
@@ -178,7 +179,9 @@ describe('profession perks', () => {
     expect(done.players[1].slots.profession.isRevealed).toBe(true);
     expect(itemsOf(done.players[1].slots.luggage.card).length).toBeGreaterThan(before);
     // карты, которые не профессия, бонуса не дают
-    const other = playAction(g, 'p1', { target: 'p2', category: 'fact' });
+    // у факта без навыков бонуса нет (факт с навыком дал бы предметы по общему правилу)
+    const plainFact = { ...g, players: g.players.map((p) => (p.id === 'p2' ? { ...p, slots: { ...p.slots, fact: { ...p.slots.fact, card: { ...p.slots.fact.card, tags: [] } } } } : p)) };
+    const other = playAction(plainFact, 'p1', { target: 'p2', category: 'fact' });
     expect(itemsOf(other.players[1].slots.luggage.card).length).toBe(before);
   });
 
@@ -260,13 +263,41 @@ describe('profession perks', () => {
     expect(again.perks).toEqual([{ playerId: 'p1', kind: 'steal', level: 'novice' }]);
   });
 
-  it('the fifteen professions without skills each get their own bonus', () => {
-    const names = ['Видеоблогер-инфлюенсер', 'Сомелье', 'Придворный астролог', 'Безработный герой', 'Мастер маникюра', 'Сборщик налогов', 'Торговец поддельными реликвиями', 'Королевский шут', 'Придворный фокусник', 'Блогер-«эксперт по жизни»', 'Коуч по «поиску себя»', 'Менеджер по продажам'];
-    for (const n of names) {
-      const card = BUILT.flatMap((p) => p.cards.profession).find((c) => c.description === n)!;
-      expect(card, n).toBeDefined();
-      expect(perkFor({ ...card, tags: [] }), n).toBeDefined();
+  it('every special bonus key is carried by a built-in profession and gives a perk or items', () => {
+    const cards = BUILT.flatMap((p) => p.cards.profession);
+    for (const key of Object.keys(BONUSES)) {
+      const card = cards.find((c) => c.bonus === key);
+      expect(card, key).toBeDefined();
+      expect(perkFor({ ...card!, tags: [] }), key).toBeDefined();
     }
+  });
+
+  it('a plumber opens a wrench and a bottle of beer; a sysadmin gets one laptop, cable set or router', () => {
+    const plumber = { id: 'pl', category: 'profession' as const, description: 'Сантехник', tags: ['ремонт'], bonus: 'plumber' };
+    let g = fresh();
+    g = { ...g, round: 2, players: g.players.map((p) => (p.id === 'p1' ? { ...p, slots: { ...p.slots, profession: { ...p.slots.profession, card: plumber } } } : p)) };
+    g = revealCard(g, 'p1', 'profession');
+    const names = itemsOf(g.players[0].slots.luggage.card).map((c) => c.description);
+    expect(names).toEqual(expect.arrayContaining(['Гаечный ключ', 'Бутылка пива']));
+    expect(names.filter((n) => n === 'Гаечный ключ')).toHaveLength(1);
+  });
+
+  it('a special bonus survives renaming the profession (it is keyed by the card, not its text)', () => {
+    const renamed = { id: 'x', category: 'profession' as const, description: 'Совсем другое название', bonus: 'lawyer' };
+    expect(perkFor(renamed)).toEqual({ kind: 'bond', tags: [] });
+  });
+
+  it('a built-in pack copy keeps the special bonuses of its professions', () => {
+    const copy = clonePack(CLASSIC_PACK);
+    const lawyer = copy.cards.profession.find((c) => c.bonus === 'lawyer');
+    expect(lawyer, 'адвокат в копии').toBeDefined();
+    expect(perkFor(lawyer!)).toEqual({ kind: 'bond', tags: [] });
+    expect(sanitizePack(JSON.parse(JSON.stringify(copy)))!.cards.profession.find((c) => c.bonus === 'lawyer')).toBeDefined();
+  });
+
+  it('old saves (cards without the bonus field) still get the bonus by their former profession text', () => {
+    expect(perkFor({ id: 'old', category: 'profession', description: 'Адвокат по разводам' })).toEqual({ kind: 'bond', tags: [] });
+    expect(perkFor({ id: 'old2', category: 'profession', description: 'Менеджер среднего звена: «ну я же сказал»' })).toEqual({ kind: 'double', tags: [] });
   });
 
   it('a sommelier gets wine and cheese, an unemployed hero a sword, at once', () => {

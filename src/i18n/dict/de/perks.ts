@@ -77,4 +77,12 @@ export default {
   '{who} связывает {a} и {b}: если одного выгонят, выйдет и второй': '{who} verbindet {a} und {b}: wird einer rausgeworfen, geht auch der andere',
   'Пока никого не выгнали': 'Noch niemand wurde rausgeworfen',
   '{who} выпивает зелье: бонус можно применить ещё раз': '{who} trinkt den Trank: der Bonus kann noch einmal genutzt werden',
+  // Переработка профессий, предметов и бонусов (ключи — русский исходный текст)
+  'Гаечный ключ': 'Schraubenschlüssel',
+  'Бутылка пива': 'Flasche Bier',
+  'Ноутбук': 'Laptop',
+  'Комплект кабелей': 'Kabelset',
+  'Роутер без блока питания': 'Router ohne Netzteil',
+  'Хирургические инструменты': 'Chirurgische Instrumente',
+  'Медицинский контейнер для образцов': 'Medizinischer Probenbehälter',
 };
