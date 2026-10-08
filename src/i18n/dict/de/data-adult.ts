@@ -351,7 +351,7 @@ export default {
   'Обмен заначками': 'Tausch der Verstecke',
   'Отмените один голос, поданный против вас в этом раунде.': 'Hebe eine Stimme auf, die in dieser Runde gegen dich abgegeben wurde.',
   'Отмазка': 'Ausrede',
-  'Вы защищены от исключения в этом раунде, но не голосуете.': 'Du kannst in dieser Runde nicht ausgeschlossen werden, darfst aber nicht abstimmen.',
+  'Вы защищены от исключения в этом раунде, но не голосуете.': 'Du bist in dieser Runde vor dem Ausscheiden geschützt, stimmst aber nicht ab.',
   'Похер': 'Scheißegal',
   'Карта багажа выбранного игрока считается потерянной.': 'Die Gepäckkarte des gewählten Spielers gilt als verloren.',
   'Подстава': 'Hereinlegen',
