@@ -207,7 +207,9 @@ export function allVoted(g: GameState): boolean {
 export function resolveVote(g: GameState): GameState {
   if (g.hiddenThreat && g.phase !== 'vote') return g;
   const next = resolveVoteCore(g);
-  return next.perks || next.perkResult ? { ...next, perks: undefined, perkResult: undefined } : next;
+  // Каждое голосование уменьшает срок связей адвоката; неиспользованные бонусы сгорают.
+  const bonds = next.bonds?.map((b) => ({ ...b, votes: b.votes - 1 })).filter((b) => b.votes > 0);
+  return { ...next, perks: undefined, perkResult: undefined, bonds: bonds?.length ? bonds : undefined };
 }
 
 function resolveVoteCore(g: GameState): GameState {
@@ -239,9 +241,20 @@ function resolveVoteCore(g: GameState): GameState {
   const candidates = living.filter((p) => !immune.has(p.id));
   const ranked = shuffle(candidates, rng).sort((a, b) => tally[b.id] - tally[a.id]);
   const take = Math.min(quota, ranked.length);
-  const eliminated = ranked.slice(0, take).map((p) => p.id);
+  const picked = ranked.slice(0, take).map((p) => p.id);
+  // Связь адвоката: партнёр выбывает вместе с выбывшим, пока после этого в убежище остаётся не меньше мест.
+  const extra: string[] = [];
+  for (const b of g.bonds ?? []) {
+    const hitA = picked.includes(b.a);
+    const hitB = picked.includes(b.b);
+    if (hitA === hitB) continue;
+    const partner = hitA ? b.b : b.a;
+    const partnerLive = living.some((p) => p.id === partner) && !picked.includes(partner) && !extra.includes(partner);
+    if (partnerLive && living.length - picked.length - extra.length - 1 >= g.config.shelterSlots) extra.push(partner);
+  }
+  const eliminated = [...picked, ...extra];
   const cutoff = ranked[take - 1] ? tally[ranked[take - 1].id] : 0;
-  const tieBreak = candidates.filter((p) => tally[p.id] === cutoff).length > eliminated.filter((id) => tally[id] === cutoff).length;
+  const tieBreak = candidates.filter((p) => tally[p.id] === cutoff).length > picked.filter((id) => tally[id] === cutoff).length;
   const result: RoundResult = { eliminated, tally, tieBreak, abstained };
   const names = eliminated.map((id) => g.players.find((p) => p.id === id)!.name).join(', ');
   return {

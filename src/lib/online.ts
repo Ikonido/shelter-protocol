@@ -57,7 +57,7 @@ export type C2H =
   | { t: 'hello'; name: string; token: string; ticket?: string }
   | { t: 'reveal'; category: Category }
   | { t: 'action'; target?: string; category?: Category }
-  | { t: 'perk'; target?: string; category?: Category; skip?: boolean } // бонус открытой профессии
+  | { t: 'perk'; target?: string; target2?: string; category?: Category; skip?: boolean } // бонус открытой профессии
   | { t: 'vote'; target: string }
   | { t: 'done' } // ходящий закончил речь раньше времени
   | { t: 'volunteer' }; // вызваться добровольцем (событие раунда)
@@ -341,7 +341,7 @@ export class OnlineHost {
     else if (msg.t === 'auxiliary' && Object.keys(msg).every(k => ['t', 'round', 'kind', 'target', 'itemId'].includes(k)) && typeof msg.kind === 'string' && ['assist', 'obstruct', 'transfer'].includes(msg.kind) && typeof msg.target === 'string' && Number.isInteger(msg.round)) refusal = this.act(member, { t: 'auxiliary', round: msg.round as number, kind: msg.kind as Auxiliary, target: msg.target.slice(0, 12), ...(typeof msg.itemId === 'string' ? { itemId: msg.itemId.slice(0, 60) } : {}) });
     else if (msg.t === 'reveal' && CATEGORIES.includes(msg.category as Category)) this.act(member, { t: 'reveal', category: msg.category as Category });
     else if (msg.t === 'action') refusal = this.act(member, { t: 'action', ...(typeof msg.target === 'string' ? { target: msg.target.slice(0, 12) } : {}), ...(CATEGORIES.includes(msg.category as Category) ? { category: msg.category as Category } : {}) });
-    else if (msg.t === 'perk') refusal = this.act(member, { t: 'perk', ...(msg.skip === true ? { skip: true } : {}), ...(typeof msg.target === 'string' ? { target: msg.target.slice(0, 12) } : {}), ...(CATEGORIES.includes(msg.category as Category) ? { category: msg.category as Category } : {}) });
+    else if (msg.t === 'perk') refusal = this.act(member, { t: 'perk', ...(msg.skip === true ? { skip: true } : {}), ...(typeof msg.target === 'string' ? { target: msg.target.slice(0, 12) } : {}), ...(typeof msg.target2 === 'string' ? { target2: msg.target2.slice(0, 12) } : {}), ...(CATEGORIES.includes(msg.category as Category) ? { category: msg.category as Category } : {}) });
     else if (msg.t === 'done') this.act(member, { t: 'done' });
     else if (msg.t === 'volunteer') this.act(member, { t: 'volunteer' });
     else if (msg.t === 'vote' && typeof msg.target === 'string') this.act(member, { t: 'vote', target: msg.target });
@@ -378,8 +378,9 @@ export class OnlineHost {
       if (g.phase === 'reveal' || g.phase === 'speech' || g.phase === 'vote') {
         if (msg.skip) next = skipPerk(g, id);
         else {
-          const check = canApplyPerk(g, id, { target: msg.target, category: msg.category });
-          if (check.ok) next = playPerk(g, id, { target: msg.target, category: msg.category });
+          const pp = { target: msg.target, target2: msg.target2, category: msg.category };
+          const check = canApplyPerk(g, id, pp);
+          if (check.ok) next = playPerk(g, id, pp);
           else refusal = check.reason;
         }
       } else refusal = t('Сейчас бонус применить нельзя');
@@ -652,7 +653,7 @@ function cleanCard(raw: unknown, category: Category, nested = false): Card | nul
   return card;
 }
 
-const PERK_KINDS = ['steal', 'heal', 'reveal'] as const;
+const PERK_KINDS = ['steal', 'heal', 'reveal', 'steal_junk', 'immunity', 'reroll_health', 'reroll_character', 'swap_bag', 'double', 'bond'] as const;
 
 function cleanPerkResult(raw: unknown): PerkResult | null {
   const r = rec(raw);

@@ -17,9 +17,11 @@ export interface ActionParams {
   perk?: boolean;
   /** Шанс успеха лечения (по умолчанию 1). */
   chance?: number;
+  /** Второй игрок (связь адвоката). */
+  target2?: string;
 }
 
-const NEEDS_TARGET: ActionEffect[] = ['stealLuggage', 'giveLuggage', 'swapLuggage', 'sabotage', 'forceReveal', 'ally', 'healOther'];
+const NEEDS_TARGET: ActionEffect[] = ['stealLuggage', 'giveLuggage', 'swapLuggage', 'sabotage', 'forceReveal', 'ally', 'healOther', 'rerollHealth', 'rerollCharacter'];
 export const needsTarget = (e: ActionEffect) => NEEDS_TARGET.includes(e);
 export const needsCategory = (e: ActionEffect) => e === 'forceReveal';
 
@@ -115,6 +117,13 @@ export function canApply(g: GameState, actorId: string, effect: ActionEffect, pa
     case 'stealLuggage':
       // В «виде» онлайн-клиента чужой багаж скрыт: проверку повторяет хост.
       return full && target && itemsOf(target.slots.luggage.card).length === 0 ? fail(t('У игрока нет предметов')) : { ok: true };
+    case 'rerollHealth':
+    case 'rerollCharacter':
+      // Случайная карта выбранного игрока из колоды: себя не выбираем, колода должна быть не пуста.
+      return hasDeck(effect === 'rerollHealth' ? 'health' : 'character') ? { ok: true } : fail(t('Колода пуста'));
+    case 'doubleVote':
+      // Голос менеджера считается за два, только когда кто-то уже выгнан.
+      return params.perk && !g.players.some((p) => p.isEliminated) ? fail(t('Пока никого не выгнали')) : { ok: true };
     case 'healOther':
       // Лечить можно любого: меню не должно выдавать, кто болен. Что получилось, знает только врач.
       // Себя врач перебрасывает на случайное состояние из колоды здоровья: без колоды делать нечего.
@@ -232,6 +241,18 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
       const next = withSlot(n, actorId, 'health', { card: { ...h.card, modifier: 'neutral', description: t('{desc} (вылечен)', { desc: h.card.description }) }, isRevealed: h.isRevealed });
       return say(next, t('{who} применяет «{title}»: его вылечили', vars));
     }
+    case 'rerollHealth':
+    case 'rerollCharacter': {
+      const tg = target!;
+      const cat = effect === 'rerollHealth' ? 'health' : 'character';
+      const d = draw(n, cat);
+      if (!d) return g;
+      const old = tg.slots[cat];
+      let next = withSlot(d.g, tg.id, cat, { card: d.card, isRevealed: old.isRevealed });
+      next = toDiscard(next, cat, old.card);
+      // Новое состояние не пишем в журнал: его видит только тот, у кого карта открыта.
+      return say(next, t(effect === 'rerollHealth' ? '{who} применяет «{title}»: меняет здоровье {victim}' : '{who} применяет «{title}»: меняет характер {victim}', { ...vars, victim: tg.name }));
+    }
     case 'healOther': {
       const tg = target!;
       if (tg.id === actorId) {
@@ -305,7 +326,7 @@ export function effectiveVotes(g: GameState): Record<string, string> {
   return votes;
 }
 
-const DECK_CATEGORIES: DeckCategory[] = ['luggage', 'physique', 'biology', 'hobby', 'health'];
+const DECK_CATEGORIES: DeckCategory[] = ['luggage', 'physique', 'biology', 'hobby', 'health', 'character'];
 
 /** Колода для эффектов: карты выбранных паков, которые не попали в раздачу, перемешанные детерминированно от seed. */
 export function initialDeck(players: PlayerCharacter[], packs: CardPack[], seed: number): Pick<GameState, 'deck' | 'discard'> {
