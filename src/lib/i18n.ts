@@ -12,6 +12,31 @@ export function t(text: string, vars?: Record<string, string | number>): string 
   return vars ? out.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m)) : out;
 }
 
+/** Переменные, чьи значения — данные игры и переводятся при показе (названия категорий, описания, названия угроз). */
+const TRANSLATED_VARS = ['cat', 'desc', 'title'];
+
+/**
+ * Хранимая строка «шаблон + переменные»: в состоянии партии лежит русский ключ, а переводится он при показе,
+ * поэтому смена языка меняет и уже созданный текст. Читается через tPacked.
+ */
+export function packT(text: string, vars?: Record<string, string | number>): string {
+  return vars ? `${text}\u0001${JSON.stringify(vars)}` : text;
+}
+
+/** Показывает строку из packT (или обычную, например из старого сохранения) на текущем языке. */
+export function tPacked(s: string): string {
+  const i = s.indexOf('\u0001');
+  if (i < 0) return t(s);
+  const key = s.slice(0, i);
+  try {
+    const vars = JSON.parse(s.slice(i + 1)) as Record<string, string | number>;
+    for (const k of TRANSLATED_VARS) if (typeof vars[k] === 'string') vars[k] = t(vars[k] as string);
+    return t(key, vars);
+  } catch {
+    return t(key);
+  }
+}
+
 export type Forms = readonly string[];
 
 /**

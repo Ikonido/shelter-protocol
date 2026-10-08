@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Gift, MessagesSquare, Siren, UserMinus } from 'lucide-react';
 import type { ActiveEvent, PlayerCharacter } from '../types';
-import { t } from '../lib/i18n';
+import { t, tPacked } from '../lib/i18n';
 
 const TONE = {
   bad: { Icon: Siren, text: 'text-danger', border: 'border-danger/60', label: 'кризис' },
@@ -42,7 +42,7 @@ export function EventCard({
       <p className="text-sm leading-relaxed text-ink/90">{t(event.text)}</p>
       {event.outcome.length > 0 && (
         <ul className="flex flex-col gap-1 rounded-md border border-edge bg-bg p-3 text-sm">
-          {event.outcome.map((o, i) => <li key={i} className={`${tone.text} before:mr-2 before:content-['▸']`}>{t(o)}</li>)}
+          {event.outcome.map((o, i) => <li key={i} className={`${tone.text} before:mr-2 before:content-['▸']`}>{tPacked(o)}</li>)}
         </ul>
       )}
       {event.kind === 'volunteer' && volunteers && volunteers.length > 0 && onVolunteer && (
