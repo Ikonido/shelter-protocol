@@ -9,6 +9,7 @@ import type { GameState } from '../types';
 export function undoable(after: GameState, current: GameState): boolean {
   return (
     after.players === current.players &&
+    after.hiddenThreat === current.hiddenThreat &&
     after.log === current.log &&
     after.deck === current.deck &&
     after.discard === current.discard &&

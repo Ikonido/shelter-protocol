@@ -1,7 +1,9 @@
-import { CATEGORIES, type CardPack, type Category, type GameState } from '../types';
+import { ACTION_EFFECTS, CATEGORIES, type CardPack, type Category, type GameState } from '../types';
 import { emptyCard } from './generator';
 import { sanitizePack } from './packs';
 import { MAX_ITEMS } from './inventory';
+import { validThreatSave } from './threat/storage';
+import { migrateThreatLedger } from './threat/economy';
 
 const K_PACKS = 'shelter:customPacks';
 const K_GAME = 'shelter:game';
@@ -52,7 +54,7 @@ function withNewSlots(g: GameState): GameState {
   };
 }
 
-const PHASES = ['event', 'reveal', 'speech', 'vote', 'result', 'final', 'debate'];
+const PHASES = ['event', 'reveal', 'speech', 'secret', 'secret-review', 'vote', 'result', 'final', 'debate'];
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 // isRevealed может отсутствовать в старых сохранениях: тогда считаем карту закрытой.
@@ -65,6 +67,7 @@ const VOTINGS = ['secret', 'open'];
 const MODIFIERS = ['positive', 'neutral', 'negative'];
 const validCard = (c: unknown, nested = false): boolean =>
   isObj(c) && isStr(c.description) && (c.tags === undefined || strList(c.tags)) && (c.modifier === undefined || MODIFIERS.includes(c.modifier as string)) && (c.title === undefined || isStr(c.title)) &&
+  (c.effect === undefined || isStr(c.effect) && Object.hasOwn(ACTION_EFFECTS, c.effect)) &&
   (c.strictTags === undefined || typeof c.strictTags === 'boolean') &&
   // Составной багаж: предметы — тоже карты (один уровень вложенности, не больше MAX_ITEMS).
   (c.items === undefined || (!nested && Array.isArray(c.items) && c.items.length <= MAX_ITEMS && c.items.every((i) => validCard(i, true))));
@@ -121,7 +124,8 @@ export function validateSavedGame(raw: unknown): GameState | null {
       if (!validSlot(slot) || !validCard((slot as { card: unknown }).card)) return null;
     }
   }
-  return raw as unknown as GameState;
+  const game = raw as unknown as GameState;
+  return validThreatSave(game) ? migrateThreatLedger(game) : null;
 }
 
 export const loadGame = (): GameState | null => {
@@ -131,4 +135,4 @@ export const loadGame = (): GameState | null => {
   if ((g.phase as string) === 'debate') return withNewSlots({ ...g, phase: 'vote', votes: {} });
   return withNewSlots(g);
 };
-export const saveGame = (g: GameState | null) => write(K_GAME, g);
+export const saveGame = (g: GameState | null) => { if (!g || validThreatSave(g)) write(K_GAME, g); };

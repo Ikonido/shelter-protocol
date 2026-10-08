@@ -7,9 +7,10 @@ import { t } from '../lib/i18n';
 /** Полоса шагов раунда: вскрытие 1 → вскрытие 2 → голосование → итоги. */
 export function PhaseSteps({ game }: { game: GameState }) {
   const n = perVote(game);
+  const secret = game.config.variant === 'hidden-threat' ? 1 : 0;
   const ev = game.config.roundEvents ? 1 : 0;
-  const steps = [...(ev ? [t('Событие')] : []), ...Array.from({ length: n }, (_, i) => t('Вскрытие {n}', { n: i + 1 })), t('Голосование'), t('Итоги')];
-  const current = game.phase === 'event' ? 0 : game.phase === 'vote' ? ev + n : game.phase === 'result' ? ev + n + 1 : ev + stepOf(game) - 1;
+  const steps = [...(ev ? [t('Событие')] : []), ...Array.from({ length: n }, (_, i) => t('Вскрытие {n}', { n: i + 1 })), ...(secret ? [t('Закрытая фаза')] : []), t('Голосование'), t('Итоги')];
+  const current = game.phase === 'event' ? 0 : ['secret', 'secret-review'].includes(game.phase) ? ev + n : game.phase === 'vote' ? ev + n + secret : game.phase === 'result' ? ev + n + secret + 1 : ev + stepOf(game) - 1;
   return (
     <ol className="flex items-center gap-1 overflow-x-auto text-[10px] uppercase tracking-widest" aria-label={t('Шаги раунда')}>
       {steps.map((label, i) => {

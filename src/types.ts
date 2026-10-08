@@ -1,4 +1,5 @@
 import { t } from './lib/i18n';
+import type { ThreatConfig, ThreatState, ThreatView } from './lib/threat/types';
 export type Category =
   | 'profession'
   | 'biology'
@@ -182,6 +183,9 @@ export type PlayMode = 'pass-and-play' | 'tabletop' | 'online';
 export type VotingMode = 'secret' | 'open';
 
 export interface SessionConfig {
+  /** Absent in classic saves. Independent of the device/play mode. */
+  variant?: 'classic' | 'hidden-threat';
+  hiddenThreat?: ThreatConfig;
   scenarioId: string;
   packIds: string[];
   playerCount: number; // N
@@ -210,7 +214,7 @@ export interface SessionConfig {
 
 /** reveal — ходящий открывает карту; speech — он объясняет пользу (таймер); затем следующий игрок. */
 /** event — карта кризиса в начале раунда; reveal — ходящий открывает карту; speech — он объясняет пользу. */
-export type Phase = 'event' | 'reveal' | 'speech' | 'vote' | 'result' | 'final';
+export type Phase = 'event' | 'reveal' | 'speech' | 'secret' | 'secret-review' | 'vote' | 'result' | 'final';
 
 export type EventKind = 'shrink' | 'plague' | 'volunteer' | 'leak' | 'silence' | 'newHazard' | 'relief' | 'prompt';
 
@@ -265,6 +269,10 @@ export interface PerkResult {
 }
 
 export interface GameState {
+  /** Host/local authority only. MUST be removed before serialization to a client. */
+  hiddenThreat?: ThreatState;
+  /** Per-recipient DTO; cannot be resumed as an authoritative save. */
+  threatView?: ThreatView;
   config: SessionConfig;
   scenario: Scenario; // снимок: правка пака не ломает идущую партию
   players: PlayerCharacter[];

@@ -18,7 +18,9 @@ import { dealStartingItems } from './inventory';
 import { EVENTS, drawEvent, hiddenForLeak, unusedHazards } from './events';
 import { mulberry32, shuffle } from './rng';
 import { packT, t, tPacked } from './i18n';
-import { applyPerk, grantPerksForNewReveals, onProfessionRevealed } from './perks';
+import { applyPerk, grantPerksForNewReveals, onProfessionRevealed, PERK_EFFECT } from './perks';
+import { dealRoles, validateThreatConfig } from './threat/roles';
+import { rewardTransition, withThreatReserves } from './threat/economy';
 
 export const MAX_ROUNDS = 6;
 /** Потолок раундов, включая добавленные из-за воздержавшихся. */
@@ -44,6 +46,10 @@ export function clampConfig(playerCount: number, slots: number) {
 }
 
 export function createGame(config: SessionConfig, scenario: Scenario, packs: CardPack[]): GameState {
+  if (config.variant === 'hidden-threat') {
+    const error = validateThreatConfig(config.playerCount, config.shelterSlots, config.hiddenThreat!);
+    if (error || config.names.length !== config.playerCount) throw new Error(error ?? 'Некорректное число имён игроков');
+  }
   const rng = mulberry32(config.seed);
   const dealt = generateCharacters(config.names, packs, rng);
   const stock = initialDeck(dealt, packs, config.seed);
@@ -57,7 +63,8 @@ export function createGame(config: SessionConfig, scenario: Scenario, packs: Car
     players,
     round: 1,
     schedule: buildSchedule(config.playerCount, config.shelterSlots, maxRoundsFor(config.revealsPerVote)),
-    phase: config.mode === 'tabletop' ? 'final' : 'reveal',
+    phase: config.mode === 'tabletop' && config.variant !== 'hidden-threat' ? 'final' : 'reveal',
+    ...(config.variant === 'hidden-threat' ? { hiddenThreat: dealRoles(players, config.hiddenThreat!) } : {}),
     revealedThisRound: [],
     revealStep: 1,
     hazards: pickHazards(scenario, config.hazardCount ?? 0, config.seed),
@@ -66,7 +73,8 @@ export function createGame(config: SessionConfig, scenario: Scenario, packs: Car
     log: [],
     seed: config.seed,
   };
-  return config.mode !== 'tabletop' && config.roundEvents ? openRound(base) : base;
+  const prepared = base.hiddenThreat ? withThreatReserves(base) : base;
+  return config.mode !== 'tabletop' && config.roundEvents ? openRound(prepared) : prepared;
 }
 
 /** Случайный (но воспроизводимый по seed) набор факторов угрозы из пула сценария. */
@@ -140,16 +148,19 @@ export function settleReveal(g: GameState): GameState {
 
 /** Бонус профессии с последующей проверкой очереди вскрытий (допрос тоже может открыть последнюю карту). */
 export function playPerk(g: GameState, playerId: string, params?: ActionParams): GameState {
+  if (g.hiddenThreat && !['reveal', 'speech', 'vote'].includes(g.phase)) return g;
   const next = applyPerk(g, playerId, params);
-  return next === g ? g : settleReveal(next);
+  const perk = g.perks?.find(p => p.playerId === playerId);
+  return next === g ? g : settleReveal(rewardTransition(g, next, playerId, `perk:${playerId}:${g.round}`, perk ? PERK_EFFECT[perk.kind] : undefined));
 }
 
 export function playAction(g: GameState, playerId: string, params?: ActionParams): GameState {
+  if (g.hiddenThreat && !['reveal', 'speech', 'vote'].includes(g.phase)) return g;
   const p = g.players.find((x) => x.id === playerId);
   if (!p || p.isEliminated || p.slots.action.isRevealed) return g;
   const card = p.slots.action.card;
   // Автоисполнение (по желанию игроков): эффект карты выполняется в игре. Невозможное действие ничего не меняет.
-  if (g.config.autoActions && card.effect) return settleReveal(grantPerksForNewReveals(g, runEffect(g, playerId, card.effect, params)));
+  if (g.config.autoActions && card.effect) return settleReveal(rewardTransition(g, grantPerksForNewReveals(g, runEffect(g, playerId, card.effect, params)), playerId, `action:${playerId}`, card.effect));
   return {
     ...g,
     players: g.players.map((x) =>
@@ -163,6 +174,7 @@ export function playAction(g: GameState, playerId: string, params?: ActionParams
 }
 
 export function startVote(g: GameState): GameState {
+  if (g.hiddenThreat && g.hiddenThreat.resolvedRound < g.round) return { ...g, phase: 'secret', speechEndsAt: undefined };
   // Квоту закрыли добровольцы: голосовать не за что.
   if (g.schedule.length > 0 && quotaThisRound(g) <= 0) {
     return {
@@ -193,6 +205,7 @@ export function allVoted(g: GameState): boolean {
  * (детерминированным от seed и раунда).
  */
 export function resolveVote(g: GameState): GameState {
+  if (g.hiddenThreat && g.phase !== 'vote') return g;
   const next = resolveVoteCore(g);
   return next.perks || next.perkResult ? { ...next, perks: undefined, perkResult: undefined } : next;
 }
@@ -369,6 +382,9 @@ export function volunteer(g: GameState, playerId: string): GameState {
 }
 
 export function nextRound(g: GameState): GameState {
+  if (g.hiddenThreat && alive(g).length > g.config.shelterSlots && g.round >= g.schedule.length) {
+    return openRound({ ...g, round: g.round + 1, revealStep: 1, votes: {}, schedule: [...g.schedule, Math.min(alive(g).length - g.config.shelterSlots, Math.max(1, quotaThisRound(g)))], perks: undefined, perkResult: undefined });
+  }
   const done = alive(g).length <= g.config.shelterSlots || g.round >= g.schedule.length;
   if (done) return { ...g, phase: 'final', perks: undefined };
   return openRound({ ...g, round: g.round + 1, revealStep: 1, votes: {}, perks: undefined, perkResult: undefined });

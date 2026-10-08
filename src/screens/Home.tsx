@@ -7,6 +7,7 @@ import { UpdateBanner, UpdateButton } from '../ui/UpdateButton';
 import { Onboarding, markTourSeen, tourSeen } from '../ui/Onboarding';
 import { useState } from 'react';
 import { t } from '../lib/i18n';
+import { loadHostedRoom } from '../lib/threat/hostStorage';
 
 function MenuItem({ icon: Icon, title, hint, onClick }: { icon: LucideIcon; title: string; hint: string; onClick: () => void }) {
   return (
@@ -34,6 +35,7 @@ export default function Home() {
   const [tourHint, setTourHint] = useState(() => !tourSeen());
   const to = (s: Screen) => () => go(s);
   const resumable = game && game.phase !== 'final';
+  const [hosted] = useState(loadHostedRoom);
   return (
     <>
     {tour && <Onboarding onClose={() => { setTour(false); setTourHint(false); }} />}
@@ -54,6 +56,7 @@ export default function Home() {
 
       <nav className="anim-rise flex flex-col gap-3" style={{ animationDelay: '.08s' }} aria-label={t('Главное меню')}>
         <UpdateBanner />
+        {hosted && <button className="btn btn-primary" onClick={() => go({ name: 'lobby', resume: true, draft: { ...hosted.setup, revealsPerVote: hosted.checkpoint.game.config.revealsPerVote, hazardCount: hosted.checkpoint.game.config.hazardCount, difficulty: hosted.checkpoint.game.config.difficulty, roundEvents: hosted.checkpoint.game.config.roundEvents, speechSec: hosted.checkpoint.game.config.speechSec, timeLimitMin: hosted.checkpoint.game.config.timeLimitMin } })}>{t('Восстановить комнату «Скрытая угроза»')} · {hosted.code}</button>}
         {tourHint && (
           <section className="panel flex flex-col gap-2 border-amber/50">
             <p className="text-sm"><b className="text-amber">{t('Впервые здесь?')}</b> {t('Правила за минуту: пять коротких экранов.')}</p>

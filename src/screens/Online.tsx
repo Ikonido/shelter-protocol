@@ -5,7 +5,7 @@ import { OnlineClient, OnlineHost, type C2H, type Conn, type H2C } from '../lib/
 import { QRScanner } from '../ui/QRScanner';
 import { createRoom, isValidCode, isValidTicket, joinRoom, normalizeCode, probeLan, shareOrigin, type NetMode } from '../lib/net';
 import { randomToken } from '../lib/rng';
-import { plural, t } from '../lib/i18n';
+import { plural, t, tPacked } from '../lib/i18n';
 import { copyText } from '../ui/clipboard';
 import { QR } from '../ui/QR';
 import { ABSTAIN, alive, currentSpeaker, perVote, quotaThisRound, revealOptions, stepOf } from '../lib/game';
@@ -25,6 +25,11 @@ import { Tally } from '../ui/Tally';
 import { EventCard } from '../ui/EventCard';
 import { MatchClock } from '../ui/MatchClock';
 import { FinalReport } from './Final';
+import { ThreatPrivate, ThreatPublic } from '../ui/HiddenThreat';
+import { Gate } from '../ui/Gate';
+import { Modal } from '../ui/bits';
+import { validateThreatConfig } from '../lib/threat/roles';
+import { clearHostedRoom, openLobbySession, saveHostedRoom } from '../lib/threat/hostStorage';
 
 type Send = (m: Exclude<C2H, { t: 'hello' }>) => void;
 
@@ -51,7 +56,7 @@ function NetBadge({ mode }: { mode: NetMode | null }) {
 
 /* ---------- Хост: лобби ---------- */
 
-export function Lobby({ draft }: { draft: OnlineDraft }) {
+export function Lobby({ draft, resume = false }: { draft: OnlineDraft; resume?: boolean }) {
   const { go, notify } = useStore();
   const [host, setHost] = useState<OnlineHost | null>(null);
   const [code, setCode] = useState<string | null>(null);
@@ -61,6 +66,7 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
   const [net, setNet] = useState<NetMode | null>(null);
   const [origin, setOrigin] = useState(location.origin);
   const [now, setNow] = useState(Date.now());
+  const [attempt, setAttempt] = useState(0);
   useLive(host);
   useEffect(() => {
     const t = setInterval(() => {
@@ -76,13 +82,18 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
   useEffect(() => {
     let room: { destroy(): void } | null = null;
     let cancelled = false;
-    const h = new OnlineHost(draft, readLS('shelter:name') ?? t('Хост'));
+    setError(null);
+    setCode(null);
+    let session: ReturnType<typeof openLobbySession>;
+    try { session = openLobbySession(draft, readLS('shelter:name') ?? t('Хост'), resume); }
+    catch (e) { setHost(null); setError((e as Error).message); return; }
+    const h = session.host;
     setHost(h);
     (async () => {
       const mode: NetMode = (await probeLan()) ? 'lan' : 'internet';
       if (cancelled) return;
       setNet(mode);
-      const r = await createRoom((c) => h.addConn(c as Conn<H2C>), mode);
+      const r = await createRoom((c) => h.addConn(c as Conn<H2C>), mode, session.code);
       if (cancelled) r.destroy();
       else {
         room = r;
@@ -94,9 +105,15 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
       room?.destroy();
       h.destroy();
     };
-  }, [draft]);
+  }, [draft, resume, attempt]);
+  useEffect(() => {
+    if (!host || !code) return;
+    const save = () => saveHostedRoom(code, host);
+    save();
+    return host.subscribe(save);
+  }, [host, code]);
 
-  if (!host) return null;
+  if (!host) return error ? <section className="panel flex flex-col gap-3"><p role="alert">{error}</p><button className="btn" onClick={() => go({ name: 'home' })}>{t('В меню')}</button></section> : null;
   // currentTicket() сам выпускает новый билет по истечении срока — QR «живой», старый перестаёт работать.
   const ticket = code ? host.currentTicket() : null;
   const left = ticket ? Math.max(0, Math.ceil((ticket.expiresAt - now) / 1000)) : 0;
@@ -105,8 +122,9 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
   const copy = async (text: string) => notify((await copyText(text)) ? t('Скопировано') : t('Не удалось скопировать'));
 
   if (host.game) {
+    if (!code || error) return <section className="panel flex flex-col gap-3"><p>{error ?? t('Создаём комнату…')}</p>{error && <button className="btn" onClick={() => setAttempt(n => n + 1)}>{t('Повторить восстановление комнаты')}</button>}<button className="btn" onClick={() => go({ name: 'home' })}>{t('В меню')}</button></section>;
     // Хосту часы нужны по его же времени (клиенты получают «осталось» и пересчитывают у себя).
-    const view = { ...host.viewFor(0)!, deadline: host.game.deadline };
+    const view = { ...host.viewFor(0)!, deadline: host.game.deadline, speechEndsAt: host.game.speechEndsAt };
     return (
       <OnlineGame
         view={view}
@@ -116,12 +134,13 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
           if (refusal) notify(t(refusal));
         }}
         host={host}
-        onExit={() => go({ name: 'home' })}
+        onExit={() => { if (host.game?.phase === 'final') clearHostedRoom(); go({ name: 'home' }); }}
       />
     );
   }
 
   const n = host.members.length;
+  const threatError = draft.variant === 'hidden-threat' ? validateThreatConfig(n, host.setup.slots, draft.hiddenThreat!) : null;
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4 py-6">
       <button className="btn btn-sm self-start" onClick={() => go({ name: 'home' })}><ArrowLeft size={16} /> {t('Закрыть комнату')}</button>
@@ -182,7 +201,8 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
         <button className="btn btn-sm" onClick={() => host.setLocked(!host.locked)}>
           {host.locked ? <><Unlock size={14} /> {t('Открыть комнату')}</> : <><Lock size={14} /> {t('Закрыть комнату для новых игроков')}</>}
         </button>
-        <button className="btn btn-primary" disabled={n < 2 || !code} onClick={() => host.start()}>
+        {threatError && <p className="text-xs text-danger">{t(threatError)}</p>}
+        <button className="btn btn-primary" disabled={n < 2 || !!threatError || !code} onClick={() => host.start()}>
           {t('Начать игру ({n} {w})', { n, w: plural(n, { ru: ['игрок', 'игрока', 'игроков'], uk: ['гравець', 'гравці', 'гравців'], en: ['player', 'players'], de: ['Spieler', 'Spieler'] }) })}
         </button>
         {n < 2 && <p className="text-xs text-dim">{t('Нужен хотя бы ещё один игрок.')}</p>}
@@ -306,6 +326,7 @@ export function Join({ initialCode, initialTicket }: { initialCode?: string; ini
 /* ---------- Общий игровой экран (хост и гости) ---------- */
 
 function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { view: GameState; me: string; send: Send; host?: OnlineHost; onExit: () => void; offline?: string[]; notice?: { text: string; id: number } }) {
+  const [privateOpen, setPrivateOpen] = useState(false);
   const { notify: say } = useStore();
   const player = view.players.find((p) => p.id === me)!;
   const living = alive(view);
@@ -343,7 +364,7 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
             <>
               <details className="panel">
                 <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">{t('Журнал партии')}</summary>
-                <ol className="mt-2 flex flex-col gap-1 text-xs text-dim">{view.log.map((l, i) => <li key={i}>{t('[Р{n}] {text}', { n: l.round, text: t(l.text) })}</li>)}</ol>
+                <ol className="mt-2 flex flex-col gap-1 text-xs text-dim">{view.log.map((l, i) => <li key={i}>{t('[Р{n}] {text}', { n: l.round, text: tPacked(l.text) })}</li>)}</ol>
               </details>
               <button className="btn btn-primary" onClick={onExit}>{t('В меню')}</button>
             </>
@@ -352,6 +373,12 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
       ) : (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
           <div className="anim-rise flex min-w-0 flex-col gap-4" key={`${view.round}-${stepOf(view)}-${view.phase}-${speaker?.id ?? ''}`}>
+            {view.threatView && <>
+              <ThreatPublic game={view} />
+              <button className="btn" onClick={() => setPrivateOpen(true)}><Lock size={16} />{t('Личный кабинет')}</button>
+              {['secret', 'secret-review'].includes(view.phase) && <p className="panel text-sm">{t('Готовы: {n}/{total}', { n: view.threatView.ready.length, total: living.length })}</p>}
+              {privateOpen && <Modal><Gate key={`${view.round}-${view.phase}-${me}`} name={player.name}><ThreatPrivate key={`${view.round}-${view.phase}-${me}`} view={view} me={me} close={() => setPrivateOpen(false)} submit={command => send({ t: 'secret', command })} auxiliary={(kind, target, itemId) => send({ t: 'auxiliary', round: view.round, kind, target, ...(itemId ? { itemId } : {}) })} /></Gate></Modal>}
+            </>}
             {view.deadline && (
               <MatchClock deadline={view.deadline} totalMin={view.config.timeLimitMin} onExtend={host ? () => host.extendTime(5 * 60_000) : undefined} />
             )}
