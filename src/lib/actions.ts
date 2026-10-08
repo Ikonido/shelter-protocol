@@ -78,7 +78,9 @@ export function canApply(g: GameState, actorId: string, effect: ActionEffect, pa
   const fail = (reason: string) => ({ ok: false as const, reason });
   const target = find(g, params.target);
   if (needsTarget(effect)) {
-    if (!target || target.isEliminated || target.id === actorId) return fail(t('Выберите другого живого игрока'));
+    // Врач может лечить и себя; остальным действиям нужна другая цель.
+    const self = effect === 'healOther' && target?.id === actorId;
+    if (!target || target.isEliminated || (target.id === actorId && !self)) return fail(t('Выберите другого живого игрока'));
   }
   // В «виде» онлайн-клиента нет ни колоды, ни чужих карт: такие проверки пропускаем, их повторяет хост.
   const full = g.deck !== undefined;
@@ -115,6 +117,8 @@ export function canApply(g: GameState, actorId: string, effect: ActionEffect, pa
       return full && target && itemsOf(target.slots.luggage.card).length === 0 ? fail(t('У игрока нет предметов')) : { ok: true };
     case 'healOther':
       // Лечить можно любого: меню не должно выдавать, кто болен. Что получилось, знает только врач.
+      // Себя врач перебрасывает на случайное состояние из колоды здоровья: без колоды делать нечего.
+      if (target?.id === actorId && !hasDeck('health')) return fail(t('Колода состояний пуста'));
       return { ok: true };
     case 'ally':
       return g.fx?.allies.some(([a]) => a === actorId) ? fail(t('Союзник уже выбран')) : { ok: true };
@@ -230,6 +234,16 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
     }
     case 'healOther': {
       const tg = target!;
+      if (tg.id === actorId) {
+        // Самолечение: здоровье меняется на случайное состояние из колоды (может стать и хуже: перелом → рваная рана).
+        const d = draw(n, 'health');
+        if (!d) return g;
+        const old = tg.slots.health;
+        let next = withSlot(d.g, actorId, 'health', { card: d.card, isRevealed: old.isRevealed });
+        next = toDiscard(next, 'health', old.card);
+        const said = say(next, t('{who} применяет «{title}»: пытается вылечить {victim}', { ...vars, victim: tg.name }));
+        return { ...said, perkResult: { id: said.log.length, playerId: actorId, text: packT('Самолечение: теперь у вас «{desc}».', { desc: d.card.description }) } };
+      }
       const h = tg.slots.health;
       const sick = h.card.modifier === 'negative';
       const lucky = mulberry32(g.seed ^ Math.imul(g.round, 2654435761) ^ Math.imul(g.log.length + 1, 40503))() < (params.chance ?? 1);
@@ -291,7 +305,7 @@ export function effectiveVotes(g: GameState): Record<string, string> {
   return votes;
 }
 
-const DECK_CATEGORIES: DeckCategory[] = ['luggage', 'physique', 'biology', 'hobby'];
+const DECK_CATEGORIES: DeckCategory[] = ['luggage', 'physique', 'biology', 'hobby', 'health'];
 
 /** Колода для эффектов: карты выбранных паков, которые не попали в раздачу, перемешанные детерминированно от seed. */
 export function initialDeck(players: PlayerCharacter[], packs: CardPack[], seed: number): Pick<GameState, 'deck' | 'discard'> {

@@ -47,4 +47,7 @@ export default {
   'Украсть багаж ({level}: {range})': 'Steal luggage ({level}: {range})',
   'Допросить игрока ({level}: {range})': 'Interrogate a player ({level}: {range})',
   '{who} получает бонус профессии ({level}): {items}': '{who} gets a profession bonus ({level}): {items}',
+  '{who} получает бонус навыка: «{label}»': '{who} gets a skill bonus: “{label}”',
+  'Колода состояний пуста': 'The condition deck is empty',
+  'Самолечение: теперь у вас «{desc}».': 'Self-treatment: you now have “{desc}”.',
 };

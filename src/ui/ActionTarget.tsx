@@ -25,7 +25,8 @@ export function ActionTargetPicker({
 }) {
   const [target, setTarget] = useState<string | null>(null);
   const [category, setCategory] = useState<Category | null>(null);
-  const targets = game.players.filter((p) => !p.isEliminated && p.id !== actorId);
+  // Врач может выбрать себя для лечения; для остальных действий себя в списке нет.
+  const targets = game.players.filter((p) => !p.isEliminated && (p.id !== actorId || effect === 'healOther'));
   const chosen = game.players.find((p) => p.id === target);
   const hidden = chosen ? CATEGORIES.filter((c) => c !== 'action' && !chosen.slots[c].isRevealed) : [];
   const params: ActionParams = { target: target ?? undefined, category: category ?? undefined, ...(perk ? { perk: true } : {}) };

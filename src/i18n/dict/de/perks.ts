@@ -47,4 +47,7 @@ export default {
   'Украсть багаж ({level}: {range})': 'Gepäck stehlen ({level}: {range})',
   'Допросить игрока ({level}: {range})': 'Spieler verhören ({level}: {range})',
   '{who} получает бонус профессии ({level}): {items}': '{who} erhält einen Berufsbonus ({level}): {items}',
+  '{who} получает бонус навыка: «{label}»': '{who} erhält einen Fähigkeitenbonus: „{label}“',
+  'Колода состояний пуста': 'Der Zustandsstapel ist leer',
+  'Самолечение: теперь у вас «{desc}».': 'Selbstbehandlung: du hast jetzt „{desc}“.',
 };

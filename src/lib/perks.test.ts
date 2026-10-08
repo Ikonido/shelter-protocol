@@ -4,6 +4,7 @@ import type { GameState, SessionConfig } from '../types';
 import { createGame, nextRound, playAction, resolveVote, revealCard, startVote } from './game';
 import { composeItems, itemsOf } from './inventory';
 import { t } from './i18n';
+import { onSkillRevealed } from './perks';
 import { applyPerk, canApplyPerk, perkFor, skipPerk } from './perks';
 import { updateSettings } from './settings';
 
@@ -95,7 +96,7 @@ describe('profession perks', () => {
   it('an expert always cures a sick player; the result is private and the public log does not reveal it', () => {
     const g = doctorGame('expert');
     expect(canApplyPerk(g, 'p1', { target: 'p3' }).ok).toBe(true); // здоровых тоже можно выбрать: меню не выдаёт больных
-    expect(canApplyPerk(g, 'p1', { target: 'p1' }).ok).toBe(false); // себя нельзя
+    expect(canApplyPerk(g, 'p1', { target: 'p1' }).ok).toBe(true); // врач может лечить себя
     const cured = applyPerk(g, 'p1', { target: 'p2' });
     expect(cured.players[1].slots.health.card.modifier).toBe('neutral');
     expect(cured.players[0].slots.action.isRevealed).toBe(false); // карта действия цела
@@ -218,5 +219,44 @@ describe('profession perks', () => {
     const shown = t(desc);
     updateSettings({ lang: 'ru' });
     expect(shown).not.toMatch(/[А-Яа-яЁё]{4,} \+ /); // части переведены, а не склеены по-русски целиком
+  });
+
+  it('a doctor healing himself re-rolls his health into a random condition from the deck, which can be worse', () => {
+    const outcomes = new Set<string>();
+    for (let seed = 1; seed <= 40; seed++) {
+      // колода собирается из seed конфигурации, поэтому меняем именно её
+      let g = createGame({ ...cfg(true), seed }, CLASSIC_PACK.scenarios[0], [CLASSIC_PACK]);
+      g = withProfession(g, 'p1', ['медицина']);
+      g = { ...g, round: 2, perks: [{ playerId: 'p1', kind: 'heal', level: 'expert' }], players: g.players.map((p) => (p.id === 'p1' ? { ...p, slots: { ...p.slots, health: { ...p.slots.health, card: { ...p.slots.health.card, modifier: 'negative' as const, description: 'Перелом' } } } } : p)) };
+      expect(canApplyPerk(g, 'p1', { target: 'p1' }).ok).toBe(true);
+      const r = applyPerk(g, 'p1', { target: 'p1' });
+      expect(r.perks).toBeUndefined();
+      const health = r.players[0].slots.health.card;
+      expect(health.description).not.toBe('Перелом');
+      expect(r.perkResult?.playerId).toBe('p1');
+      expect(r.perkResult!.text).toContain('Самолечение');
+      expect(r.perkResult!.text).toContain(health.description);
+      outcomes.add(health.modifier ?? 'none');
+    }
+    // исход случайный: бывают и худшие состояния, и лучшие
+    expect(outcomes.has('negative')).toBe(true);
+    expect(outcomes.size).toBeGreaterThan(1);
+  });
+
+  it('self-healing is refused when the condition deck is empty', () => {
+    let g = doctorGame('expert', 3);
+    g = { ...g, deck: { ...g.deck, health: [] }, discard: { ...g.discard, health: [] } };
+    expect(canApplyPerk(g, 'p1', { target: 'p1' }).ok).toBe(false);
+  });
+
+  it('a hobby or fact with a skill gives a bonus on reveal, one bonus at a time', () => {
+    let g = withProfession(fresh(), 'p1', ['шпионаж']);
+    g = { ...g, round: 2, players: g.players.map((p) => (p.id === 'p1' ? { ...p, slots: { ...p.slots, hobby: { ...p.slots.hobby, card: { ...p.slots.hobby.card, tags: ['расследование'] } } } } : p)) };
+    g = revealCard(g, 'p1', 'hobby');
+    expect(g.perks).toEqual([expect.objectContaining({ playerId: 'p1', kind: 'reveal' })]);
+    // второй навык не заменяет неиспользованный бонус
+    g = { ...g, perks: [{ playerId: 'p1', kind: 'steal', level: 'novice' }] };
+    const again = onSkillRevealed(g, 'p1', 'fact');
+    expect(again.perks).toEqual([{ playerId: 'p1', kind: 'steal', level: 'novice' }]);
   });
 });

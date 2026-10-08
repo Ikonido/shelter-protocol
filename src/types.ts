@@ -133,7 +133,7 @@ export interface ActionFx {
   allies: [string, string][];
 }
 
-export type DeckCategory = 'luggage' | 'physique' | 'biology' | 'hobby';
+export type DeckCategory = 'luggage' | 'physique' | 'biology' | 'hobby' | 'health';
 
 export interface Card {
   id: string;
