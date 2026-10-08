@@ -102,7 +102,9 @@ export type ActionEffect =
   | 'doubleVote'
   | 'ally'
   | 'immunity'
-  | 'healOther';
+  | 'healOther'
+  | 'rerollHealth'
+  | 'rerollCharacter';
 
 export const ACTION_EFFECTS: Record<ActionEffect, string> = {
   drawLuggage: 'Взять новый багаж и оставить лучший',
@@ -123,6 +125,8 @@ export const ACTION_EFFECTS: Record<ActionEffect, string> = {
   ally: 'Тайный союзник',
   immunity: 'Неприкосновенность на раунд',
   healOther: 'Вылечить другого игрока',
+  rerollHealth: 'Сменить здоровье игрока на случайное',
+  rerollCharacter: 'Сменить характер игрока на случайный',
 };
 
 /** Действия на голосовании, накапливаются до подсчёта голосов. */
@@ -133,7 +137,7 @@ export interface ActionFx {
   allies: [string, string][];
 }
 
-export type DeckCategory = 'luggage' | 'physique' | 'biology' | 'hobby' | 'health';
+export type DeckCategory = 'luggage' | 'physique' | 'biology' | 'hobby' | 'health' | 'character';
 
 export interface Card {
   id: string;
@@ -251,7 +255,8 @@ export interface RoundResult {
 }
 
 /** Бонус открытой профессии: что владелец может сделать, пока не началось голосование. */
-export type PerkKind = 'steal' | 'heal' | 'reveal';
+/** Бонусы профессий. steal_junk — кража с подменой статуэткой; reroll_* — случайная карта выбранного игрока; swap_bag — обмен багажом. */
+export type PerkKind = 'steal' | 'heal' | 'reveal' | 'steal_junk' | 'immunity' | 'reroll_health' | 'reroll_character' | 'swap_bag';
 /** Опытность врача: от неё зависит шанс вылечить. */
 export type PerkLevel = 'novice' | 'experienced' | 'expert';
 export interface Perk {

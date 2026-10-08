@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import type { GameState, Perk } from '../types';
-import { PERK_EFFECT, perkLabel } from '../lib/perks';
+import { PERK_EFFECT, perkLabel, perkNeedsTarget } from '../lib/perks';
 import type { ActionParams } from '../lib/actions';
 import { t, tPacked } from '../lib/i18n';
 import { ActionTargetPicker } from './ActionTarget';
@@ -66,7 +66,12 @@ export function PerkPanel({
         return (
           <div key={perk.playerId} className="flex flex-wrap items-center gap-2">
             <span className="text-sm"><b>{owner.name}</b></span>
-            <button className="btn btn-sm btn-primary" onClick={() => setActive(perk.playerId)}>{perkLabel(perk.kind, perk.level)}</button>
+            <button
+              className="btn btn-sm btn-primary"
+              onClick={() => (perkNeedsTarget(perk.kind) ? setActive(perk.playerId) : onApply(perk.playerId, {}))}
+            >
+              {perkLabel(perk.kind, perk.level)}
+            </button>
             <button className="btn btn-sm" onClick={() => onSkip(perk.playerId)}>{t('Пропустить')}</button>
           </div>
         );

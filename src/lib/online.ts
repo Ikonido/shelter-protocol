@@ -652,7 +652,7 @@ function cleanCard(raw: unknown, category: Category, nested = false): Card | nul
   return card;
 }
 
-const PERK_KINDS = ['steal', 'heal', 'reveal'] as const;
+const PERK_KINDS = ['steal', 'heal', 'reveal', 'steal_junk', 'immunity', 'reroll_health', 'reroll_character', 'swap_bag'] as const;
 
 function cleanPerkResult(raw: unknown): PerkResult | null {
   const r = rec(raw);

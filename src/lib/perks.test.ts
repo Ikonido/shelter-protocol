@@ -4,8 +4,8 @@ import type { GameState, SessionConfig } from '../types';
 import { createGame, nextRound, playAction, resolveVote, revealCard, startVote } from './game';
 import { composeItems, itemsOf } from './inventory';
 import { t } from './i18n';
-import { onSkillRevealed } from './perks';
-import { applyPerk, canApplyPerk, perkFor, skipPerk } from './perks';
+import { BUILTIN_PACKS as BUILT } from '../data/classicPack';
+import { applyPerk, canApplyPerk, onSkillRevealed, perkFor, skipPerk } from './perks';
 import { updateSettings } from './settings';
 
 const cfg = (perks = true): SessionConfig => ({
@@ -258,5 +258,55 @@ describe('profession perks', () => {
     g = { ...g, perks: [{ playerId: 'p1', kind: 'steal', level: 'novice' }] };
     const again = onSkillRevealed(g, 'p1', 'fact');
     expect(again.perks).toEqual([{ playerId: 'p1', kind: 'steal', level: 'novice' }]);
+  });
+
+  it('the fifteen professions without skills each get their own bonus', () => {
+    const names = ['Видеоблогер-инфлюенсер', 'Сомелье', 'Придворный астролог', 'Безработный герой', 'Мастер маникюра', 'Сборщик налогов', 'Торговец поддельными реликвиями', 'Королевский шут', 'Придворный фокусник', 'Блогер-«эксперт по жизни»', 'Коуч по «поиску себя»', 'Менеджер по продажам'];
+    for (const n of names) {
+      const card = BUILT.flatMap((p) => p.cards.profession).find((c) => c.description === n)!;
+      expect(card, n).toBeDefined();
+      expect(perkFor({ ...card, tags: [] }), n).toBeDefined();
+    }
+  });
+
+  it('a sommelier gets wine and cheese, an unemployed hero a sword, at once', () => {
+    let g = withProfession(fresh(), 'p1', []);
+    g = { ...g, round: 2, players: g.players.map((p) => (p.id === 'p1' ? { ...p, slots: { ...p.slots, profession: { ...p.slots.profession, card: { ...p.slots.profession.card, description: 'Сомелье', tags: [] } } } } : p)) };
+    g = revealCard(g, 'p1', 'profession');
+    const names = itemsOf(g.players[0].slots.luggage.card).map((c) => c.description);
+    expect(names).toEqual(expect.arrayContaining(['5 бутылок вина', 'Кусок сыра']));
+    expect(g.perks).toBeUndefined();
+  });
+
+  it('a merchant steals one item and leaves a useless figurine behind', () => {
+    let g = withProfession(fresh(), 'p1', []);
+    g = { ...g, round: 2, players: g.players.map((p) => (p.id === 'p1' ? { ...p, slots: { ...p.slots, profession: { ...p.slots.profession, card: { ...p.slots.profession.card, description: 'Торговец поддельными реликвиями', tags: [] } } } } : p)) };
+    g = { ...g, players: g.players.map((p) => (p.id === 'p2' ? { ...p, slots: { ...p.slots, luggage: { ...p.slots.luggage, card: composeItems([{ id: 'x', category: 'luggage', description: 'Ценность' }, { id: 'y', category: 'luggage', description: 'Хлам' }], () => p.slots.luggage.card) } } } : p)) };
+    g = revealCard(g, 'p1', 'profession');
+    expect(g.perks).toEqual([expect.objectContaining({ playerId: 'p1', kind: 'steal_junk' })]);
+    const done = applyPerk(g, 'p1', { target: 'p2' });
+    const victim = itemsOf(done.players[1].slots.luggage.card).map((c) => c.description);
+    expect(victim).toContain('Бесполезная статуэтка');
+    expect(victim.length).toBe(2); // украли один, подбросили одну статуэтку
+  });
+
+  it('a royal jester is immune for the round without choosing anyone', () => {
+    let g = withProfession(fresh(), 'p1', []);
+    g = { ...g, round: 2, players: g.players.map((p) => (p.id === 'p1' ? { ...p, slots: { ...p.slots, profession: { ...p.slots.profession, card: { ...p.slots.profession.card, description: 'Королевский шут', tags: [] } } } } : p)) };
+    g = revealCard(g, 'p1', 'profession');
+    expect(g.perks?.[0].kind).toBe('immunity');
+    const done = applyPerk(g, 'p1', {});
+    expect(done.fx?.immune).toContain('p1');
+    expect(done.perks).toBeUndefined();
+  });
+
+  it('a court magician re-rolls another player’s health, never his own', () => {
+    let g = withProfession(fresh(), 'p1', []);
+    g = { ...g, round: 2, perks: [{ playerId: 'p1', kind: 'reroll_health', level: 'novice' }] };
+    expect(canApplyPerk(g, 'p1', { target: 'p1' }).ok).toBe(false);
+    const before = g.players[1].slots.health.card.id;
+    const done = applyPerk(g, 'p1', { target: 'p2' });
+    expect(done.players[1].slots.health.card.id).not.toBe(before);
+    expect(done.perks).toBeUndefined();
   });
 });
