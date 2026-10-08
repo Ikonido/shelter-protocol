@@ -63,7 +63,7 @@ export default function Editor({ packId }: { packId: string }) {
     });
     setCards(cat, [...pack.cards[cat], ...added.filter((c) => c.description)].slice(0, L.cardsPerCategory));
     setBulk('');
-    notify(t('Добавлено {n} {w}', { n: added.length, w: plural(added.length, ['карта', 'карты', 'карт'], ['картка', 'картки', 'карток']) }));
+    notify(t('Добавлено {n} {w}', { n: added.length, w: plural(added.length, { ru: ['карта', 'карты', 'карт'], uk: ['картка', 'картки', 'карток'] }) }));
   };
 
   const tabs: ['info' | 'scenarios' | Category, string][] = [['info', t('Инфо')], ['scenarios', t('Сценарии ({n})', { n: pack.scenarios.length })], ...CATEGORIES.map((c): [Category, string] => [c, `${categoryLabel(c)} (${pack.cards[c].length})`])];

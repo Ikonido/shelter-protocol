@@ -49,7 +49,7 @@ export default function App() {
           <p className="font-bold text-amber">{incoming.name}</p>
           <p className="mt-1 text-sm text-dim">{incoming.description}</p>
           <p className="mt-2 text-xs">
-            {packStats(incoming).scenarios} {plural(packStats(incoming).scenarios, ['сценарий', 'сценария', 'сценариев'], ['сценарій', 'сценарії', 'сценаріїв'])} · {packStats(incoming).cards} {plural(packStats(incoming).cards, ['карта', 'карты', 'карт'], ['картка', 'картки', 'карток'])}
+            {packStats(incoming).scenarios} {plural(packStats(incoming).scenarios, { ru: ['сценарий', 'сценария', 'сценариев'], uk: ['сценарій', 'сценарії', 'сценаріїв'] })} · {packStats(incoming).cards} {plural(packStats(incoming).cards, { ru: ['карта', 'карты', 'карт'], uk: ['картка', 'картки', 'карток'] })}
           </p>
           <p className="mt-2 text-xs text-dim">{t('Пак придёт из внешнего источника — проверьте содержимое перед игрой.')}</p>
           <div className="mt-4 grid grid-cols-2 gap-2">

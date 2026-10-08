@@ -47,18 +47,18 @@ export function isolationDays(duration: string): number {
 /** Подпись момента на шкале: «День 1», «Через 3 дня», «Через 2 недели», «Через 3 месяца», «Через 2 года и 6 месяцев». */
 export function whenLabel(day: number): string {
   if (day <= 0) return t('День 1');
-  if (day < 14) return t('Через {n} {unit}', { n: day, unit: plural(day, ['день', 'дня', 'дней'], ['день', 'дні', 'днів']) });
+  if (day < 14) return t('Через {n} {unit}', { n: day, unit: plural(day, { ru: ['день', 'дня', 'дней'], uk: ['день', 'дні', 'днів'] }) });
   if (day < 60) {
     const w = Math.round(day / 7);
-    return t('Через {n} {unit}', { n: w, unit: plural(w, ['неделю', 'недели', 'недель'], ['тиждень', 'тижні', 'тижнів']) });
+    return t('Через {n} {unit}', { n: w, unit: plural(w, { ru: ['неделю', 'недели', 'недель'], uk: ['тиждень', 'тижні', 'тижнів'] }) });
   }
   const months = Math.round(day / DAYS_PER_MONTH);
-  if (months < 12) return t('Через {n} {unit}', { n: months, unit: plural(months, ['месяц', 'месяца', 'месяцев'], ['місяць', 'місяці', 'місяців']) });
+  if (months < 12) return t('Через {n} {unit}', { n: months, unit: plural(months, { ru: ['месяц', 'месяца', 'месяцев'], uk: ['місяць', 'місяці', 'місяців'] }) });
   const y = Math.floor(months / 12);
   const rest = months % 12;
-  const yUnit = plural(y, ['год', 'года', 'лет'], ['рік', 'роки', 'років']);
+  const yUnit = plural(y, { ru: ['год', 'года', 'лет'], uk: ['рік', 'роки', 'років'] });
   if (!rest) return t('Через {n} {unit}', { n: y, unit: yUnit });
-  return t('Через {y} {yUnit} и {m} {mUnit}', { y, yUnit, m: rest, mUnit: plural(rest, ['месяц', 'месяца', 'месяцев'], ['місяць', 'місяці', 'місяців']) });
+  return t('Через {y} {yUnit} и {m} {mUnit}', { y, yUnit, m: rest, mUnit: plural(rest, { ru: ['месяц', 'месяца', 'месяцев'], uk: ['місяць', 'місяці', 'місяців'] }) });
 }
 
 const clipText = (s: string, n = 48) => (s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s);
@@ -100,7 +100,7 @@ export function buildChronicle(game: GameState): Chronicle {
       middle.push({ id: `hz-${h.id}`, title: h.title, text, tone: 'ok', icon: 'hazard', stamp: t('УГРОЗА СНЯТА') });
     } else {
       const lack = r.via.length
-        ? ` ${t('Нужно {n} {people}, а есть только {have}.', { n: r.need, people: plural(r.need, ['человек', 'человека', 'человек'], ['людина', 'людини', 'людей']), have: r.via.length })}`
+        ? ` ${t('Нужно {n} {people}, а есть только {have}.', { n: r.need, people: plural(r.need, { ru: ['человек', 'человека', 'человек'], uk: ['людина', 'людини', 'людей'] }), have: r.via.length })}`
         : '';
       const base = h.onFail ?? t('Угроза «{title}» не остановлена: {desc}.', { title: h.title, desc: h.description || t('никто не знал, что с ней делать') });
       const deadly = h.severity === 'critical';
@@ -137,9 +137,9 @@ export function buildChronicle(game: GameState): Chronicle {
       title: t('В бункере тесно'),
       text: t('{n} {people} на {slots} {places}: еда и воздух заканчиваются раньше срока, начинаются ссоры.', {
         n: survivors.length,
-        people: plural(survivors.length, ['человек', 'человека', 'человек'], ['людина', 'людини', 'людей']),
+        people: plural(survivors.length, { ru: ['человек', 'человека', 'человек'], uk: ['людина', 'людини', 'людей'] }),
         slots,
-        places: plural(slots, ['место', 'места', 'мест'], ['місце', 'місця', 'місць']),
+        places: plural(slots, { ru: ['место', 'места', 'мест'], uk: ['місце', 'місця', 'місць'] }),
       }),
       tone: 'bad',
       icon: 'crowd',
@@ -181,9 +181,9 @@ function introText(survivors: PlayerCharacter[], outside: PlayerCharacter[], slo
   const n = survivors.length;
   const base = t('В бункере {n} {people} на {slots} {places}: {names}. Впереди — {isolation}.', {
     n,
-    people: plural(n, ['человек', 'человека', 'человек'], ['людина', 'людини', 'людей']),
+    people: plural(n, { ru: ['человек', 'человека', 'человек'], uk: ['людина', 'людини', 'людей'] }),
     slots,
-    places: plural(slots, ['место', 'места', 'мест'], ['місце', 'місця', 'місць']),
+    places: plural(slots, { ru: ['место', 'места', 'мест'], uk: ['місце', 'місця', 'місць'] }),
     names: list(survivors.map((p) => p.name)),
     isolation,
   });

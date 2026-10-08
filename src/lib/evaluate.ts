@@ -136,9 +136,9 @@ export function evaluate(scenario: Scenario, survivors: PlayerCharacter[], slots
     notes.push(
       t('Бункер переполнен: {n} {people} на {slots} {places}.', {
         n: survivors.length,
-        people: plural(survivors.length, ['человек', 'человека', 'человек'], ['людина', 'людини', 'людей']),
+        people: plural(survivors.length, { ru: ['человек', 'человека', 'человек'], uk: ['людина', 'людини', 'людей'] }),
         slots: slots ?? 0,
-        places: plural(slots ?? 0, ['место', 'места', 'мест'], ['місце', 'місця', 'місць']),
+        places: plural(slots ?? 0, { ru: ['место', 'места', 'мест'], uk: ['місце', 'місця', 'місць'] }),
       }),
     );
   }

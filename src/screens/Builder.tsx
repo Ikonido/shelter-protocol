@@ -318,7 +318,7 @@ function StepReview({ draft, vocab, cards, preview, onSave, onDelete, editing, s
           <ul className="flex flex-col gap-1 text-sm">
             {draft.requiredSkills.map((s) => {
               const m = cardsWithSkill(cards, s);
-              return <li key={s}><b className={m.length ? 'text-ok' : 'text-danger'}>{t(s)}</b> <span className="text-xs text-dim">— {m.length ? t('{n} {cards}: {list}', { n: m.length, cards: plural(m.length, ['карта', 'карты', 'карт'], ['картка', 'картки', 'карток']), list: m.slice(0, 3).map((c) => clip(t(cardLabel(c)), 22)).join(', ') }) : t('никто')}</span></li>;
+              return <li key={s}><b className={m.length ? 'text-ok' : 'text-danger'}>{t(s)}</b> <span className="text-xs text-dim">— {m.length ? t('{n} {cards}: {list}', { n: m.length, cards: plural(m.length, { ru: ['карта', 'карты', 'карт'], uk: ['картка', 'картки', 'карток'] }), list: m.slice(0, 3).map((c) => clip(t(cardLabel(c)), 22)).join(', ') }) : t('никто')}</span></li>;
             })}
           </ul>
         </section>

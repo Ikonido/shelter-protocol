@@ -33,7 +33,7 @@ const pirates = ship.hazards!.find((h) => h.id.endsWith('fl-pirates'))!;
 describe('chronicle helpers', () => {
   const d = (months: number) => Math.round(months * 30.4375);
   it('russian plurals and time labels', () => {
-    expect([1, 2, 5, 11, 21, 22, 25].map((n) => plural(n, ['месяц', 'месяца', 'месяцев']))).toEqual(['месяц', 'месяца', 'месяцев', 'месяцев', 'месяц', 'месяца', 'месяцев']);
+    expect([1, 2, 5, 11, 21, 22, 25].map((n) => plural(n, { ru: ['месяц', 'месяца', 'месяцев'] }))).toEqual(['месяц', 'месяца', 'месяцев', 'месяцев', 'месяц', 'месяца', 'месяцев']);
     expect(whenLabel(0)).toBe('День 1');
     expect([1, 3, 5, 13].map(whenLabel)).toEqual(['Через 1 день', 'Через 3 дня', 'Через 5 дней', 'Через 13 дней']);
     expect([14, 21, 30, 45].map(whenLabel)).toEqual(['Через 2 недели', 'Через 3 недели', 'Через 4 недели', 'Через 6 недель']);

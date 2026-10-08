@@ -6,9 +6,13 @@ import { revealCard, currentSpeaker } from './game';
 
 describe('settings', () => {
   it('falls back to defaults and drops junk', () => {
-    expect(parseSettings(null)).toEqual(DEFAULT_SETTINGS);
-    expect(parseSettings({ sound: 'yes', theme: 'neon', textSize: 'huge', evil: 1 })).toEqual(DEFAULT_SETTINGS);
+    // Язык без сохранения берётся из браузера, поэтому его не сравниваем с константой.
+    const { lang: _lang, ...rest } = DEFAULT_SETTINGS;
+    expect(parseSettings(null)).toMatchObject(rest);
+    expect(parseSettings({ sound: 'yes', theme: 'neon', textSize: 'huge', evil: 1 })).toMatchObject(rest);
     expect(parseSettings({ sound: false, theme: 'light', textSize: 'xl' })).toMatchObject({ sound: false, theme: 'light', textSize: 'xl', vibrate: true });
+    expect(parseSettings({ lang: 'de' }).lang).toBe('de');
+    expect(parseSettings({ lang: 'fr' }).lang).not.toBe('fr');
   });
 });
 
