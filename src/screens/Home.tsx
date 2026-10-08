@@ -27,7 +27,7 @@ export default function Home() {
     const g = buildQuickGame(allPacks, loadLastSetup());
     if (!g) return notify(t('Не удалось собрать быструю игру: нет сценариев'));
     setGame(g);
-    notify(t('Быстрая игра: {title}', { title: g.scenario.title }));
+    notify(t('Быстрая игра: {title}', { title: t(g.scenario.title) }));
     go({ name: 'game' });
   };
   const [tour, setTour] = useState(false);

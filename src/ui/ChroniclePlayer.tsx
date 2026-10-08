@@ -54,7 +54,7 @@ export function ChroniclePlayer({ game, onDone }: { game: GameState; onDone: () 
     <div className="mx-auto flex max-w-2xl flex-col gap-4 pb-24">
       {fatalNow && <div aria-hidden className="pointer-events-none fixed inset-0 z-40 bg-danger animate-[var(--animate-flash)]" />}
       <header className="text-center">
-        <p className="text-[10px] uppercase tracking-[.4em] text-dim">{game.scenario.title}</p>
+        <p className="text-[10px] uppercase tracking-[.4em] text-dim">{t(game.scenario.title)}</p>
         <h2 className="mt-1 text-xl font-bold uppercase tracking-[.2em] text-amber">{t('Хроника изоляции')}</h2>
       </header>
 

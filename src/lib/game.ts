@@ -334,7 +334,7 @@ export function volunteer(g: GameState, playerId: string): GameState {
     schedule,
     players: g.players.map((x) => (x.id === playerId ? { ...x, isEliminated: true } : x)),
     event: { ...g.event, outcome: [...g.event.outcome, t('{who} добровольно уходит из бункера.', { who: p.name })] },
-    log: [...g.log, { round: g.round, text: t('{who} вызвался добровольцем и покидает бункер', { who: p.name }) }],
+    log: [...g.log, { round: g.round, volunteer: p.name, text: t('{who} вызвался добровольцем и покидает бункер', { who: p.name }) }],
   };
   return alive(next).length <= next.config.shelterSlots ? { ...next, phase: 'final' } : next;
 }

@@ -220,8 +220,8 @@ function epilogue(g: GameState, survivors: PlayerCharacter[], outside: PlayerCha
     const trouble = survivors.flatMap((p) => (['fact', 'hobby', 'luggage', 'health'] as const).filter((c) => p.slots[c].card.modifier === 'negative').map((c) => ({ p, card: p.slots[c].card })))[0];
     if (trouble) lines.push(t('Больше всех хлопот добавил {name}: «{desc}».', { name: trouble.p.name, desc: clipText(trouble.card.description, 60) }));
   }
-  // Регулярка разбирает русский текст записей лога (лог пока не переведён)
-  const heroes = g.log.map((l) => /^(.+) вызвался добровольцем/.exec(l.text)?.[1]).filter((x): x is string => !!x);
+  // Имя берём из поля записи; регулярка по русскому тексту — только для старых сохранений без этого поля.
+  const heroes = g.log.map((l) => l.volunteer ?? /^(.+) вызвался добровольцем/.exec(l.text)?.[1]).filter((x): x is string => !!x);
   if (heroes.length) {
     const act = heroes.length > 1 ? t('вызвались добровольцем') : t('вызвался добровольцем');
     lines.push(t('{list} {act}, чтобы остальные жили. Об этом помнят.', { list: list(heroes), act }));
