@@ -1,6 +1,6 @@
 import { ArrowLeft, Copy, Download, FilePlus2, Link2, Pencil, Trash2, Upload } from 'lucide-react';
 import { useStore } from '../store';
-import { clonePack, emptyPack, exportPackFile, importPackFile, packStats, shareUrl } from '../lib/packs';
+import { clonePack, emptyPack, exportPackFile, importPackFile, packStats, shareUrl, withFreshIds } from '../lib/packs';
 import { uid } from '../lib/rng';
 import { copyText } from '../ui/clipboard';
 import type { CardPack } from '../types';
@@ -19,7 +19,7 @@ export default function Packs() {
     try {
       const pack = await importPackFile();
       if (pack) {
-        upsertPack({ ...pack, id: uid('pack') });
+        upsertPack({ ...withFreshIds(pack), id: uid('pack') });
         notify(t('Импортирован пак «{name}»', { name: t(pack.name) }));
       }
     } catch (e) {

@@ -5,10 +5,11 @@ import { useStore } from '../store';
 import { filterCards } from '../lib/cardFilter';
 import { ACTION_EFFECTS, CATEGORIES, categoryLabel, type Card, type CardPack, type Category, type Hazard, type Modifier, type Scenario, type Severity } from '../types';
 import { exportPackFile, shareUrl } from '../lib/packs';
+import { takeBulk } from '../lib/bulk';
 import { uid } from '../lib/rng';
 import { copyText } from '../ui/clipboard';
 import { CATEGORY_ICON } from '../ui/bits';
-import { LIMITS as L, clip, clipList } from '../lib/limits';
+import { LIMITS as L, clipList } from '../lib/limits';
 
 const Counter = ({ v, max }: { v: string; max: number }) => (
   <span className={`mt-1 block text-right text-[10px] ${v.length >= max ? 'text-amber' : 'text-dim'}`}>{v.length}/{max}</span>
@@ -55,15 +56,12 @@ export default function Editor({ packId }: { packId: string }) {
     save({ ...pack, scenarios: pack.scenarios.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
 
   const addBulk = (cat: Category) => {
-    // Формат строки: «Текст | + | тег1, тег2» (знак и теги необязательны)
-    const added: Card[] = bulk.split('\n').map((l) => l.trim()).filter(Boolean).map((line) => {
-      const [desc, mod, tags] = line.split('|').map((s) => s.trim());
-      const modifier: Modifier = mod === '+' ? 'positive' : mod === '-' || mod === '−' ? 'negative' : 'neutral';
-      return { id: uid('c'), category: cat, description: clip(desc ?? '', L.cardDescription), modifier, ...(tags ? { tags: clipList(tags.split(/[,;]/), L.cardTags, L.tagLen) } : {}) };
-    });
-    setCards(cat, [...pack.cards[cat], ...added.filter((c) => c.description)].slice(0, L.cardsPerCategory));
-    setBulk('');
-    notify(t('Добавлено {n} {w}', { n: added.length, w: plural(added.length, { ru: ['карта', 'карты', 'карт'], uk: ['картка', 'картки', 'карток'], en: ['card', 'cards'], de: ['Karte', 'Karten'] }) }));
+    const { accepted, rest } = takeBulk(bulk, cat, pack.cards[cat].length);
+    if (accepted.length) setCards(cat, [...pack.cards[cat], ...accepted]);
+    setBulk(rest.join('\n'));
+    if (!accepted.length) return notify(t('Достигнут лимит карт в категории ({n}). Строки остались в поле.', { n: L.cardsPerCategory }));
+    const w = plural(accepted.length, { ru: ['карта', 'карты', 'карт'], uk: ['картка', 'картки', 'карток'], en: ['card', 'cards'], de: ['Karte', 'Karten'] });
+    notify(rest.length ? t('Добавлено {n} {w}. Не поместилось: {m} — они остались в поле.', { n: accepted.length, w, m: rest.length }) : t('Добавлено {n} {w}', { n: accepted.length, w }));
   };
 
   const tabs: ['info' | 'scenarios' | Category, string][] = [['info', t('Инфо')], ['scenarios', t('Сценарии ({n})', { n: pack.scenarios.length })], ...CATEGORIES.map((c): [Category, string] => [c, `${categoryLabel(c)} (${pack.cards[c].length})`])];

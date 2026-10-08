@@ -26,7 +26,7 @@ export const LIMITS = {
   cardTags: 5,
   tagLen: 24,
   cardsPerCategory: 60,
-  tagOverrides: 300,
+  tagOverrides: 1000,
 } as const;
 
 export const clip = (s: string, max: number) => s.slice(0, max);

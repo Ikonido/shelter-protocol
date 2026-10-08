@@ -52,10 +52,22 @@ export function renderResult(card: ResultCard): HTMLCanvasElement {
   const pad = 64;
   const canvas = document.createElement('canvas');
   const measure = canvas.getContext('2d')!;
-  measure.font = '30px ui-monospace, Menlo, Consolas, monospace';
+  const font = (px: number, bold = false) => `${bold ? 'bold ' : ''}${px}px ui-monospace, Menlo, Consolas, monospace`;
+  // Раскладка считается теми же шрифтами, какими потом рисуется: название и заголовок итога могут занимать несколько строк.
+  measure.font = font(44, true);
+  const titleLines = wrap(measure, card.scenario.toUpperCase(), W - pad * 2);
+  measure.font = font(40, true);
+  const headlineLines = wrap(measure, card.headline, W - pad * 2 - 220);
+  measure.font = font(30);
   const survivorLines = wrap(measure, card.survivors.join(' · ') || t('никого'), W - pad * 2);
   const noteLines = card.notes.flatMap((n) => wrap(measure, `• ${n}`, W - pad * 2));
-  const H = 520 + survivorLines.length * 44 + card.threats.slice(0, 8).length * 42 + noteLines.length * 40 + 90;
+  const threats = card.threats.slice(0, 8);
+  // 110 — верхний отступ, затем те же шаги, что при рисовании; снизу запас под нижние выносы букв и рамку.
+  const H = Math.max(
+    520,
+    110 + 60 + titleLines.length * 54 + 10 + headlineLines.length * 50 + 20 + 60 + 46 + survivorLines.length * 44 +
+      (threats.length ? 20 + 46 + threats.length * 42 : 0) + (noteLines.length ? 20 + noteLines.length * 40 : 0) + 70,
+  );
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d')!;
@@ -73,11 +85,11 @@ export function renderResult(card: ResultCard): HTMLCanvasElement {
   y += 60;
   ctx.fillStyle = '#d3ebe2';
   mono(44, true);
-  wrap(ctx, card.scenario.toUpperCase(), W - pad * 2).forEach((l) => { ctx.fillText(l, pad, y); y += 54; });
+  titleLines.forEach((l) => { ctx.fillText(l, pad, y); y += 54; });
   y += 10;
   ctx.fillStyle = tone;
   mono(40, true);
-  wrap(ctx, card.headline, W - pad * 2 - 220).forEach((l) => { ctx.fillText(l, pad, y); y += 50; });
+  headlineLines.forEach((l) => { ctx.fillText(l, pad, y); y += 50; });
   // Счёт
   ctx.textAlign = 'right';
   mono(110, true);
@@ -102,7 +114,7 @@ export function renderResult(card: ResultCard): HTMLCanvasElement {
     ctx.fillText(t('УГРОЗЫ'), pad, y);
     y += 46;
     mono(30);
-    card.threats.slice(0, 8).forEach((th) => {
+    threats.forEach((th) => {
       ctx.fillStyle = th.ok ? '#4ade80' : '#f87171';
       ctx.fillText(`${th.ok ? '✔' : '✘'} ${th.title}`, pad, y);
       y += 42;

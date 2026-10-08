@@ -1,30 +1,14 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadEnv, type Plugin } from 'vite';
+import { buildCsp } from './src/lib/csp';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
-/**
- * Content-Security-Policy для production-сборки (в dev HMR требует inline-скриптов, поэтому только build).
- * connect-src: сам сайт (LAN-брокер на том же адресе) + брокер PeerJS (публичный или свой из VITE_PEER_HOST).
- * WebRTC-каналы CSP не регулирует, но весь остальной сетевой доступ страницы ограничен списком ниже.
- */
+/** Content-Security-Policy production-сборки (в dev HMR требует inline-скриптов, поэтому только build). Политика собирается в src/lib/csp.ts. */
 function csp(env: Record<string, string>): Plugin {
-  const broker = env.VITE_PEER_HOST || '0.peerjs.com';
-  const policy = [
-    "default-src 'none'",
-    "script-src 'self'",
-    "style-src 'self' 'unsafe-inline'", // inline-атрибуты style у React (ширины индикаторов)
-    "img-src 'self' data:",
-    "manifest-src 'self'",
-    "worker-src 'self'",
-    `connect-src 'self' https://${broker} wss://${broker} ${env.VITE_PEER_SECURE === 'false' ? `http://${broker}:* ws://${broker}:*` : ''}`.trim(),
-    "base-uri 'none'",
-    "object-src 'none'",
-    "form-action 'none'",
-    "frame-src 'none'",
-  ].join('; ');
+  const policy = buildCsp(env);
   return {
     name: 'shelter-csp',
     apply: 'build',

@@ -165,4 +165,9 @@ export default {
   'Достигнут лимит своих карт в этой категории ({n})': 'Das Limit eigener Karten in dieser Kategorie ist erreicht ({n})',
   'Достигнут лимит сценариев ({n}). Удалите один из своих сценариев, чтобы добавить новый.': 'Das Szenario-Limit ist erreicht ({n}). Lösche eines deiner Szenarien, um ein neues hinzuzufügen.',
   'Пак без названия': 'Paket ohne Namen',
+  'Файл слишком большой (>1 МБ)': 'Datei zu groß (>1 MB)',
+  'Пак слишком большой для экспорта в файл (>1 МБ). Удалите часть карт или сценариев.': 'Das Paket ist zu groß für den Export (>1 MB). Entferne einige Karten oder Szenarien.',
+  'Достигнут лимит изменённых способностей ({n}). Верните часть карт к исходным способностям.': 'Das Limit geänderter Fähigkeiten ist erreicht ({n}). Setze einige Karten auf die ursprünglichen Fähigkeiten zurück.',
+  'Достигнут лимит карт в категории ({n}). Строки остались в поле.': 'Das Kartenlimit der Kategorie ist erreicht ({n}). Die Zeilen sind im Feld geblieben.',
+  'Добавлено {n} {w}. Не поместилось: {m} — они остались в поле.': '{n} {w} hinzugefügt. Passten nicht mehr hinein: {m} — sie sind im Feld geblieben.',
 };

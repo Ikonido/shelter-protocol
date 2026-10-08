@@ -44,6 +44,10 @@ export function buildMyPack(base: CardPack | undefined, scenario: Scenario, newC
 /** Сколько своих карт категории в итоговом «Мои сценарии» (общая колода со встроенными паками сюда не входит). */
 export const ownCardCount = (packs: CardPack[], cat: Category): number => packs.find((p) => p.id === MY_PACK_ID)?.cards[cat]?.length ?? 0;
 
+/** Можно ли назначить карте свои способности: общее число изменённых карт ограничено, лишние при загрузке были бы обрезаны. */
+export const canOverride = (overrides: Record<string, string[]>, id: string): boolean =>
+  Object.prototype.hasOwnProperty.call(overrides, id) || Object.keys(overrides).length < L.tagOverrides;
+
 /** Можно ли сохранить сценарий: новый не должен выходить за лимит, иначе он пропадёт при следующей загрузке; существующий можно править всегда. */
 export const canSaveScenario = (myPack: CardPack | undefined, scenarioId: string): boolean =>
   !myPack || myPack.scenarios.some((s) => s.id === scenarioId) || myPack.scenarios.length < L.scenarios;

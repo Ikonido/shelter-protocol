@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { CardPack, Difficulty, GameState, PlayMode, Scenario, VotingMode } from './types';
 import { BUILTIN_PACKS } from './data/classicPack';
 import { loadGame, loadPacks, saveGame, savePacks } from './lib/storage';
-import { packFromHash } from './lib/packs';
+import { packFromHash, withFreshIds } from './lib/packs';
 import { uid } from './lib/rng';
 import { t } from './lib/i18n';
 
@@ -108,7 +108,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const acceptIncoming = useCallback(() => {
     if (!incoming) return;
     // Новый id, чтобы чужой пак не перезаписал существующий.
-    upsertPack({ ...incoming, id: uid('pack'), isCustom: true });
+    upsertPack({ ...withFreshIds(incoming), id: uid('pack'), isCustom: true });
     setToast(t('Пак «{name}» добавлен', { name: incoming.name }));
     setIncoming(null);
     go({ name: 'packs' });
