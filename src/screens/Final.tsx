@@ -11,7 +11,8 @@ import { rulesFor } from '../lib/difficulty';
 import { replayGame } from '../lib/quick';
 import { useStore } from '../store';
 import { resultCard, shareResultImage } from '../lib/shareResult';
-import { t } from '../lib/i18n';
+import { t, tPacked } from '../lib/i18n';
+import { ThreatFinalReport } from '../ui/HiddenThreatPublic';
 
 function Meter({ label, value }: { label: string; value: number }) {
   return (
@@ -114,6 +115,7 @@ export function FinalReport({ game, auto = true, onStoryChange }: { game: GameSt
   if (story) return <ChroniclePlayer game={game} onDone={() => setStory(false)} />;
   return (
     <div className="flex flex-col gap-4">
+      <ThreatFinalReport game={game} />
       <Verdict game={game} />
       <button className="btn" onClick={() => setStory(true)}><Newspaper size={16} /> {t('Посмотреть хронику изоляции')}</button>
       <ShareButton game={game} />
@@ -131,7 +133,7 @@ export default function Final({ game }: { game: GameState }) {
       <details className="panel">
         <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">{t('Журнал партии')}</summary>
         <ol className="mt-2 flex flex-col gap-1 text-xs text-dim">
-          {game.log.map((l, i) => <li key={i}>{t('[Р{round}]', { round: l.round })} {t(l.text)}</li>)}
+          {game.log.map((l, i) => <li key={i}>{t('[Р{round}]', { round: l.round })} {tPacked(l.text)}</li>)}
         </ol>
       </details>
       <div className="grid gap-2 sm:grid-cols-2">

@@ -2,6 +2,7 @@ import { CATEGORIES, type CardPack, type Category, type GameState } from '../typ
 import { emptyCard } from './generator';
 import { sanitizePack } from './packs';
 import { MAX_ITEMS } from './inventory';
+import { validSavedThreat } from './hiddenThreat/validation';
 
 const K_PACKS = 'shelter:customPacks';
 const K_GAME = 'shelter:game';
@@ -52,7 +53,7 @@ function withNewSlots(g: GameState): GameState {
   };
 }
 
-const PHASES = ['event', 'reveal', 'speech', 'vote', 'result', 'final', 'debate'];
+const PHASES = ['event', 'reveal', 'speech', 'secret', 'discussion', 'vote', 'result', 'final', 'debate'];
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 // isRevealed может отсутствовать в старых сохранениях: тогда считаем карту закрытой.
@@ -121,7 +122,8 @@ export function validateSavedGame(raw: unknown): GameState | null {
       if (!validSlot(slot) || !validCard((slot as { card: unknown }).card)) return null;
     }
   }
-  return raw as unknown as GameState;
+  const game = raw as unknown as GameState;
+  return validSavedThreat(game) ? game : null;
 }
 
 export const loadGame = (): GameState | null => {

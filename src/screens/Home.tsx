@@ -7,6 +7,7 @@ import { UpdateBanner, UpdateButton } from '../ui/UpdateButton';
 import { Onboarding, markTourSeen, tourSeen } from '../ui/Onboarding';
 import { useState } from 'react';
 import { t } from '../lib/i18n';
+import { hiddenRoomDraft, loadHiddenRoom } from '../lib/hiddenThreat/roomStorage';
 
 function MenuItem({ icon: Icon, title, hint, onClick }: { icon: LucideIcon; title: string; hint: string; onClick: () => void }) {
   return (
@@ -31,6 +32,7 @@ export default function Home() {
     go({ name: 'game' });
   };
   const [tour, setTour] = useState(false);
+  const [hiddenRoom] = useState(loadHiddenRoom);
   const [tourHint, setTourHint] = useState(() => !tourSeen());
   const to = (s: Screen) => () => go(s);
   const resumable = game && game.phase !== 'final';
@@ -54,6 +56,7 @@ export default function Home() {
 
       <nav className="anim-rise flex flex-col gap-3" style={{ animationDelay: '.08s' }} aria-label={t('Главное меню')}>
         <UpdateBanner />
+        {hiddenRoom && <MenuItem icon={RotateCcw} title={t('Возобновить скрытую комнату')} hint={t('Восстановить роли, очки и прежний код комнаты на устройстве хоста')} onClick={() => go({ name: 'lobby', draft: hiddenRoomDraft(hiddenRoom) })} />}
         {tourHint && (
           <section className="panel flex flex-col gap-2 border-amber/50">
             <p className="text-sm"><b className="text-amber">{t('Впервые здесь?')}</b> {t('Правила за минуту: пять коротких экранов.')}</p>

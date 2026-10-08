@@ -2,6 +2,9 @@ import { plural, t } from './i18n';
 import type { GameState, PlayerCharacter } from '../types';
 import { evaluate, type Evaluation } from './evaluate';
 import { mulberry32, shuffle } from './rng';
+import { threatViewFor } from './hiddenThreat/views';
+import { ROLE_LABEL } from './hiddenThreat/types';
+import { tPacked } from './i18n';
 
 export type ChronicleTone = 'ok' | 'bad' | 'warn' | 'neutral';
 export type ChronicleIcon = 'door' | 'hazard' | 'skill' | 'crowd' | 'health' | 'end';
@@ -179,6 +182,12 @@ export function buildChronicle(game: GameState): Chronicle {
     return { ...d, when: whenLabel(day) };
   });
 
+  const materials = game.phase === 'final' ? threatViewFor(game)?.final : undefined;
+  if (materials) {
+    const name = (id?: string) => game.players.find((p) => p.id === id)?.name ?? '—';
+    entries.push({ id: 'declassified-roles', when: t('После завершения партии'), title: t('Рассекреченные материалы'), text: materials.roles.map((r) => `${name(r.playerId)}: ${t(ROLE_LABEL[r.role])}`).join('; '), tone: 'neutral', icon: 'crowd' });
+    for (const [i, a] of materials.audit.entries()) entries.push({ id: `declassified-${i}`, when: t('Раунд {n}', { n: a.round }), title: t('Рассекреченные материалы'), text: `${name(a.actor)} → ${name(a.target)}: ${tPacked(a.detail)}${a.points ? ` (+${a.points})` : ''}`, tone: a.kind === 'sabotage' ? 'warn' : 'neutral', icon: 'hazard' });
+  }
   return { entries, epilogue: epilogue(game, survivors, outside, ev, isolation, !!fatalEntry), evaluation: ev, fatal: !!fatalEntry };
 }
 

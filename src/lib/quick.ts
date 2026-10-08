@@ -3,9 +3,13 @@ import { DIFFICULTIES } from './difficulty';
 import { clampConfig, createGame } from './game';
 import { newSeed } from './rng';
 import { t } from './i18n';
+import type { ThreatSettings } from './hiddenThreat/types';
+import { validThreatSettings } from './hiddenThreat/validation';
+import { criminalCount, threatConfigError } from './hiddenThreat/roles';
 
 /** Что запоминается между партиями: настройки и имена игроков (только на этом устройстве). */
 export interface LastSetup {
+  hiddenThreat?: ThreatSettings;
   packIds: string[];
   n: number;
   k: number;
@@ -35,6 +39,7 @@ export function parseLastSetup(raw: unknown): LastSetup | null {
   if (!packIds.length) return null;
   const c = clampConfig(int(r.n, 2, 20, 6), int(r.k, 1, 19, 3));
   return {
+    ...(validThreatSettings(r.hiddenThreat) ? { hiddenThreat: r.hiddenThreat as ThreatSettings } : {}),
     packIds,
     n: c.n,
     k: c.k,
@@ -90,8 +95,10 @@ export function buildQuickGame(allPacks: CardPack[], last: LastSetup | null): Ga
   const chosen = scenarios[Math.floor(Math.random() * scenarios.length)];
   const rules = DIFFICULTIES[last?.difficulty ?? 'normal'];
   const base = clampConfig(last?.n ?? 6, last?.k ?? Math.ceil((last?.n ?? 6) / 2));
-  const k = clampConfig(base.n, chosen.shelterSlots).k;
+  const k = Math.min(clampConfig(base.n, chosen.shelterSlots).k, last?.hiddenThreat ? base.n - criminalCount(base.n) : base.n - 1);
+  if (last?.hiddenThreat && threatConfigError(base.n, k)) return null;
   const config: SessionConfig = {
+    ...(last?.hiddenThreat ? { hiddenThreat: last.hiddenThreat } : {}),
     scenarioId: chosen.id,
     packIds: packs.map((p) => p.id),
     playerCount: base.n,

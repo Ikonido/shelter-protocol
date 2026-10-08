@@ -19,6 +19,9 @@ import { EVENTS, drawEvent, hiddenForLeak, unusedHazards } from './events';
 import { mulberry32, shuffle } from './rng';
 import { packT, t, tPacked } from './i18n';
 import { applyPerk, grantPerksForNewReveals, onProfessionRevealed } from './perks';
+import { initialThreat, validateThreatConfig } from './hiddenThreat/roles';
+import { beginSecretRound, releasePublications } from './hiddenThreat/engine';
+import { rewardTransitions } from './hiddenThreat/economy';
 
 export const MAX_ROUNDS = 6;
 /** Потолок раундов, включая добавленные из-за воздержавшихся. */
@@ -44,6 +47,7 @@ export function clampConfig(playerCount: number, slots: number) {
 }
 
 export function createGame(config: SessionConfig, scenario: Scenario, packs: CardPack[]): GameState {
+  if (config.hiddenThreat) validateThreatConfig(config);
   const rng = mulberry32(config.seed);
   const dealt = generateCharacters(config.names, packs, rng);
   const stock = initialDeck(dealt, packs, config.seed);
@@ -57,7 +61,7 @@ export function createGame(config: SessionConfig, scenario: Scenario, packs: Car
     players,
     round: 1,
     schedule: buildSchedule(config.playerCount, config.shelterSlots, maxRoundsFor(config.revealsPerVote)),
-    phase: config.mode === 'tabletop' ? 'final' : 'reveal',
+    phase: config.mode === 'tabletop' && !config.hiddenThreat ? 'final' : 'reveal',
     revealedThisRound: [],
     revealStep: 1,
     hazards: pickHazards(scenario, config.hazardCount ?? 0, config.seed),
@@ -66,7 +70,8 @@ export function createGame(config: SessionConfig, scenario: Scenario, packs: Car
     log: [],
     seed: config.seed,
   };
-  return config.mode !== 'tabletop' && config.roundEvents ? openRound(base) : base;
+  const prepared = config.hiddenThreat ? { ...base, hiddenThreat: initialThreat(base) } : base;
+  return (config.mode !== 'tabletop' || config.hiddenThreat) && config.roundEvents ? openRound(prepared) : prepared;
 }
 
 /** Случайный (но воспроизводимый по seed) набор факторов угрозы из пула сценария. */
@@ -140,16 +145,18 @@ export function settleReveal(g: GameState): GameState {
 
 /** Бонус профессии с последующей проверкой очереди вскрытий (допрос тоже может открыть последнюю карту). */
 export function playPerk(g: GameState, playerId: string, params?: ActionParams): GameState {
+  if (g.hiddenThreat && !['reveal', 'speech', 'vote', 'discussion'].includes(g.phase)) return g;
   const next = applyPerk(g, playerId, params);
-  return next === g ? g : settleReveal(next);
+  return next === g ? g : settleReveal(rewardTransitions(g, next, playerId));
 }
 
 export function playAction(g: GameState, playerId: string, params?: ActionParams): GameState {
+  if (g.hiddenThreat && !['reveal', 'speech', 'vote', 'discussion'].includes(g.phase)) return g;
   const p = g.players.find((x) => x.id === playerId);
   if (!p || p.isEliminated || p.slots.action.isRevealed) return g;
   const card = p.slots.action.card;
   // Автоисполнение (по желанию игроков): эффект карты выполняется в игре. Невозможное действие ничего не меняет.
-  if (g.config.autoActions && card.effect) return settleReveal(grantPerksForNewReveals(g, runEffect(g, playerId, card.effect, params)));
+  if (g.config.autoActions && card.effect) return settleReveal(rewardTransitions(g, grantPerksForNewReveals(g, runEffect(g, playerId, card.effect, params)), playerId));
   return {
     ...g,
     players: g.players.map((x) =>
@@ -163,6 +170,7 @@ export function playAction(g: GameState, playerId: string, params?: ActionParams
 }
 
 export function startVote(g: GameState): GameState {
+  if (g.hiddenThreat && !g.hiddenThreat.resolvedRounds.includes(g.round)) return beginSecretRound(g);
   // Квоту закрыли добровольцы: голосовать не за что.
   if (g.schedule.length > 0 && quotaThisRound(g) <= 0) {
     return {
@@ -175,6 +183,11 @@ export function startVote(g: GameState): GameState {
     };
   }
   return markImmune({ ...g, phase: 'vote', votes: {} });
+}
+
+/** Private results have been delivered; discussion ends only on the moderator/host's command. */
+export function finishDiscussion(g: GameState): GameState {
+  return g.phase === 'discussion' ? startVote(releasePublications(g)) : g;
 }
 
 export function castVote(g: GameState, voterId: string, targetId: string): GameState {

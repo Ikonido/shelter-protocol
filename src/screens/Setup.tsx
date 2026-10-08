@@ -9,6 +9,8 @@ import { DIFFICULTIES, DIFFICULTY_ORDER } from '../lib/difficulty';
 import { MY_PACK_ID } from '../lib/builder';
 import { loadLastSetup, saveLastSetup } from '../lib/quick';
 import { t } from '../lib/i18n';
+import { criminalCount, threatConfigError } from '../lib/hiddenThreat/roles';
+import type { ThreatSettings } from '../lib/hiddenThreat/types';
 
 const DIFF_STYLE = {
   easy: { Icon: Smile, tone: { text: 'text-ok', border: 'border-ok', bg: 'bg-ok/10 shadow-[0_0_22px_-10px_var(--color-ok)]' } },
@@ -53,6 +55,11 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
   const [roundEvents, setRoundEvents] = useState(last?.roundEvents ?? false);
   const [autoActions, setAutoActions] = useState(last?.autoActions ?? false);
   const [professionPerks, setProfessionPerks] = useState(last?.professionPerks ?? false);
+  const [hidden, setHidden] = useState(!!last?.hiddenThreat);
+  const [loneCriminal, setLoneCriminal] = useState<ThreatSettings['loneCriminal']>(last?.hiddenThreat?.loneCriminal ?? 'maniac');
+  const [report, setReport] = useState<ThreatSettings['report']>(last?.hiddenThreat?.report ?? 'hidden');
+  const hiddenThreat = hidden ? { loneCriminal, report } : undefined;
+  const threatError = hidden && mode !== 'online' ? threatConfigError(n, k) : null;
   // Пресет подставляет рекомендуемые значения, после чего их можно поменять вручную.
   const pickDifficulty = (d: Difficulty) => {
     const r = DIFFICULTIES[d];
@@ -76,7 +83,8 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
   }, [scenario]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setPlayers = (v: number) => {
-    const c = clampConfig(v, k);
+    const c = clampConfig(hidden ? Math.min(12, Math.max(4, v)) : v, k);
+    if (hidden) c.k = Math.min(c.k, c.n - criminalCount(c.n));
     setN(c.n);
     setK(c.k);
   };
@@ -89,15 +97,17 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
     setPackIds((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
   };
 
-  const canStart = scenarios.length > 0 && activePacks.some((p) => Object.values(p.cards).some((c) => c.length));
+  const canStart = !threatError && scenarios.length > 0 && activePacks.some((p) => Object.values(p.cards).some((c) => c.length));
   const start = () => {
+    if (!canStart) return;
     const chosen = scenario ?? scenarios[Math.floor(Math.random() * scenarios.length)];
-    saveLastSetup({ packIds, n, k, names: Array.from({ length: n }, (_, i) => nameAt(i)), voting, revealsPerVote, timeLimitMin, speechSec, hazardCount, difficulty, roundEvents, autoActions, professionPerks, scenarioId });
+    saveLastSetup({ packIds, n, k, names: Array.from({ length: n }, (_, i) => nameAt(i)), voting, revealsPerVote, timeLimitMin, speechSec, hazardCount, difficulty, roundEvents, autoActions, professionPerks, scenarioId, ...(hiddenThreat ? { hiddenThreat } : {}) });
     if (mode === 'online') {
-      go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting, revealsPerVote, speechSec, hazardCount, difficulty, roundEvents, autoActions, professionPerks, timeLimitMin, adult: activePacks.some((p) => p.adult) } });
+      go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting, revealsPerVote, speechSec, hazardCount, difficulty, roundEvents, autoActions, professionPerks, timeLimitMin, adult: activePacks.some((p) => p.adult), ...(hiddenThreat ? { hiddenThreat } : {}) } });
       return;
     }
     const config: SessionConfig = {
+      ...(hiddenThreat ? { hiddenThreat } : {}),
       scenarioId: chosen.id,
       packIds,
       playerCount: n,
@@ -172,7 +182,7 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
       <section className="panel">
         <h2 className="step-title">{t('3 · Игроки и места')}</h2>
         <div className="flex flex-wrap gap-8">
-          {mode !== 'online' && <Stepper label={t('Игроков (N)')} value={n} min={2} max={20} onChange={setPlayers} />}
+          {mode !== 'online' && <Stepper label={t('Игроков (N)')} value={n} min={hidden ? 4 : 2} max={hidden ? 12 : 20} onChange={setPlayers} />}
           <Stepper label={t('Мест в бункере (K)')} value={k} min={1} max={mode === 'online' ? 19 : n - 1} onChange={(v) => setK(mode === 'online' ? Math.min(19, Math.max(1, v)) : clampConfig(n, v).k)} />
         </div>
         {mode === 'online' && <p className="mt-2 text-xs text-dim">{t('Число игроков определится по тем, кто подключился к комнате.')}</p>}
@@ -216,6 +226,20 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
             </button>
           </div>
         )}
+      </section>
+
+      <section className="panel">
+        <h2 className="step-title">{t('Секретные роли')}</h2>
+        <label className="flex items-center gap-3"><input type="checkbox" checked={hidden} onChange={(e) => { setHidden(e.target.checked); if (e.target.checked) { const count = Math.min(12, Math.max(4, n)); setN(count); setK(Math.min(k, count - criminalCount(count))); } }} />{t('Скрытая угроза')}</label>
+        {hidden && <div className="mt-3 flex flex-col gap-3 text-sm">
+          <p>{t('4–5: маньяк; 6–7: одиночный преступник; 8–9: двое мафиози; 10–12: трое. Всегда один полицейский')}</p>
+          <label>{t('Преступник для 6–7 игроков')}<select className="input mt-1" value={loneCriminal} onChange={(e) => setLoneCriminal(e.target.value as typeof loneCriminal)}><option value="maniac">{t('Маньяк')}</option><option value="mafia">{t('Мафия')}</option></select></label>
+          <label>{t('Отчёт об активности')}<select className="input mt-1" value={report} onChange={(e) => setReport(e.target.value as typeof report)}><option value="hidden">{t('Скрытый отчёт')}</option><option value="detailed">{t('Только количество операций')}</option></select></label>
+          <p className="text-xs text-dim">{t('Роли и характеристики независимы. Преступники стремятся попасть в убежище; убийств нет. Числа предварительные')}</p>
+          {mode === 'tabletop' && <p className="text-xs text-amber">{t('Настольная партия: обычные карточки печатаются отдельно, личные роли выдаются через шторку. Секретные операции и голосования ведутся на устройстве')}</p>}
+          {mode === 'online' && <p className="text-xs text-dim">{t('Хост хранит тайные данные. От недобросовестного хоста без независимого сервера абсолютной защиты нет')}</p>}
+          {threatError && <p className="text-danger" role="alert">{t(threatError)}</p>}
+        </div>}
       </section>
 
       <section className="panel">
