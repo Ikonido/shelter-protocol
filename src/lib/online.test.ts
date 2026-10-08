@@ -3,6 +3,7 @@ import { CLASSIC_PACK } from '../data/classicPack';
 import { EVENTS } from './events';
 import { applyEvent } from './game';
 import { CATEGORIES } from '../types';
+import { itemsOf } from './inventory';
 import { OnlineClient, OnlineHost, type C2H, type Conn, type H2C } from './online';
 
 function pair() {
@@ -91,7 +92,7 @@ describe('online', () => {
     const g = host.game!;
     // карта «Карманник» у первого гостя (p2)
     host.game = { ...g, players: g.players.map((pl) => (pl.id === 'p2' ? { ...pl, slots: { ...pl.slots, action: { card: { ...pl.slots.action.card, title: 'Карманник', effect: 'stealLuggage' as const }, isRevealed: false } } } : pl)) };
-    const victim = host.game.players[2].slots.luggage.card.id;
+    const victim = itemsOf(host.game.players[2].slots.luggage.card).map((c) => c.id);
     guests[0].c.send({ t: 'action' }); // без цели: ничего не происходит, но гость узнаёт почему
     await tick();
     expect(host.game!.players[1].slots.action.isRevealed).toBe(false);
@@ -99,7 +100,7 @@ describe('online', () => {
     expect(refused.status === 'game' && refused.notice?.text).toContain('другого');
     guests[0].c.send({ t: 'action', target: 'p3' });
     await tick();
-    expect(host.game!.players[1].slots.luggage.card.id).toBe(victim);
+    expect(itemsOf(host.game!.players[1].slots.luggage.card).some((c) => victim.includes(c.id))).toBe(true);
     expect(host.game!.players[1].slots.action.isRevealed).toBe(true);
     // гость видит результат, но не колоду
     const st = guests[1].c.state;

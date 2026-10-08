@@ -20,4 +20,7 @@ export default {
   'Стопка учебников': 'A stack of textbooks',
   'Бонусы профессий (необязательно)': 'Profession bonuses (optional)',
   'Открытая профессия даёт бонус: инженер получает инструменты в багаж, врач лечит игрока, шпион крадёт багаж, психолог допрашивает. Цель выбираете в меню.': 'An opened profession gives a bonus: an engineer gets tools in their luggage, a doctor heals a player, a spy steals luggage, a psychologist interrogates. You pick the target from a menu.',
+  '{who} применяет «{title}»: берёт ещё один предмет в багаж': '{who} uses “{title}”: takes one more item into their luggage',
+  '{who} применяет «{title}»: крадёт предмет у {victim}': '{who} uses “{title}”: steals an item from {victim}',
+  'У игрока нет предметов': 'The player has no items',
 };

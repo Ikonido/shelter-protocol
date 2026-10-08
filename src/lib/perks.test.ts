@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CLASSIC_PACK } from '../data/classicPack';
 import type { GameState, SessionConfig } from '../types';
 import { createGame, nextRound, resolveVote, revealCard, startVote } from './game';
+import { itemsOf } from './inventory';
 import { applyPerk, canApplyPerk, perkFor, skipPerk } from './perks';
 import { updateSettings } from './settings';
 
@@ -73,11 +74,30 @@ describe('profession perks', () => {
     g = { ...g, round: 2 };
     g = revealCard(g, 'p1', 'profession');
     expect(g.perks?.[0].kind).toBe('steal');
-    const victimLuggage = g.players[1].slots.luggage.card.id;
+    const victimItems = itemsOf(g.players[1].slots.luggage.card).map((c) => c.id);
     const stolen = applyPerk(g, 'p1', { target: 'p2' });
-    expect(stolen.players[0].slots.luggage.card.id).toBe(victimLuggage);
+    expect(itemsOf(stolen.players[0].slots.luggage.card).some((c) => victimItems.includes(c.id))).toBe(true);
     expect(stolen.players[0].slots.action.isRevealed).toBe(false);
     expect(skipPerk(g, 'p1').perks).toBeUndefined();
+  });
+
+  it('a detective opens a chosen hidden card of a chosen player', () => {
+    let g = withProfession(fresh(), 'p1', ['расследование', 'безопасность']);
+    g = { ...g, round: 2 };
+    g = revealCard(g, 'p1', 'profession');
+    expect(g.perks).toEqual([{ playerId: 'p1', kind: 'reveal' }]);
+    expect(canApplyPerk(g, 'p1', { target: 'p2' }).ok).toBe(false); // не выбрана карта
+    expect(g.players[1].slots.fact.isRevealed).toBe(false);
+    const done = applyPerk(g, 'p1', { target: 'p2', category: 'fact' });
+    expect(done.players[1].slots.fact.isRevealed).toBe(true);
+    expect(done.perks).toBeUndefined();
+    expect(done.players[0].slots.action.isRevealed).toBe(false);
+  });
+
+  it('the classic pack has the detective profession with the investigation skill', () => {
+    const d = CLASSIC_PACK.cards.profession.find((c) => c.description === 'Детектив')!;
+    expect(d.tags).toContain('расследование');
+    expect(perkFor(d)?.kind).toBe('reveal');
   });
 
   it('unused perks burn at the end of the vote and never reach the next round', () => {

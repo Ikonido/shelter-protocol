@@ -144,6 +144,8 @@ export interface Card {
   modifier?: Modifier;
   /** Навыки/свойства, которые карта даёт при финальной оценке (сопоставляются с requiredSkills). */
   tags?: string[];
+  /** Только у составного багажа: предметы инвентаря по отдельности (навыки и описание карты — их объединение). */
+  items?: Card[];
 }
 
 export interface CardPack {

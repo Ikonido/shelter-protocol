@@ -20,4 +20,7 @@ export default {
   'Стопка учебников': 'Ein Stapel Lehrbücher',
   'Бонусы профессий (необязательно)': 'Berufsboni (optional)',
   'Открытая профессия даёт бонус: инженер получает инструменты в багаж, врач лечит игрока, шпион крадёт багаж, психолог допрашивает. Цель выбираете в меню.': 'Ein aufgedeckter Beruf gibt einen Bonus: Ingenieure bekommen Werkzeug ins Gepäck, Ärzte heilen einen Spieler, Spione stehlen Gepäck, Psychologen verhören. Das Ziel wählst du im Menü.',
+  '{who} применяет «{title}»: берёт ещё один предмет в багаж': '{who} setzt „{title}“ ein: nimmt einen weiteren Gegenstand ins Gepäck',
+  '{who} применяет «{title}»: крадёт предмет у {victim}': '{who} setzt „{title}“ ein: stiehlt {victim} einen Gegenstand',
+  'У игрока нет предметов': 'Der Spieler hat keine Gegenstände',
 };

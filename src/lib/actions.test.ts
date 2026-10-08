@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BUILTIN_PACKS, CLASSIC_PACK } from '../data/classicPack';
 import { ACTION_EFFECTS, type ActionEffect, type GameState, type SessionConfig } from '../types';
 import { canApply, effectiveVotes, runEffect } from './actions';
+import { composeItems, itemsOf, MAX_ITEMS } from './inventory';
 import { ABSTAIN, castVote, createGame, playAction, resolveVote, startVote } from './game';
 import { sanitizePack } from './packs';
 import { viewFor } from './online';
@@ -19,6 +20,10 @@ const give = (g: GameState, id: string, effect: ActionEffect): GameState => ({
 });
 const P = (g: GameState, id: string) => g.players.find((p) => p.id === id)!;
 const luggage = (g: GameState, id: string) => P(g, id).slots.luggage.card;
+const bag = (g: GameState, id: string) => itemsOf(luggage(g, id)).map((c) => c.id);
+const item = (id: string, tags?: string[]) => ({ id, category: 'luggage' as const, description: `Предмет ${id}`, modifier: 'neutral' as const, ...(tags ? { tags } : {}) });
+/** Выдаёт игроку багаж из нескольких предметов. */
+const withBag = (g: GameState, id: string, items: ReturnType<typeof item>[]): GameState => ({ ...g, players: g.players.map((p) => (p.id === id ? { ...p, slots: { ...p.slots, luggage: { ...p.slots.luggage, card: composeItems(items, () => p.slots.luggage.card) } } } : p)) });
 const used = (g: GameState, id: string) => P(g, id).slots.action.isRevealed;
 
 describe('deck', () => {
@@ -33,32 +38,47 @@ describe('deck', () => {
 });
 
 describe('luggage effects', () => {
-  it('drawLuggage keeps the better of two cards and spends the action', () => {
-    const g = give(fresh(), 'p1', 'drawLuggage');
-    const before = luggage(g, 'p1');
+  it('drawLuggage adds the top card to the inventory and spends the action', () => {
+    const g = withBag(give(fresh(), 'p1', 'drawLuggage'), 'p1', [item('a')]);
     const top = g.deck!.luggage![0];
     const r = runEffect(g, 'p1', 'drawLuggage');
     expect(used(r, 'p1')).toBe(true);
     expect(r.deck!.luggage!).toHaveLength(g.deck!.luggage!.length - 1);
-    expect([before.id, top.id]).toContain(luggage(r, 'p1').id);
-    expect(r.discard!.luggage!).toHaveLength(1);
+    expect(bag(r, 'p1')).toEqual(['a', top.id]);
+    expect(r.discard!.luggage!).toHaveLength(0);
     expect(r.log.at(-1)!.text).toContain('П1');
   });
 
-  it('drawLuggage log does not reveal the outcome and keeps a hidden card hidden', () => {
+  it('a full inventory keeps the most valuable items and discards the rest', () => {
+    const full = [item('a'), item('b'), item('c'), item('d')];
+    expect(full.length).toBe(MAX_ITEMS);
+    const g = withBag(give(fresh(), 'p1', 'drawLuggage'), 'p1', full);
+    const r = runEffect(g, 'p1', 'drawLuggage');
+    expect(bag(r, 'p1')).toHaveLength(MAX_ITEMS);
+    expect(r.discard!.luggage!).toHaveLength(1);
+  });
+
+  it('drawLuggage log is the same whatever happens and a hidden bag stays hidden', () => {
     const logs = new Set<string>();
-    let sawKeep = false, sawDiscard = false;
-    for (let seed = 1; seed < 40 && !(sawKeep && sawDiscard); seed++) {
+    for (let seed = 1; seed < 20; seed++) {
       const g = give(createGame({ ...cfg(5), seed }, CLASSIC_PACK.scenarios[0], [CLASSIC_PACK]), 'p1', 'drawLuggage');
-      const before = luggage(g, 'p1').id;
       const r = runEffect(g, 'p1', 'drawLuggage');
       logs.add(r.log.at(-1)!.text);
       expect(P(r, 'p1').slots.luggage.isRevealed).toBe(false);
-      if (luggage(r, 'p1').id === before) sawDiscard = true;
-      else sawKeep = true;
     }
-    expect(sawKeep && sawDiscard).toBe(true);
     expect(logs.size).toBe(1);
+  });
+
+  it('players start with one or two items, deterministically, and the deck loses what was dealt', () => {
+    const counts = new Set<number>();
+    for (let seed = 1; seed < 30; seed++) {
+      const g = createGame({ ...cfg(6), seed }, CLASSIC_PACK.scenarios[0], [CLASSIC_PACK]);
+      for (const p of g.players) counts.add(itemsOf(p.slots.luggage.card).length);
+      const dealt = new Set(g.players.flatMap((p) => itemsOf(p.slots.luggage.card).map((c) => c.id)));
+      expect(g.deck!.luggage!.some((c) => dealt.has(c.id))).toBe(false);
+      expect(g.players.map((p) => bag(g, p.id))).toEqual(createGame({ ...cfg(6), seed }, CLASSIC_PACK.scenarios[0], [CLASSIC_PACK]).players.map((p) => bag(g, p.id)));
+    }
+    expect([...counts].sort()).toEqual([1, 2]);
   });
 
   it('giveLuggage keeps the victim card hidden if it was hidden', () => {
@@ -67,13 +87,21 @@ describe('luggage effects', () => {
     expect(P(r, 'p2').slots.luggage.isRevealed).toBe(false);
   });
 
-  it('stealLuggage moves the card and leaves the victim with an empty slot', () => {
-    const g = give(fresh(), 'p1', 'stealLuggage');
-    const victimCard = luggage(g, 'p2');
+  it('stealLuggage takes one item from the victim into the actor inventory, and an emptied bag is marked stolen', () => {
+    let g = withBag(give(fresh(), 'p1', 'stealLuggage'), 'p2', [item('x'), item('y')]);
+    g = withBag(g, 'p1', [item('mine')]);
     const r = runEffect(g, 'p1', 'stealLuggage', { target: 'p2' });
-    expect(luggage(r, 'p1').id).toBe(victimCard.id);
-    expect(luggage(r, 'p2').description).toContain('украден');
+    const rest = bag(r, 'p2');
+    expect(rest).toHaveLength(1);
+    expect(['x', 'y']).toContain(rest[0]);
+    expect(bag(r, 'p1').sort()).toEqual(['mine', rest[0] === 'x' ? 'y' : 'x'].sort());
     expect(used(r, 'p1')).toBe(true);
+    // у жертвы остался один предмет: вторая кража опустошает багаж
+    const g2 = { ...r, players: r.players.map((p) => (p.id === 'p1' ? { ...p, slots: { ...p.slots, action: { ...p.slots.action, isRevealed: false } } } : p)) };
+    const r2 = runEffect(g2, 'p1', 'stealLuggage', { target: 'p2' });
+    expect(luggage(r2, 'p2').description).toContain('украден');
+    expect(bag(r2, 'p2')).toEqual([]);
+    expect(canApply(r2, 'p3', 'stealLuggage', { target: 'p2' }).ok).toBe(false);
   });
 
   it('refuses invalid targets and leaves everything untouched', () => {
@@ -96,7 +124,7 @@ describe('luggage effects', () => {
     g = give(fresh(), 'p1', 'giveLuggage');
     const top = g.deck!.luggage![0];
     const given = runEffect(g, 'p1', 'giveLuggage', { target: 'p2' });
-    expect(luggage(given, 'p2').id).toBe(top.id);
+    expect(bag(given, 'p2')).toContain(top.id);
   });
 
   it('an action can only be used once', () => {
@@ -252,7 +280,7 @@ describe('modes and data', () => {
 
   it('with autoActions playAction runs the effect and refuses an impossible one', () => {
     const g = give(fresh(), 'p1', 'stealLuggage');
-    expect(luggage(playAction(g, 'p1', { target: 'p2' }), 'p1').id).toBe(luggage(g, 'p2').id);
+    expect(bag(playAction(g, 'p1', { target: 'p2' }), 'p1').some((id) => bag(g, 'p2').includes(id))).toBe(true);
     expect(playAction(g, 'p1')).toBe(g); // цель не выбрана
   });
 

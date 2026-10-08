@@ -1,7 +1,7 @@
 import type { ActionEffect, Card, GameState, Perk, PerkKind } from '../types';
-import { canApply, runEffect, type ActionParams } from './actions';
+import { canApply, runEffect, toDiscard, type ActionParams } from './actions';
+import { addToBag, composeItems, itemsOf } from './inventory';
 import { t } from './i18n';
-import { LIMITS as L } from './limits';
 
 /**
  * Бонусы профессий (включаются в настройках партии). Когда игрок открывает профессию, по её навыку он получает:
@@ -25,7 +25,7 @@ interface TargetPerk {
 const PERKS: (ItemPerk | TargetPerk)[] = [
   { kind: 'heal', tags: ['медицина', 'лечение'] },
   { kind: 'steal', tags: ['шпионаж', 'нычка'] },
-  { kind: 'reveal', tags: ['психология', 'дипломатия'] },
+  { kind: 'reveal', tags: ['расследование', 'психология', 'дипломатия'] },
   { kind: 'item', tags: ['инженерия', 'ремонт', 'строительство', 'энергетика'], item: 'Набор инструментов', itemTags: ['ремонт'] },
   { kind: 'item', tags: ['агрономия', 'провизия', 'кулинария', 'готовка'], item: 'Мешок припасов', itemTags: ['провизия'] },
   { kind: 'item', tags: ['безопасность', 'оборона', 'драка', 'охота'], item: 'Бронежилет и фонарь', itemTags: ['оборона'] },
@@ -48,30 +48,20 @@ export function perkFor(card: Card): ItemPerk | TargetPerk | undefined {
   return PERKS.find((p) => p.tags.some((tag) => tags.includes(tag)));
 }
 
-const isPlaceholder = (c: Card) => c.id.startsWith('lost-') || c.id.startsWith('stolen-');
-
-/** Добавляет предмет к багажу: «багаж + предмет». Пустой (потерянный, украденный) багаж заменяется предметом. */
+/** Предмет профессии попадает в инвентарь; если он полон, остаётся самый ценный предмет. */
 function addItem(g: GameState, playerId: string, perk: ItemPerk): GameState {
   const p = g.players.find((x) => x.id === playerId)!;
   const slot = p.slots.luggage;
-  const base = slot.card;
-  const empty = isPlaceholder(base);
-  const joined = `${base.description} + ${perk.item}`;
-  const card: Card =
-    empty || joined.length > L.cardDescription
-      ? { id: `perk-${playerId}`, category: 'luggage', description: perk.item, modifier: 'positive', tags: perk.itemTags }
-      : {
-          ...base,
-          id: `${base.id}+perk`,
-          description: joined,
-          modifier: base.modifier === 'negative' ? 'neutral' : 'positive',
-          tags: [...new Set([...(base.tags ?? []), ...perk.itemTags])],
-        };
-  return {
+  const item: Card = { id: `perk-${perk.itemTags[0]}`, category: 'luggage', description: perk.item, modifier: 'positive', tags: perk.itemTags };
+  const bag = addToBag(itemsOf(slot.card), item);
+  const card = composeItems(bag.items, () => slot.card);
+  let next: GameState = {
     ...g,
     players: g.players.map((x) => (x.id === playerId ? { ...x, slots: { ...x.slots, luggage: { ...slot, card } } } : x)),
     log: [...g.log, { round: g.round, text: t('{who} получает бонус профессии: {item}', { who: p.name, item: t(perk.item) }) }],
   };
+  if (bag.dropped) next = toDiscard(next, 'luggage', bag.dropped);
+  return next;
 }
 
 /** Вызывается, когда игрок открыл профессию. Если бонусы выключены или подходящего нет — состояние не меняется. */

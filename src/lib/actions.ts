@@ -3,6 +3,7 @@ import { cardMatchesSkill } from './evaluate';
 import { mergePools } from './generator';
 import { mulberry32, shuffle } from './rng';
 import { t } from './i18n';
+import { addToBag, composeItems, itemsOf } from './inventory';
 
 /**
  * Автоисполнение карт действий. Модуль не зависит от game.ts (там он подключается), чтобы не было циклов.
@@ -24,7 +25,6 @@ export const IMMUNE_VOTE = 'immune'; // метка в votes: этот игрок
 const HEALING = ['медицина', 'лечение'];
 const living = (g: GameState) => g.players.filter((p) => !p.isEliminated);
 const find = (g: GameState, id?: string) => g.players.find((p) => p.id === id);
-const rank = (c: Card) => (c.modifier === 'positive' ? 2 : c.modifier === 'negative' ? 0 : 1) + (c.tags?.length ? 0.5 : 0);
 
 // Карты-заглушки создаются при каждом применении: описание переводится в момент события.
 const lostCard = (): Card => ({ id: 'lost-luggage', category: 'luggage', description: t('Багаж потерян: пусто'), modifier: 'negative' });
@@ -51,7 +51,7 @@ function draw(g: GameState, cat: DeckCategory): { card: Card; g: GameState } | n
   return { card, g: { ...g, deck: { ...g.deck, [cat]: deck }, discard: { ...g.discard, [cat]: discard } } };
 }
 
-const toDiscard = (g: GameState, cat: DeckCategory, card: Card): GameState =>
+export const toDiscard = (g: GameState, cat: DeckCategory, card: Card): GameState =>
   card.id.startsWith('lost-') || card.id.startsWith('stolen-') ? g : { ...g, discard: { ...g.discard, [cat]: [...(g.discard?.[cat] ?? []), card] } };
 
 const withSlot = (g: GameState, id: string, cat: Category, slot: { card: Card; isRevealed: boolean }): GameState => ({
@@ -108,6 +108,9 @@ export function canApply(g: GameState, actorId: string, effect: ActionEffect, pa
       const doctor = !full || living(g).some((p) => p.id !== actorId && (['profession', 'biology', 'hobby', 'fact', 'luggage'] as const).some((c) => HEALING.some((s) => cardMatchesSkill(p.slots[c].card, s))));
       return doctor ? { ok: true } : fail(t('Среди живых нет врача или лекаря'));
     }
+    case 'stealLuggage':
+      // В «виде» онлайн-клиента чужой багаж скрыт: проверку повторяет хост.
+      return full && target && itemsOf(target.slots.luggage.card).length === 0 ? fail(t('У игрока нет предметов')) : { ok: true };
     case 'healOther':
       // В «виде» онлайн-клиента чужое здоровье скрыто: проверку повторяет хост.
       return full && target && target.slots.health.card.modifier !== 'negative' ? fail(t('У этого игрока нет проблем со здоровьем')) : { ok: true };
@@ -144,28 +147,38 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
       const d = draw(n, 'luggage');
       if (!d) return g;
       const old = actor.slots.luggage;
-      const keepNew = rank(d.card) > rank(old.card);
-      let next = d.g;
-      if (keepNew) {
-        next = withSlot(next, actorId, 'luggage', { card: d.card, isRevealed: old.isRevealed });
-        next = toDiscard(next, 'luggage', old.card);
-      } else next = toDiscard(next, 'luggage', d.card);
-      // Журнал видят все: исход (оставил ли новую) не раскрываем, пока багаж закрыт.
-      return say(next, t('{who} применяет «{title}»: тянет ещё один багаж и оставляет лучший', vars));
+      // Новый предмет добавляется в инвентарь; если он полон, остаётся самый ценный. Журнал исход не раскрывает.
+      const bag = addToBag(itemsOf(old.card), d.card);
+      let next = withSlot(d.g, actorId, 'luggage', { card: composeItems(bag.items, stolenCard), isRevealed: old.isRevealed });
+      if (bag.dropped) next = toDiscard(next, 'luggage', bag.dropped);
+      return say(next, t('{who} применяет «{title}»: берёт ещё один предмет в багаж', vars));
     }
     case 'stealLuggage': {
       const tg = target!;
-      let next = withSlot(n, actorId, 'luggage', { card: tg.slots.luggage.card, isRevealed: tg.slots.luggage.isRevealed });
-      next = withSlot(next, tg.id, 'luggage', { card: stolenCard(), isRevealed: true });
-      next = toDiscard(next, 'luggage', actor.slots.luggage.card);
-      return say(next, t('{who} применяет «{title}»: крадёт багаж у {victim}', { ...vars, victim: tg.name }));
+      // Крадётся один предмет жертвы (по жребию от seed); багаж, ставший пустым, помечается украденным.
+      const victimItems = itemsOf(tg.slots.luggage.card);
+      const pick = Math.floor(mulberry32(g.seed ^ Math.imul(g.round, 2654435761) ^ Math.imul(g.log.length + 1, 40503))() * Math.max(1, victimItems.length));
+      const stolen = victimItems[pick];
+      const left = victimItems.filter((_, i) => i !== pick);
+      let next = withSlot(n, tg.id, 'luggage', { card: composeItems(left, stolenCard), isRevealed: left.length ? tg.slots.luggage.isRevealed : true });
+      if (stolen) {
+        const bag = addToBag(itemsOf(actor.slots.luggage.card), stolen);
+        next = withSlot(next, actorId, 'luggage', { card: composeItems(bag.items, stolenCard), isRevealed: actor.slots.luggage.isRevealed });
+        if (bag.dropped) next = toDiscard(next, 'luggage', bag.dropped);
+      }
+      return say(next, t('{who} применяет «{title}»: крадёт предмет у {victim}', { ...vars, victim: tg.name }));
     }
     case 'giveLuggage': {
       const tg = target!;
       const d = draw(n, 'luggage');
       if (!d) return g;
-      let next = withSlot(d.g, tg.id, 'luggage', { card: d.card, isRevealed: tg.slots.luggage.isRevealed });
-      next = toDiscard(next, 'luggage', tg.slots.luggage.card);
+      // Подменяется один предмет жертвы (по жребию); у пустого багажа появляется новый.
+      const victimItems = itemsOf(tg.slots.luggage.card);
+      const pick = Math.floor(mulberry32(g.seed ^ Math.imul(g.round, 2654435761) ^ Math.imul(g.log.length + 1, 40503))() * Math.max(1, victimItems.length));
+      const replaced = victimItems[pick];
+      const items = victimItems.length ? victimItems.map((c, i) => (i === pick ? d.card : c)) : [d.card];
+      let next = withSlot(d.g, tg.id, 'luggage', { card: composeItems(items, stolenCard), isRevealed: tg.slots.luggage.isRevealed });
+      if (replaced) next = toDiscard(next, 'luggage', replaced);
       return say(next, t('{who} применяет «{title}»: у {victim} теперь другой багаж', { ...vars, victim: tg.name }));
     }
     case 'swapLuggage': {
@@ -177,7 +190,7 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
     case 'sabotage': {
       const tg = target!;
       let next = withSlot(n, tg.id, 'luggage', { card: lostCard(), isRevealed: true });
-      next = toDiscard(next, 'luggage', tg.slots.luggage.card);
+      for (const item of itemsOf(tg.slots.luggage.card)) next = toDiscard(next, 'luggage', item);
       return say(next, t('{who} применяет «{title}»: багаж {victim} потерян', { ...vars, victim: tg.name }));
     }
     case 'forceReveal': {
