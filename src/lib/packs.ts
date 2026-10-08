@@ -10,10 +10,18 @@ const strList = (v: unknown, maxItems: number, maxLen: number): string[] =>
   Array.isArray(v) ? v.map((x) => str(x, maxLen)).filter(Boolean).slice(0, maxItems) : [];
 const MODS: Modifier[] = ['positive', 'neutral', 'negative'];
 
-function sanitizeCard(raw: unknown, category: Category, i: number): Card | null {
+/**
+ * Режим «мягкого» разбора для собственного хранилища: пока человек стирает обязательное поле, чтобы ввести новое, объект не должен
+ * исчезать целиком (иначе после перезагрузки пропадут все его остальные данные). Пустое поле заменяется подписью-заглушкой.
+ */
+interface Mode {
+  lenient?: boolean;
+}
+
+function sanitizeCard(raw: unknown, category: Category, i: number, mode: Mode = {}): Card | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
-  const description = str(r.description, L.cardDescription);
+  const description = str(r.description, L.cardDescription) || (mode.lenient ? t('Без описания') : '');
   if (!description) return null;
   const card: Card = { id: str(r.id, 60) || `c${i}-${uid('card')}`, category, description };
   const title = str(r.title, L.cardTitle);
@@ -44,10 +52,10 @@ function sanitizeEvent(raw: unknown, i: number): ScenarioEvent | null {
   };
 }
 
-export function sanitizeHazard(raw: unknown, i: number): Hazard | null {
+export function sanitizeHazard(raw: unknown, i: number, mode: Mode = {}): Hazard | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
-  const title = str(r.title, L.hazardTitle);
+  const title = str(r.title, L.hazardTitle) || (mode.lenient ? t('Без названия') : '');
   if (!title) return null;
   return {
     id: str(r.id, 60) || `h${i}-${uid('hz')}`,
@@ -60,10 +68,10 @@ export function sanitizeHazard(raw: unknown, i: number): Hazard | null {
   };
 }
 
-export function sanitizeScenario(raw: unknown, i: number): Scenario | null {
+export function sanitizeScenario(raw: unknown, i: number, mode: Mode = {}): Scenario | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
-  const title = str(r.title, L.scenarioTitle);
+  const title = str(r.title, L.scenarioTitle) || (mode.lenient ? t('Без названия') : '');
   if (!title) return null;
   const slots = Number(r.shelterSlots);
   return {
@@ -75,7 +83,7 @@ export function sanitizeScenario(raw: unknown, i: number): Scenario | null {
     requiredSkills: strList(r.requiredSkills, L.skills, L.skillLen),
     threats: strList(r.threats, L.threats, L.threatLen),
     hazards: (Array.isArray(r.hazards) ? (r.hazards as unknown[]).slice(0, L.hazards) : [])
-      .map(sanitizeHazard)
+      .map((h, j) => sanitizeHazard(h, j, mode))
       .filter((h): h is Hazard => !!h),
     ...(Array.isArray(r.events) && r.events.length
       ? { events: (r.events as unknown[]).slice(0, L.events).map(sanitizeEvent).filter((e): e is ScenarioEvent => !!e) }
@@ -84,20 +92,20 @@ export function sanitizeScenario(raw: unknown, i: number): Scenario | null {
 }
 
 /** Любые внешние данные (файл, ссылка, localStorage) проходят через эту функцию: вернёт безопасный CardPack или null. */
-export function sanitizePack(raw: unknown): CardPack | null {
+export function sanitizePack(raw: unknown, mode: Mode = {}): CardPack | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
-  const name = str(r.name, L.packName);
+  const name = str(r.name, L.packName) || (mode.lenient ? t('Пак без названия') : '');
   if (!name) return null;
   const rawCards = (r.cards && typeof r.cards === 'object' ? r.cards : {}) as Record<string, unknown>;
   const cards = Object.fromEntries(
     CATEGORIES.map((cat) => {
       const list = Array.isArray(rawCards[cat]) ? (rawCards[cat] as unknown[]).slice(0, L.cardsPerCategory) : [];
-      return [cat, list.map((c, i) => sanitizeCard(c, cat, i)).filter((c): c is Card => !!c)];
+      return [cat, list.map((c, i) => sanitizeCard(c, cat, i, mode)).filter((c): c is Card => !!c)];
     }),
   ) as Record<Category, Card[]>;
   const scenarios = (Array.isArray(r.scenarios) ? (r.scenarios as unknown[]).slice(0, L.scenarios) : [])
-    .map(sanitizeScenario)
+    .map((s, i) => sanitizeScenario(s, i, mode))
     .filter((s): s is Scenario => !!s);
   return {
     id: str(r.id, 60) || uid('pack'),
@@ -133,8 +141,30 @@ export function emptyPack(): CardPack {
   };
 }
 
+/**
+ * Самостоятельная копия пака: у сценариев, угроз и карт новые внутренние id, а переопределения способностей перенесены на них.
+ * Без этого оригинал и копия, выбранные в одной партии, подменяют друг друга: сценарий и карты ищутся по id.
+ * Переопределения чужих (встроенных) карт остаются как есть.
+ */
+export function withFreshIds(pack: CardPack): CardPack {
+  const copy = JSON.parse(JSON.stringify(pack)) as CardPack;
+  const renamed = new Map<string, string>();
+  for (const cat of CATEGORIES) {
+    copy.cards[cat] = (copy.cards[cat] ?? []).map((c) => {
+      const id = uid('c');
+      renamed.set(c.id, id);
+      return { ...c, id };
+    });
+  }
+  copy.scenarios = copy.scenarios.map((s) => ({ ...s, id: uid('sc'), hazards: (s.hazards ?? []).map((h) => ({ ...h, id: uid('hz') })) }));
+  if (copy.tagOverrides) {
+    copy.tagOverrides = Object.fromEntries(Object.entries(copy.tagOverrides).map(([id, tags]) => [renamed.get(id) ?? id, tags]));
+  }
+  return copy;
+}
+
 export function clonePack(pack: CardPack, name = t('{name} (копия)', { name: pack.name })): CardPack {
-  return { ...(JSON.parse(JSON.stringify(pack)) as CardPack), id: uid('pack'), name, isCustom: true };
+  return { ...withFreshIds(pack), id: uid('pack'), name, isCustom: true };
 }
 
 export function packStats(pack: CardPack) {
@@ -152,7 +182,7 @@ export function encodePack(pack: CardPack): string {
 
 /** Предел длины ссылки: lz-string не умеет ограничивать размер распаковки, а «бомба» из коротких данных раздувается квадратично. */
 export const MAX_SHARE_CHARS = 20000;
-export const MAX_FILE_BYTES = 500_000;
+export const MAX_FILE_BYTES = 1_000_000;
 
 export function decodePack(encoded: string): CardPack | null {
   if (encoded.length > MAX_SHARE_CHARS) return null;
@@ -180,7 +210,9 @@ export function packFromHash(hash: string): CardPack | null {
 /* ---------- Файлы: Native File System API с запасным вариантом ---------- */
 
 export async function exportPackFile(pack: CardPack): Promise<void> {
-  const text = JSON.stringify({ ...pack, isCustom: undefined }, null, 2);
+  const text = JSON.stringify({ ...pack, isCustom: undefined });
+  // Файл, который собственный импорт не примет, не выдаём как успешный экспорт.
+  if (new TextEncoder().encode(text).length > MAX_FILE_BYTES) throw new Error(t('Пак слишком большой для экспорта в файл (>1 МБ). Удалите часть карт или сценариев.'));
   const fileName = `${pack.name.replace(/[^\p{L}\p{N}_-]+/gu, '_') || 'pack'}.shelter.json`;
   const w = window as unknown as {
     showSaveFilePicker?: (o: unknown) => Promise<{ createWritable: () => Promise<{ write: (t: string) => Promise<void>; close: () => Promise<void> }> }>;
@@ -228,7 +260,7 @@ export async function importPackFile(): Promise<CardPack | null> {
     });
   }
   if (!file) return null;
-  if (file.size > MAX_FILE_BYTES) throw new Error(t('Файл слишком большой (>500 КБ)'));
+  if (file.size > MAX_FILE_BYTES) throw new Error(t('Файл слишком большой (>1 МБ)'));
   try {
     const pack = sanitizePack(JSON.parse(await file.text()));
     if (!pack) throw new Error();

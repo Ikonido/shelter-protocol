@@ -112,6 +112,5 @@ export default {
   '— нет карт в выбранных паках —': '— keine Karten in den gewählten Paketen —',
   'Новый пак': 'Neues Paket',
   '{name} (копия)': '{name} (Kopie)',
-  'Файл слишком большой (>500 КБ)': 'Datei zu groß (>500 KB)',
   'Не удалось прочитать пак: неверный формат JSON': 'Paket konnte nicht gelesen werden: ungültiges JSON-Format',
 };

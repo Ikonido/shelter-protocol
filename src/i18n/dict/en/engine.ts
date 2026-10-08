@@ -112,6 +112,5 @@ export default {
   '— нет карт в выбранных паках —': '— no cards in the selected packs —',
   'Новый пак': 'New pack',
   '{name} (копия)': '{name} (copy)',
-  'Файл слишком большой (>500 КБ)': 'File too large (>500 KB)',
   'Не удалось прочитать пак: неверный формат JSON': 'Could not read the pack: invalid JSON format',
 };

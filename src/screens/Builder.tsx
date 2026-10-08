@@ -5,7 +5,7 @@ import { categoryLabel, type Card, type CardPack, type Category, type Hazard, ty
 import { HAZARD_TEMPLATES, SCENARIO_TEMPLATES } from '../data/templates';
 import { LIMITS as L } from '../lib/limits';
 import { uid } from '../lib/rng';
-import { MY_PACK_ID, blankScenario, buildMyPack, canSaveScenario, newHazard, ownCardCount } from '../lib/builder';
+import { MY_PACK_ID, blankScenario, buildMyPack, canOverride, canSaveScenario, newHazard, ownCardCount } from '../lib/builder';
 import { cardLabel, cardsWithSkill, skillCards, skillVocabulary, validateScenario, type SkillInfo } from '../lib/vocab';
 import { mergePools } from '../lib/generator';
 import { t, plural } from '../lib/i18n';
@@ -185,6 +185,7 @@ function StepAbilities({
   removed: string[];
   setRemoved: (ids: string[]) => void;
 }) {
+  const { notify } = useStore();
   const [cat, setCat] = useState<Category>('profession');
   // Лимит относится к своим картам категории, а не к общей колоде вместе со встроенными паками.
   const ownFull = ownCardCount(preview, cat) >= L.cardsPerCategory;
@@ -202,7 +203,14 @@ function StepAbilities({
   const setTags = (c: Card, tags: string[]) => {
     const next = { ...overrides };
     if (sameTags(tags, origin(c.id))) delete next[c.id];
-    else next[c.id] = tags;
+    else {
+      // Больше L.tagOverrides переопределений не сохранится: новую не принимаем сразу, а не обрезаем молча при следующем запуске.
+      if (!canOverride(next, c.id)) {
+        notify(t('Достигнут лимит изменённых способностей ({n}). Верните часть карт к исходным способностям.', { n: L.tagOverrides }));
+        return;
+      }
+      next[c.id] = tags;
+    }
     setOverrides(next);
   };
   const isMine = (id: string) => newCards.some((n) => n.id === id);

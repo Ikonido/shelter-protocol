@@ -1,7 +1,7 @@
 import { CATEGORIES, type CardPack, type Category, type GameState } from '../types';
 import { emptyCard } from './generator';
 import { sanitizePack } from './packs';
-import { t } from './i18n';
+import { MAX_ITEMS } from './inventory';
 
 const K_PACKS = 'shelter:customPacks';
 const K_GAME = 'shelter:game';
@@ -29,9 +29,8 @@ export const loadPacks = (): CardPack[] => {
   if (!Array.isArray(raw)) return [];
   return raw.flatMap((x) => {
     try {
-      // Свой пак с пустым названием (его только что стёрли, чтобы ввести новое) — не повод терять содержимое.
-      const named = isObj(x) && !(isStr(x.name) && x.name.trim()) ? { ...x, name: t('Пак без названия') } : x;
-      const pack = sanitizePack(named);
+      // Собственное хранилище читаем мягко: стёртое название или описание (человек вводит новое) не должно удалять объект со всем содержимым.
+      const pack = sanitizePack(x, { lenient: true });
       return pack ? [pack] : [];
     } catch {
       return [];
@@ -64,10 +63,13 @@ const strList = (v: unknown) => Array.isArray(v) && v.every(isStr);
 const MODES = ['pass-and-play', 'tabletop', 'online'];
 const VOTINGS = ['secret', 'open'];
 const MODIFIERS = ['positive', 'neutral', 'negative'];
-const validCard = (c: unknown) =>
-  isObj(c) && isStr(c.description) && (c.tags === undefined || strList(c.tags)) && (c.modifier === undefined || MODIFIERS.includes(c.modifier as string)) && (c.title === undefined || isStr(c.title));
+const validCard = (c: unknown, nested = false): boolean =>
+  isObj(c) && isStr(c.description) && (c.tags === undefined || strList(c.tags)) && (c.modifier === undefined || MODIFIERS.includes(c.modifier as string)) && (c.title === undefined || isStr(c.title)) &&
+  (c.strictTags === undefined || typeof c.strictTags === 'boolean') &&
+  // Составной багаж: предметы — тоже карты (один уровень вложенности, не больше MAX_ITEMS).
+  (c.items === undefined || (!nested && Array.isArray(c.items) && c.items.length <= MAX_ITEMS && c.items.every((i) => validCard(i, true))));
 const validHazard = (h: unknown) => isObj(h) && isStr(h.id) && isStr(h.title) && (h.counters === undefined || strList(h.counters));
-const validDeck = (d: unknown) => d === undefined || (isObj(d) && Object.values(d).every((list) => Array.isArray(list) && list.every(validCard)));
+const validDeck = (d: unknown) => d === undefined || (isObj(d) && Object.values(d).every((list) => Array.isArray(list) && list.every((card) => validCard(card))));
 const validScenario = (s: unknown) =>
   isObj(s) && isStr(s.title) && (s.description === undefined || isStr(s.description)) && (s.isolationDuration === undefined || isStr(s.isolationDuration)) &&
   (s.requiredSkills === undefined || strList(s.requiredSkills)) && (s.hazards === undefined || (Array.isArray(s.hazards) && s.hazards.every(validHazard)));
