@@ -190,7 +190,7 @@ export default {
   'Простуда': 'Erkältung',
   'Скачет давление': 'Blutdruck spielt verrückt',
   'Хронический похуизм': 'Chronische Scheißegal-Krankheit',
-  'Хронический алкоголик': 'Chronischer Alkoholiker',
+  'Хронический алкоголик': 'Chronischer Trinker',
   'Похмелье': 'Kater',
   'Лёгкое похмелье': 'Leichter Kater',
   'Тяжёлое похмелье': 'Schwerer Kater',

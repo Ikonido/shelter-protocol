@@ -190,7 +190,7 @@ export default {
   'Простуда': 'Common cold',
   'Скачет давление': 'Blood pressure all over the place',
   'Хронический похуизм': 'Chronic don’t-give-a-fuck-itis',
-  'Хронический алкоголик': 'Chronic alcoholic',
+  'Хронический алкоголик': 'Chronic Drunkard',
   'Похмелье': 'Hangover',
   'Лёгкое похмелье': 'Mild hangover',
   'Тяжёлое похмелье': 'Brutal hangover',
@@ -199,7 +199,7 @@ export default {
   'Лёгкая травма после драки': 'Minor injury from a brawl',
   'Тяжёлая травма после драки': 'Serious injury from a brawl',
   'Тяжёлое отравление палёнкой': 'Severe poisoning from bootleg booze',
-  'Критическое состояние': 'Critical condition',
+  'Критическое состояние': 'Critical Condition',
 
   // Хобби
   'Домашний самогон': 'Home-brewed moonshine',

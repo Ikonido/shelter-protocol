@@ -142,7 +142,7 @@ export default {
   'Рост 175 см, вес 60 кг, стройное, лёгкое': 'Größe 175 cm, Gewicht 60 kg, schlank und leicht',
   'Рост 190 см, вес 110 кг, могучее': 'Größe 190 cm, Gewicht 110 kg, mächtig',
   'Рост 170 см, вес 75 кг, среднее': 'Größe 170 cm, Gewicht 75 kg, durchschnittlich',
-  'Рост 160 см, вес 130 кг, пузатое': 'Größe 160 cm, Gewicht 130 kg, dickbäuchig',
+  'Рост 160 см, вес 130 кг, пузатое': 'Größe 160 cm, Gewicht 130 kg, mit Schmerbauch',
   'Рост 150 см, вес 40 кг, хрупкое, почти прозрачное': 'Größe 150 cm, Gewicht 40 kg, zerbrechlich, fast durchscheinend',
   'Рост 180 см, вес 95 кг, плечистое': 'Größe 180 cm, Gewicht 95 kg, breitschultrig',
   'Рост 230 см, вес 90 кг, долговязое, цепляется головой за потолок': 'Größe 230 cm, Gewicht 90 kg, schlaksig, stößt sich den Kopf an der Decke',
