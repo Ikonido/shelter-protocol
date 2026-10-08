@@ -260,7 +260,7 @@ export default {
   'Ящик учебных гранат (наверное, учебных)': 'Kiste Übungsgranaten (angeblich nur Übung)',
   'Гора туалетной бумаги': 'Berg aus Toilettenpapier',
   'ОГРОМНОЕ: КамАЗ с песком': 'RIESIG: KamAZ voller Sand',
-  'ОГРОМНОЕ: Конь-огонь, сбежавший из цирка': 'RIESIG: Feuerross, aus dem Zirkus ausgebrochen',
+  'ОГРОМНОЕ: Цирковой конь': 'RIESIG: Zirkuspferd',
   'ОГРОМНОЕ: Сарай с самогонным аппаратом внутри': 'RIESIG: Scheune mit einem Schnapsbrennapparat drin',
   'ОГРОМНОЕ: Разобранный гараж и ящик гвоздей': 'RIESIG: Zerlegte Garage und eine Kiste Nägel',
   'ОГРОМНОЕ: Диван с неприятным запахом': 'RIESIG: Übel riechendes Sofa',

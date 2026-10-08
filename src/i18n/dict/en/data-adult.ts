@@ -260,7 +260,7 @@ export default {
   'Ящик учебных гранат (наверное, учебных)': 'Crate of training grenades (probably training ones)',
   'Гора туалетной бумаги': 'Mountain of toilet paper',
   'ОГРОМНОЕ: КамАЗ с песком': 'HUGE: KamAZ truck full of sand',
-  'ОГРОМНОЕ: Конь-огонь, сбежавший из цирка': 'HUGE: Fire horse that ran away from the circus',
+  'ОГРОМНОЕ: Цирковой конь': 'HUGE: Circus horse',
   'ОГРОМНОЕ: Сарай с самогонным аппаратом внутри': 'HUGE: Barn with a moonshine still inside',
   'ОГРОМНОЕ: Разобранный гараж и ящик гвоздей': 'HUGE: Disassembled garage and a crate of nails',
   'ОГРОМНОЕ: Диван с неприятным запахом': 'HUGE: Foul-smelling sofa',
