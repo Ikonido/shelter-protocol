@@ -2,17 +2,17 @@
 export default {
   // Причины отказа (canApply) — их видит игрок
   'Игрок выбыл': 'Spieler ist ausgeschieden',
-  'Выберите другого живого игрока': 'Wählen Sie einen anderen lebenden Spieler',
+  'Выберите другого живого игрока': 'Wähle einen anderen lebenden Spieler',
   'В колоде не осталось карт багажа': 'Im Stapel sind keine Gepäckkarten mehr',
   'В колоде не осталось карт хобби': 'Im Stapel sind keine Hobby-Karten mehr',
   'Нужен хотя бы один сосед': 'Mindestens ein Nachbar wird benötigt',
   'В колоде не осталось телосложений': 'Im Stapel sind keine Körperbau-Karten mehr',
   'В колоде не осталось карт биологии': 'Im Stapel sind keine Biologie-Karten mehr',
   'Для обмена нужно хотя бы три живых игрока': 'Für einen Tausch werden mindestens drei lebende Spieler benötigt',
-  'Выберите игрока': 'Wählen Sie einen Spieler',
-  'Выберите скрытую карту игрока': 'Wählen Sie eine verdeckte Karte des Spielers',
+  'Выберите игрока': 'Wähle einen Spieler',
+  'Выберите скрытую карту игрока': 'Wähle eine verdeckte Karte des Spielers',
   'У игрока всё уже открыто': 'Beim Spieler ist schon alles offen',
-  'У вас нет проблем со здоровьем': 'Sie haben keine gesundheitlichen Probleme',
+  'У вас нет проблем со здоровьем': 'Du hast keine gesundheitlichen Probleme',
   'Среди живых нет врача или лекаря': 'Unter den Lebenden gibt es keinen Arzt oder Heiler',
   'Союзник уже выбран': 'Verbündeter ist bereits gewählt',
 
@@ -78,7 +78,7 @@ export default {
   // Сложности: описания (lib/difficulty.ts; названия «Лёгкая», «Обычная»… — в game.ts)
   'Для первой партии и компании с детьми': 'Für die erste Partie und Runden mit Kindern',
   'Баланс по умолчанию': 'Standardbalance',
-  'Придётся думать, кого оставлять': 'Sie werden abwägen müssen, wen Sie behalten',
+  'Придётся думать, кого оставлять': 'Du wirst abwägen müssen, wen du behältst',
   'Выжить смогут единицы': 'Nur wenige werden überleben',
   '1 фактор угрозы': '1 Bedrohungsfaktor',
   'Одна неснятая смертельная угроза ещё не гибель': 'Eine nicht beseitigte tödliche Bedrohung ist noch nicht der Untergang',
@@ -98,9 +98,9 @@ export default {
   'Речь 20 с, партия 20 мин': 'Rede 20 s, Partie 20 Min.',
 
   // Конструктор сценариев: проверка перед сохранением (lib/vocab.ts)
-  'Дайте сценарию название.': 'Geben Sie dem Szenario einen Namen.',
+  'Дайте сценарию название.': 'Gib dem Szenario einen Namen.',
   'Нужно хотя бы одно место в бункере.': 'Mindestens ein Platz im Schutzraum wird benötigt.',
-  'Навык «{skill}» требуется, но ни одна карта его не даёт — выиграть будет нельзя. Откройте шаг «Способности карт».': 'Der Skill «{skill}» wird benötigt, aber keine Karte bietet ihn — gewonnen werden kann dann nicht. Öffnen Sie den Schritt «Kartenfähigkeiten».',
+  'Навык «{skill}» требуется, но ни одна карта его не даёт — выиграть будет нельзя. Откройте шаг «Способности карт».': 'Der Skill «{skill}» wird benötigt, aber keine Karte bietet ihn — gewonnen werden kann dann nicht. Öffne den Schritt «Kartenfähigkeiten».',
   'У одной из угроз нет названия.': 'Eine der Bedrohungen hat keinen Titel.',
   'Угрозу «{title}» ничто не нейтрализует — она всегда будет непобедимой.': 'Die Bedrohung «{title}» wird durch nichts neutralisiert — sie bleibt immer unbesiegbar.',
   'Угрозу «{title}» не может снять ни одна карта колоды.': 'Keine Karte im Stapel kann die Bedrohung «{title}» beseitigen.',
