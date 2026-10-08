@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { parseInvite, type Invite } from '../lib/invite';
+import { t } from '../lib/i18n';
 
 type Detector = { detect(src: CanvasImageSource): Promise<{ rawValue: string }[]> };
 
@@ -23,13 +24,13 @@ export function QRScanner({ onInvite, onClose }: { onInvite: (i: Invite) => void
 
     (async () => {
       if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-        setError('Камера доступна только на https-страницах (в LAN по http она заблокирована браузером). Введите код вручную.');
+        setError(t('Камера доступна только на https-страницах (в LAN по http она заблокирована браузером). Введите код вручную.'));
         return;
       }
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
       } catch {
-        setError('Нет доступа к камере. Разрешите её в настройках браузера или введите код вручную.');
+        setError(t('Нет доступа к камере. Разрешите её в настройках браузера или введите код вручную.'));
         return;
       }
       if (stop) return stream.getTracks().forEach((t) => t.stop());
@@ -85,12 +86,12 @@ export function QRScanner({ onInvite, onClose }: { onInvite: (i: Invite) => void
         <p className="text-sm text-danger">{error}</p>
       ) : (
         <div className="relative overflow-hidden rounded-md border border-edge bg-bg">
-          <video ref={video} className="aspect-square w-full object-cover" muted playsInline aria-label="Камера для сканирования QR-кода" />
+          <video ref={video} className="aspect-square w-full object-cover" muted playsInline aria-label={t('Камера для сканирования QR-кода')} />
           <div className="pointer-events-none absolute inset-8 rounded-lg border-2 border-amber/70" />
         </div>
       )}
-      {foreign && !error && <p className="text-xs text-amber">Это не QR-код приглашения. Наведите на код из комнаты.</p>}
-      <button className="btn btn-sm" onClick={onClose}><X size={14} /> Закрыть камеру</button>
+      {foreign && !error && <p className="text-xs text-amber">{t('Это не QR-код приглашения. Наведите на код из комнаты.')}</p>}
+      <button className="btn btn-sm" onClick={onClose}><X size={14} /> {t('Закрыть камеру')}</button>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { OnlineClient, OnlineHost, type C2H, type Conn, type H2C } from '../lib/
 import { QRScanner } from '../ui/QRScanner';
 import { createRoom, isValidCode, isValidTicket, joinRoom, normalizeCode, probeLan, shareOrigin, type NetMode } from '../lib/net';
 import { randomToken } from '../lib/rng';
+import { plural, t } from '../lib/i18n';
 import { copyText } from '../ui/clipboard';
 import { QR } from '../ui/QR';
 import { ABSTAIN, alive, currentSpeaker, perVote, quotaThisRound, revealOptions, stepOf } from '../lib/game';
@@ -39,11 +40,10 @@ const removeLS = (k: string) => { try { localStorage.removeItem(k); } catch { /*
 function NetBadge({ mode }: { mode: NetMode | null }) {
   if (!mode) return null;
   return mode === 'lan' ? (
-    <p className="text-xs text-ok">Локальная сеть: интернет не нужен, данные не покидают вашу сеть.</p>
+    <p className="text-xs text-ok">{t('Локальная сеть: интернет не нужен, данные не покидают вашу сеть.')}</p>
   ) : (
     <p className="text-xs text-dim">
-      Через интернет: публичный брокер PeerJS и STUN-серверы видят IP-адреса участников и код комнаты, но не содержимое игры
-      (оно шифруется и идёт напрямую). Для полной приватности используйте LAN-режим.
+      {t('Через интернет: публичный брокер PeerJS и STUN-серверы видят IP-адреса участников и код комнаты, но не содержимое игры (оно шифруется и идёт напрямую). Для полной приватности используйте LAN-режим.')}
     </p>
   );
 }
@@ -55,7 +55,7 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
   const [host, setHost] = useState<OnlineHost | null>(null);
   const [code, setCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [name, setName] = useState(readLS('shelter:name') ?? 'Хост');
+  const [name, setName] = useState(readLS('shelter:name') ?? t('Хост'));
   const [slots, setSlots] = useState(draft.slots);
   const [net, setNet] = useState<NetMode | null>(null);
   const [origin, setOrigin] = useState(location.origin);
@@ -75,7 +75,7 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
   useEffect(() => {
     let room: { destroy(): void } | null = null;
     let cancelled = false;
-    const h = new OnlineHost(draft, readLS('shelter:name') ?? 'Хост');
+    const h = new OnlineHost(draft, readLS('shelter:name') ?? t('Хост'));
     setHost(h);
     (async () => {
       const mode: NetMode = (await probeLan()) ? 'lan' : 'internet';
@@ -101,7 +101,7 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
   const left = ticket ? Math.max(0, Math.ceil((ticket.expiresAt - now) / 1000)) : 0;
   const link = code && ticket ? `${origin}${location.pathname}#join=${code}.${ticket.value}` : '';
   const localhostOnly = net === 'lan' && origin === location.origin && ['localhost', '127.0.0.1'].includes(location.hostname);
-  const copy = async (text: string) => notify((await copyText(text)) ? 'Скопировано' : 'Не удалось скопировать');
+  const copy = async (text: string) => notify((await copyText(text)) ? t('Скопировано') : t('Не удалось скопировать'));
 
   if (host.game) {
     // Хосту часы нужны по его же времени (клиенты получают «осталось» и пересчитывают у себя).
@@ -112,7 +112,7 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
         me={host.members[0].playerId!}
         send={(m) => {
           const refusal = host.actAsHost(m);
-          if (refusal) notify(refusal);
+          if (refusal) notify(t(refusal));
         }}
         host={host}
         onExit={() => go({ name: 'home' })}
@@ -123,68 +123,68 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
   const n = host.members.length;
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4 py-6">
-      <button className="btn btn-sm self-start" onClick={() => go({ name: 'home' })}><ArrowLeft size={16} /> Закрыть комнату</button>
-      <h1 className="h-hud text-base">Онлайн-комната · {draft.scenario.title}</h1>
-      {draft.adult && <p className="rounded-md border border-danger/60 bg-danger/10 p-2 text-xs text-danger"><b>18+</b>: гости увидят предупреждение о мате и грубом юморе, пока ждут начала. Приглашайте только взрослых.</p>}
+      <button className="btn btn-sm self-start" onClick={() => go({ name: 'home' })}><ArrowLeft size={16} /> {t('Закрыть комнату')}</button>
+      <h1 className="h-hud text-base">{t('Онлайн-комната · {title}', { title: draft.scenario.title })}</h1>
+      {draft.adult && <p className="rounded-md border border-danger/60 bg-danger/10 p-2 text-xs text-danger"><b>18+</b>: {t('гости увидят предупреждение о мате и грубом юморе, пока ждут начала. Приглашайте только взрослых.')}</p>}
 
       <section className="panel text-center">
         {error ? (
           <p className="text-sm text-danger">{error}</p>
         ) : code ? (
           <>
-            <p className="label">Код комнаты</p>
+            <p className="label">{t('Код комнаты')}</p>
             <p className="text-5xl font-bold tracking-[.3em] text-amber">{code}</p>
             <div className="mt-3 flex flex-wrap justify-center gap-2">
-              <button className="btn btn-sm" onClick={() => copy(code)}><Copy size={14} /> Код</button>
-              <button className="btn btn-sm" onClick={() => copy(link)}><Copy size={14} /> Ссылка-приглашение</button>
+              <button className="btn btn-sm" onClick={() => copy(code)}><Copy size={14} /> {t('Код')}</button>
+              <button className="btn btn-sm" onClick={() => copy(link)}><Copy size={14} /> {t('Ссылка-приглашение')}</button>
             </div>
             {link && (
               <div className="mt-4">
-                <QR value={link} size={208} label={`QR-код для входа в комнату ${code}`} />
+                <QR value={link} size={208} label={t('QR-код для входа в комнату {code}', { code })} />
                 <p className="mt-2 text-xs text-dim">
-                  Временный QR · действует <b className="text-amber">{Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}</b>, затем обновится сам
+                  {t('Временный QR · действует')} <b className="text-amber">{Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}</b>, {t('затем обновится сам')}
                 </p>
                 <div className="mt-2 flex flex-wrap justify-center gap-2">
-                  <button className="btn btn-sm" onClick={() => host.rotateTicket()}><RefreshCw size={14} /> Обновить QR</button>
+                  <button className="btn btn-sm" onClick={() => host.rotateTicket()}><RefreshCw size={14} /> {t('Обновить QR')}</button>
                   <label className="btn btn-sm cursor-pointer">
-                    <input type="checkbox" className="size-4 accent-amber" checked={host.requireTicket} onChange={(e) => host.setRequireTicket(e.target.checked)} /> Вход только по QR
+                    <input type="checkbox" className="size-4 accent-amber" checked={host.requireTicket} onChange={(e) => host.setRequireTicket(e.target.checked)} /> {t('Вход только по QR')}
                   </label>
                 </div>
-                {localhostOnly && <p className="mt-2 text-xs text-danger">Не удалось определить адрес вашего устройства в сети — телефоны могут не открыть QR. Откройте приложение по LAN-адресу из консоли сервера.</p>}
+                {localhostOnly && <p className="mt-2 text-xs text-danger">{t('Не удалось определить адрес вашего устройства в сети — телефоны могут не открыть QR. Откройте приложение по LAN-адресу из консоли сервера.')}</p>}
               </div>
             )}
             <div className="mt-3"><NetBadge mode={net} /></div>
           </>
         ) : (
-          <p className="text-sm text-dim">Создаём комнату…</p>
+          <p className="text-sm text-dim">{t('Создаём комнату…')}</p>
         )}
       </section>
 
       <section className="panel flex flex-col gap-3">
         <div>
-          <span className="label">Ваше имя</span>
+          <span className="label">{t('Ваше имя')}</span>
           <input className="input" maxLength={24} value={name} onChange={(e) => { setName(e.target.value); writeLS('shelter:name', e.target.value); host.rename(e.target.value); }} />
         </div>
-        <h2 className="label flex items-center gap-2"><Users size={14} /> Игроки ({n})</h2>
+        <h2 className="label flex items-center gap-2"><Users size={14} /> {t('Игроки ({n})', { n })}</h2>
         <ul className="text-sm">
           {host.members.map((m, i) => (
             <li key={m.token} className="flex items-center gap-2">
               {m.connected ? <Wifi size={14} className="text-ok" /> : <WifiOff size={14} className="text-danger" />}
-              {m.name}{i === 0 && <span className="text-xs text-dim">(хост)</span>}
+              {m.name}{i === 0 && <span className="text-xs text-dim">{t('(хост)')}</span>}
               {i > 0 && (
-                <button className="ml-auto text-dim hover:text-danger" aria-label={`Исключить ${m.name}`} onClick={() => host.kick(i)}><UserX size={16} /></button>
+                <button className="ml-auto text-dim hover:text-danger" aria-label={t('Исключить {name}', { name: m.name })} onClick={() => host.kick(i)}><UserX size={16} /></button>
               )}
             </li>
           ))}
         </ul>
-        <Stepper label="Мест в бункере (K)" value={Math.min(slots, Math.max(1, n - 1))} min={1} max={Math.max(1, n - 1)} onChange={(v) => { setSlots(v); host.setup = { ...host.setup, slots: v }; }} />
+        <Stepper label={t('Мест в бункере (K)')} value={Math.min(slots, Math.max(1, n - 1))} min={1} max={Math.max(1, n - 1)} onChange={(v) => { setSlots(v); host.setup = { ...host.setup, slots: v }; }} />
         <button className="btn btn-sm" onClick={() => host.setLocked(!host.locked)}>
-          {host.locked ? <><Unlock size={14} /> Открыть комнату</> : <><Lock size={14} /> Закрыть комнату для новых игроков</>}
+          {host.locked ? <><Unlock size={14} /> {t('Открыть комнату')}</> : <><Lock size={14} /> {t('Закрыть комнату для новых игроков')}</>}
         </button>
         <button className="btn btn-primary" disabled={n < 2 || !code} onClick={() => host.start()}>
-          Начать игру ({n} игроков)
+          {t('Начать игру ({n} {w})', { n, w: plural(n, ['игрок', 'игрока', 'игроков'], ['гравець', 'гравці', 'гравців']) })}
         </button>
-        {n < 2 && <p className="text-xs text-dim">Нужен хотя бы ещё один игрок.</p>}
+        {n < 2 && <p className="text-xs text-dim">{t('Нужен хотя бы ещё один игрок.')}</p>}
       </section>
     </div>
   );
@@ -251,15 +251,15 @@ export function Join({ initialCode, initialTicket }: { initialCode?: string; ini
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4 py-6">
-      <button className="btn btn-sm self-start" onClick={() => go({ name: 'home' })}><ArrowLeft size={16} /> Назад</button>
-      <h1 className="h-hud text-base">Вход в онлайн-комнату</h1>
+      <button className="btn btn-sm self-start" onClick={() => go({ name: 'home' })}><ArrowLeft size={16} /> {t('Назад')}</button>
+      <h1 className="h-hud text-base">{t('Вход в онлайн-комнату')}</h1>
       {(!client || st?.status === 'closed' || st?.status === 'rejected') && (
         <section className="panel flex flex-col gap-3">
-          {st?.status === 'rejected' && <p className="text-sm text-danger">{st.reason}</p>}
-          {st?.status === 'closed' && <p className="text-sm text-danger">Связь с хостом потеряна. Можно переподключиться — ваш персонаж сохранится.</p>}
+          {st?.status === 'rejected' && <p className="text-sm text-danger">{t(st.reason)}</p>}
+          {st?.status === 'closed' && <p className="text-sm text-danger">{t('Связь с хостом потеряна. Можно переподключиться — ваш персонаж сохранится.')}</p>}
           {error && <p className="text-sm text-danger">{error}</p>}
           <div>
-            <span className="label">Код комнаты</span>
+            <span className="label">{t('Код комнаты')}</span>
             <input className="input text-center text-2xl uppercase tracking-[.3em]" value={code} maxLength={5} autoCapitalize="characters" onChange={(e) => { setCode(normalizeCode(e.target.value)); setTicketIn(undefined); }} />
           </div>
           {scanning ? (
@@ -272,30 +272,30 @@ export function Join({ initialCode, initialTicket }: { initialCode?: string; ini
               }}
             />
           ) : (
-            <button className="btn" onClick={() => setScanning(true)}><Camera size={18} /> Сканировать QR-код</button>
+            <button className="btn" onClick={() => setScanning(true)}><Camera size={18} /> {t('Сканировать QR-код')}</button>
           )}
           <div>
-            <span className="label">Ваше имя</span>
+            <span className="label">{t('Ваше имя')}</span>
             <input className="input" maxLength={24} value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <NetBadge mode={net} />
           <button className="btn btn-primary" disabled={busy || !net || !isValidCode(normalizeCode(code)) || !name.trim()} onClick={() => { client?.destroy(); setClient(null); connect(); }}>
-            <LogIn size={18} /> {busy ? 'Подключаемся…' : st?.status === 'closed' ? 'Переподключиться' : 'Войти'}
+            <LogIn size={18} /> {busy ? t('Подключаемся…') : st?.status === 'closed' ? t('Переподключиться') : t('Войти')}
           </button>
         </section>
       )}
-      {st?.status === 'connecting' && <p className="text-center text-sm text-dim">Ожидаем ответ хоста…</p>}
+      {st?.status === 'connecting' && <p className="text-center text-sm text-dim">{t('Ожидаем ответ хоста…')}</p>}
       {st?.status === 'lobby' && (
         <section className="panel">
-          <p className="text-sm">Вы в комнате. Сценарий: <b className="text-amber">{st.scenario}</b></p>
+          <p className="text-sm">{t('Вы в комнате. Сценарий:')} <b className="text-amber">{st.scenario}</b></p>
           {st.adult && (
             <p className="mt-2 rounded-md border border-danger/60 bg-danger/10 p-2 text-xs text-danger" role="alert">
-              <b>18+</b>: в этой комнате ненормативная лексика и грубый юмор. Если вам нет 18 лет или это не для вас, нажмите «Назад» и выйдите.
+              <b>18+</b>: {t('в этой комнате ненормативная лексика и грубый юмор. Если вам нет 18 лет или это не для вас, нажмите «Назад» и выйдите.')}
             </p>
           )}
-          <h2 className="label mt-3">Игроки ({st.members.length})</h2>
-          <ul className="text-sm">{st.members.map((m, i) => <li key={i}>{m.name}{i === st.you && ' (вы)'}</li>)}</ul>
-          <p className="mt-3 text-xs text-dim">Ждём, пока хост начнёт игру…</p>
+          <h2 className="label mt-3">{t('Игроки ({n})', { n: st.members.length })}</h2>
+          <ul className="text-sm">{st.members.map((m, i) => <li key={i}>{m.name}{i === st.you && t(' (вы)')}</li>)}</ul>
+          <p className="mt-3 text-xs text-dim">{t('Ждём, пока хост начнёт игру…')}</p>
         </section>
       )}
     </div>
@@ -310,7 +310,7 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
   const living = alive(view);
   const noticeId = notice?.id;
   useEffect(() => {
-    if (noticeId && notice) say(notice.text);
+    if (noticeId && notice) say(t(notice.text));
   }, [noticeId]);
   const [pick, setPick] = useState<Category | null>(null);
   const [picking, setPicking] = useState(false);
@@ -332,7 +332,7 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
   const live = view.phase !== 'final';
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4 pb-6">
-      <GameHud game={view} backLabel="Выйти" onBack={() => confirm('Выйти из партии?') && onExit()} />
+      <GameHud game={view} backLabel={t('Выйти')} onBack={() => confirm(t('Выйти из партии?')) && onExit()} />
       {view.phase !== 'final' && <SkillsStrip scenario={view.scenario} />}
 
       {!live ? (
@@ -341,10 +341,10 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
           {!storyOn && (
             <>
               <details className="panel">
-                <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">Журнал партии</summary>
-                <ol className="mt-2 flex flex-col gap-1 text-xs text-dim">{view.log.map((l, i) => <li key={i}>[Р{l.round}] {l.text}</li>)}</ol>
+                <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">{t('Журнал партии')}</summary>
+                <ol className="mt-2 flex flex-col gap-1 text-xs text-dim">{view.log.map((l, i) => <li key={i}>{t('[Р{n}] {text}', { n: l.round, text: l.text })}</li>)}</ol>
               </details>
-              <button className="btn btn-primary" onClick={onExit}>В меню</button>
+              <button className="btn btn-primary" onClick={onExit}>{t('В меню')}</button>
             </>
           )}
         </>
@@ -361,7 +361,7 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
                 event={view.event}
                 volunteers={!player.isEliminated && quotaThisRound(view) >= 1 ? [player] : []}
                 onVolunteer={() => send({ t: 'volunteer' })}
-                action={host ? <button className="btn btn-primary" onClick={() => host.startRound()}>Начать раунд</button> : <p className="text-xs text-dim">Раунд начнёт хост, когда все прочитают.</p>}
+                action={host ? <button className="btn btn-primary" onClick={() => host.startRound()}>{t('Начать раунд')}</button> : <p className="text-xs text-dim">{t('Раунд начнёт хост, когда все прочитают.')}</p>}
               />
             )}
 
@@ -369,8 +369,8 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
               <p className={`panel hud flex items-center gap-3 text-sm ${myTurn ? 'border-amber text-amber' : 'text-dim'}`}>
                 <Avatar id={speaker.id} name={speaker.name} size={40} ring={myTurn} />
                 <span>
-                  Вскрытие {stepOf(view)} из {perVote(view)}.{' '}
-                  {myTurn ? 'Ваш ход: выберите карту ниже и откройте её всем, затем объясните, чем вы полезны.' : <>Ходит: <b className="text-amber">{speaker.name}</b></>}
+                  {t('Вскрытие {step} из {total}.', { step: stepOf(view), total: perVote(view) })}{' '}
+                  {myTurn ? t('Ваш ход: выберите карту ниже и откройте её всем, затем объясните, чем вы полезны.') : <>{t('Ходит:')} <b className="text-amber">{speaker.name}</b></>}
                 </span>
               </p>
             )}
@@ -379,24 +379,24 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
               <section className="panel hud flex flex-col gap-3">
                 <h2 className="h-hud flex items-center gap-3">
                   <Avatar id={speaker.id} name={speaker.name} size={36} ring />
-                  {myTurn ? 'Объясните, чем вы полезны убежищу' : `${speaker.name} объясняет пользу`}
+                  {myTurn ? t('Объясните, чем вы полезны убежищу') : t('{name} объясняет пользу', { name: speaker.name })}
                 </h2>
                 <CardFace card={speaker.slots[view.lastReveal.category].card} showMod flip />
                 <SpeechTimer endsAt={view.speechEndsAt} totalSec={view.config.speechSec} mine={myTurn} />
                 {myTurn ? (
-                  <button className="btn btn-primary" onClick={() => send({ t: 'done' })}>Закончил — следующий игрок</button>
+                  <button className="btn btn-primary" onClick={() => send({ t: 'done' })}>{t('Закончил — следующий игрок')}</button>
                 ) : host ? (
-                  <button className="btn btn-sm" onClick={() => host.skipSpeech()}>Пропустить речь (хост)</button>
+                  <button className="btn btn-sm" onClick={() => host.skipSpeech()}>{t('Пропустить речь (хост)')}</button>
                 ) : null}
               </section>
             )}
 
             {view.phase === 'vote' && (
               <section className="panel hud flex flex-col gap-2">
-                <h2 className="h-hud">{view.config.voting === 'secret' ? 'Тайное' : 'Открытое'} голосование</h2>
-                <p className="text-xs text-dim">Проголосовало {Object.keys(view.votes).length} из {living.length}. Голос можно менять, пока не проголосуют все. Воздержаться можно — если таких больше половины, никто не уходит.</p>
+                <h2 className="h-hud">{t(view.config.voting === 'secret' ? 'Тайное голосование' : 'Открытое голосование')}</h2>
+                <p className="text-xs text-dim">{t('Проголосовало {voted} из {total}. Голос можно менять, пока не проголосуют все. Воздержаться можно — если таких больше половины, никто не уходит.', { voted: Object.keys(view.votes).length, total: living.length })}</p>
                 {player.isEliminated ? (
-                  <p className="text-sm text-dim">Вы выбыли и не голосуете.</p>
+                  <p className="text-sm text-dim">{t('Вы выбыли и не голосуете.')}</p>
                 ) : (
                   living.filter((p) => p.id !== me).map((p) => {
                     const mine = view.votes[me] === p.id;
@@ -404,7 +404,7 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
                     return (
                       <button key={p.id} className={`btn justify-start gap-3 normal-case ${mine ? 'btn-primary' : ''}`} onClick={() => send({ t: 'vote', target: p.id })}>
                         <Avatar id={p.id} name={p.name} size={28} /> {p.name}
-                        {mine && <span className="ml-auto text-xs uppercase tracking-widest">✔ ваш выбор</span>}
+                        {mine && <span className="ml-auto text-xs uppercase tracking-widest">{t('✔ ваш выбор')}</span>}
                         {!mine && !!count && <span className="ml-auto text-xs text-dim">{count}</span>}
                       </button>
                     );
@@ -412,7 +412,7 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
                 )}
                 {!player.isEliminated && (
                   <button className={`btn border-dashed ${view.votes[me] === ABSTAIN ? 'btn-primary' : ''}`} onClick={() => send({ t: 'vote', target: ABSTAIN })}>
-                    {view.votes[me] === ABSTAIN ? '✔ ' : ''}Воздержаться
+                    {view.votes[me] === ABSTAIN ? '✔ ' : ''}{t('Воздержаться')}
                   </button>
                 )}
               </section>
@@ -420,24 +420,24 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
 
             {view.phase === 'result' && view.lastResult && (
               <section className="panel hud flex flex-col gap-3">
-                <h2 className="h-hud">Итоги раунда {view.round}</h2>
-                {view.lastResult.noVote ? <p className="text-sm text-amber">Добровольцы закрыли квоту раунда — голосования не будет.</p> : <Tally players={view.players} result={view.lastResult} />}
-                {view.lastResult.tieBreak && <p className="text-xs text-amber">Ничья на границе — решено жребием.</p>}
-                {view.lastResult.skipped && <p className="text-sm text-amber">Большинство воздержалось ({view.lastResult.abstained} из {alive(view).length}) — никто не покидает игру. Пропущенное исключение перенесено в дополнительный раунд.</p>}
-                {!view.lastResult.skipped && !!view.lastResult.abstained && <p className="text-xs text-dim">Воздержались: {view.lastResult.abstained}.</p>}
-                {host ? <button className="btn btn-primary" onClick={() => host.next()}>Дальше</button> : <p className="text-xs text-dim">Следующий шаг запускает хост.</p>}
+                <h2 className="h-hud">{t('Итоги раунда {n}', { n: view.round })}</h2>
+                {view.lastResult.noVote ? <p className="text-sm text-amber">{t('Добровольцы закрыли квоту раунда — голосования не будет.')}</p> : <Tally players={view.players} result={view.lastResult} />}
+                {view.lastResult.tieBreak && <p className="text-xs text-amber">{t('Ничья на границе — решено жребием.')}</p>}
+                {view.lastResult.skipped && <p className="text-sm text-amber">{t('Большинство воздержалось ({abstained} из {total}) — никто не покидает игру. Пропущенное исключение перенесено в дополнительный раунд.', { abstained: view.lastResult.abstained ?? 0, total: alive(view).length })}</p>}
+                {!view.lastResult.skipped && !!view.lastResult.abstained && <p className="text-xs text-dim">{t('Воздержались: {n}.', { n: view.lastResult.abstained })}</p>}
+                {host ? <button className="btn btn-primary" onClick={() => host.next()}>{t('Дальше')}</button> : <p className="text-xs text-dim">{t('Следующий шаг запускает хост.')}</p>}
               </section>
             )}
 
             {!host && offline.length > 0 && (
               <p className="panel border-danger/60 text-sm" role="status">
-                <WifiOff size={14} className="mr-1 inline text-danger" />Нет связи: <b>{offline.join(', ')}</b>. Они могут вернуться по тому же коду, а хост способен сделать ход за них.
+                <WifiOff size={14} className="mr-1 inline text-danger" />{t('Нет связи:')} <b>{offline.join(', ')}</b>. {t('Они могут вернуться по тому же коду, а хост способен сделать ход за них.')}
               </p>
             )}
-            {myRevealTurn && <p className="panel animate-pulse border-amber text-center text-sm font-bold uppercase tracking-widest text-amber" role="alert">Ваш ход: откройте карту</p>}
+            {myRevealTurn && <p className="panel animate-pulse border-amber text-center text-sm font-bold uppercase tracking-widest text-amber" role="alert">{t('Ваш ход: откройте карту')}</p>}
             {lastAction && <p className="panel border-[#e879f9]/60 text-sm" role="status"><Zap size={14} className="mr-1 inline text-[#e879f9]" />{lastAction.text}</p>}
             <section className="panel flex flex-col gap-2">
-              <h2 className="h-hud flex items-center gap-2"><Avatar id={player.id} name={player.name} size={24} /> {player.name}{player.isEliminated ? ' — вы наблюдатель' : ' — ваши карты'}</h2>
+              <h2 className="h-hud flex items-center gap-2"><Avatar id={player.id} name={player.name} size={24} /> {player.name}{player.isEliminated ? t(' — вы наблюдатель') : t(' — ваши карты')}</h2>
               {CATEGORIES.map((c) => {
                 const selectable = options.includes(c) || (c === 'action' && canAction);
                 return (
@@ -448,17 +448,17 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
                     compact
                     selected={chosen === c}
                     onClick={selectable ? () => setPick(c) : undefined}
-                    extra={player.slots[c].isRevealed && <span className="text-[10px] uppercase text-dim">{c === 'action' ? 'использована' : 'открыта всем'}</span>}
+                    extra={player.slots[c].isRevealed && <span className="text-[10px] uppercase text-dim">{c === 'action' ? t('использована') : t('открыта всем')}</span>}
                   />
                 );
               })}
-              {canAction && !chosen && <p className="text-xs text-dim">Карту действия можно применить в любой момент вскрытия, речи или голосования: коснитесь её и нажмите «Применить». Все увидят объявление.</p>}
+              {canAction && !chosen && <p className="text-xs text-dim">{t('Карту действия можно применить в любой момент вскрытия, речи или голосования: коснитесь её и нажмите «Применить». Все увидят объявление.')}</p>}
               {chosen && picking && autoEffect ? (
                 <ActionTargetPicker
                   game={view}
                   actorId={player.id}
                   effect={autoEffect}
-                  title={player.slots.action.card.title ?? 'Действие'}
+                  title={player.slots.action.card.title ?? t('Действие')}
                   onCancel={() => setPicking(false)}
                   onConfirm={(params) => { send({ t: 'action', ...params }); setPicking(false); setPick(null); }}
                 />
@@ -472,7 +472,7 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
                       setPick(null);
                     }}
                   >
-                    {chosen === 'action' ? <><Zap size={16} /> Применить действие</> : `Открыть всем: ${categoryLabel(chosen)}`}
+                    {chosen === 'action' ? <><Zap size={16} /> {t('Применить действие')}</> : t('Открыть всем: {cat}', { cat: categoryLabel(chosen) })}
                   </button>
                 )
               )}
@@ -480,9 +480,9 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
 
             {host && host.disconnectedPending().length > 0 && (
               <section className="panel border-danger/50">
-                <p className="text-sm text-danger">Отключены: {host.disconnectedPending().join(', ')}</p>
-                <p className="mb-2 text-xs text-dim">Они смогут вернуться по тому же коду. Чтобы не ждать — сделайте ход за них.</p>
-                <button className="btn btn-sm" onClick={() => host.autofillDisconnected()}>Автоход за отключённых</button>
+                <p className="text-sm text-danger">{t('Отключены: {names}', { names: host.disconnectedPending().join(', ') })}</p>
+                <p className="mb-2 text-xs text-dim">{t('Они смогут вернуться по тому же коду. Чтобы не ждать — сделайте ход за них.')}</p>
+                <button className="btn btn-sm" onClick={() => host.autofillDisconnected()}>{t('Автоход за отключённых')}</button>
               </section>
             )}
           </div>

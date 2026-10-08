@@ -8,6 +8,7 @@ import type { Difficulty, PlayMode, SessionConfig, VotingMode } from '../types';
 import { DIFFICULTIES, DIFFICULTY_ORDER } from '../lib/difficulty';
 import { MY_PACK_ID } from '../lib/builder';
 import { loadLastSetup, saveLastSetup } from '../lib/quick';
+import { t } from '../lib/i18n';
 
 const DIFF_STYLE = {
   easy: { Icon: Smile, tone: { text: 'text-ok', border: 'border-ok', bg: 'bg-ok/10 shadow-[0_0_22px_-10px_var(--color-ok)]' } },
@@ -78,11 +79,11 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
     setN(c.n);
     setK(c.k);
   };
-  const nameAt = (i: number) => names[i]?.trim() || `Игрок ${i + 1}`;
+  const nameAt = (i: number) => names[i]?.trim() || t('Игрок {n}', { n: i + 1 });
   const toggle = (id: string) => {
     const pack = allPacks.find((p) => p.id === id);
     // Контент 18+ включается только после подтверждения возраста (запоминается на этом устройстве).
-    if (pack?.adult && !packIds.includes(id) && !adultConfirmed() && !confirm('Этот пак содержит мат, чёрный юмор и грубые шутки. Вам есть 18 лет, и вы согласны это увидеть?')) return;
+    if (pack?.adult && !packIds.includes(id) && !adultConfirmed() && !confirm(t('Этот пак содержит мат, чёрный юмор и грубые шутки. Вам есть 18 лет, и вы согласны это увидеть?'))) return;
     if (pack?.adult && !packIds.includes(id)) rememberAdult();
     setPackIds((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
   };
@@ -113,17 +114,17 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
       seed: newSeed(),
     };
     setGame(createGame(config, chosen, activePacks));
-    notify('Персонажи сгенерированы');
+    notify(t('Персонажи сгенерированы'));
     go({ name: 'game' });
   };
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5 py-6">
-      <button className="btn btn-sm self-start" onClick={() => go({ name: 'home' })}><ArrowLeft size={16} /> Назад</button>
-      <h1 className="h-hud text-base">Настройка партии</h1>
+      <button className="btn btn-sm self-start" onClick={() => go({ name: 'home' })}><ArrowLeft size={16} /> {t('Назад')}</button>
+      <h1 className="h-hud text-base">{t('Настройка партии')}</h1>
 
       <section className="panel">
-        <h2 className="step-title">1 · Паки карт</h2>
+        <h2 className="step-title">{t('1 · Паки карт')}</h2>
         <div className="flex flex-col gap-2">
           {allPacks.map((p) => (
             <label key={p.id} className="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border border-edge p-2">
@@ -131,57 +132,57 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
               <span className="text-sm">
                 <b>{p.name}</b>
                 {p.adult && <span className="ml-2 rounded border border-danger px-1 text-[10px] font-bold text-danger">18+</span>}
-                {p.isCustom && <span className="ml-2 text-xs text-amber">[свой]</span>}
-                <span className="ml-2 text-[10px] uppercase tracking-widest text-dim">{p.scenarios.length} сцен.</span>
+                {p.isCustom && <span className="ml-2 text-xs text-amber">{t('[свой]')}</span>}
+                <span className="ml-2 text-[10px] uppercase tracking-widest text-dim">{p.scenarios.length} {t('сцен.')}</span>
                 <br /><span className="text-xs text-dim">{p.description}</span>
               </span>
             </label>
           ))}
         </div>
-        {activePacks.length > 1 && <p className="mt-2 text-xs text-dim">Выбрано несколько паков: карты перемешаются, а сценарии объединятся. Для цельной атмосферы возьмите один тематический пак.</p>}
+        {activePacks.length > 1 && <p className="mt-2 text-xs text-dim">{t('Выбрано несколько паков: карты перемешаются, а сценарии объединятся. Для цельной атмосферы возьмите один тематический пак.')}</p>}
       </section>
 
       <section className="panel">
-        <h2 className="step-title">2 · Сценарий катастрофы</h2>
+        <h2 className="step-title">{t('2 · Сценарий катастрофы')}</h2>
         <select className="input" value={scenarioId} onChange={(e) => setScenarioId(e.target.value)}>
-          <option value="random">🎲 Случайный</option>
+          <option value="random">🎲 {t('Случайный')}</option>
           {scenarios.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
         </select>
         {scenario ? (
           <div className="mt-3 text-sm">
             <p className="text-ink/90">{scenario.description}</p>
             <p className="mt-2 text-xs text-dim">
-              Изоляция: {scenario.isolationDuration || '—'} · Нужны: {scenario.requiredSkills.join(', ') || '—'}
+              {t('Изоляция: {iso} · Нужны: {skills}', { iso: scenario.isolationDuration || '—', skills: scenario.requiredSkills.join(', ') || '—' })}
             </p>
           </div>
         ) : (
-          <p className="mt-2 text-xs text-dim">Сценарий выбирается при старте.</p>
+          <p className="mt-2 text-xs text-dim">{t('Сценарий выбирается при старте.')}</p>
         )}
-        {scenarios.length === 0 && <p className="mt-2 text-xs text-danger">В выбранных паках нет сценариев.</p>}
+        {scenarios.length === 0 && <p className="mt-2 text-xs text-danger">{t('В выбранных паках нет сценариев.')}</p>}
         <div className="mt-3 flex flex-wrap gap-2">
-          <button className="btn btn-sm" onClick={() => go({ name: 'builder' })}><Wand2 size={14} /> Создать свой сценарий</button>
+          <button className="btn btn-sm" onClick={() => go({ name: 'builder' })}><Wand2 size={14} /> {t('Создать свой сценарий')}</button>
           {scenario && allPacks.some((p) => p.id === MY_PACK_ID && p.scenarios.some((x) => x.id === scenario.id)) && (
-            <button className="btn btn-sm" onClick={() => go({ name: 'builder', scenarioId: scenario.id })}><Pencil size={14} /> Изменить этот</button>
+            <button className="btn btn-sm" onClick={() => go({ name: 'builder', scenarioId: scenario.id })}><Pencil size={14} /> {t('Изменить этот')}</button>
           )}
         </div>
       </section>
 
       <section className="panel">
-        <h2 className="step-title">3 · Игроки и места</h2>
+        <h2 className="step-title">{t('3 · Игроки и места')}</h2>
         <div className="flex flex-wrap gap-8">
-          {mode !== 'online' && <Stepper label="Игроков (N)" value={n} min={2} max={20} onChange={setPlayers} />}
-          <Stepper label="Мест в бункере (K)" value={k} min={1} max={mode === 'online' ? 19 : n - 1} onChange={(v) => setK(mode === 'online' ? Math.min(19, Math.max(1, v)) : clampConfig(n, v).k)} />
+          {mode !== 'online' && <Stepper label={t('Игроков (N)')} value={n} min={2} max={20} onChange={setPlayers} />}
+          <Stepper label={t('Мест в бункере (K)')} value={k} min={1} max={mode === 'online' ? 19 : n - 1} onChange={(v) => setK(mode === 'online' ? Math.min(19, Math.max(1, v)) : clampConfig(n, v).k)} />
         </div>
-        {mode === 'online' && <p className="mt-2 text-xs text-dim">Число игроков определится по тем, кто подключился к комнате.</p>}
+        {mode === 'online' && <p className="mt-2 text-xs text-dim">{t('Число игроков определится по тем, кто подключился к комнате.')}</p>}
         <details className={`mt-4 ${mode === 'online' ? 'hidden' : ''}`}>
-          <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">Имена игроков</summary>
+          <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">{t('Имена игроков')}</summary>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {Array.from({ length: n }, (_, i) => (
               <input
                 key={i}
                 className="input"
                 maxLength={24}
-                placeholder={`Игрок ${i + 1}`}
+                placeholder={t('Игрок {n}', { n: i + 1 })}
                 value={names[i] ?? ''}
                 onChange={(e) => setNames((l) => Object.assign([...l], { [i]: e.target.value }))}
               />
@@ -191,33 +192,33 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
       </section>
 
       <section className="panel">
-        <h2 className="step-title">4 · Режим</h2>
+        <h2 className="step-title">{t('4 · Режим')}</h2>
         <div className="grid gap-2 sm:grid-cols-3">
           <button className={`btn ${mode === 'online' ? 'btn-primary' : ''}`} onClick={() => setMode('online')}>
-            <Globe size={18} /> Онлайн (по коду)
+            <Globe size={18} /> {t('Онлайн (по коду)')}
           </button>
           <button className={`btn ${mode === 'pass-and-play' ? 'btn-primary' : ''}`} onClick={() => setMode('pass-and-play')}>
             <Smartphone size={18} /> Pass-and-Play
           </button>
           <button className={`btn ${mode === 'tabletop' ? 'btn-primary' : ''}`} onClick={() => setMode('tabletop')}>
-            <Printer size={18} /> Настольный (карточки)
+            <Printer size={18} /> {t('Настольный (карточки)')}
           </button>
         </div>
         {mode !== 'tabletop' && (
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <button className={`btn btn-sm ${voting === 'secret' ? 'btn-primary' : ''}`} onClick={() => setVoting('secret')}>
-              <EyeOff size={16} /> Тайное голосование
+              <EyeOff size={16} /> {t('Тайное голосование')}
             </button>
             <button className={`btn btn-sm ${voting === 'open' ? 'btn-primary' : ''}`} onClick={() => setVoting('open')}>
-              <Eye size={16} /> Открытое голосование
+              <Eye size={16} /> {t('Открытое голосование')}
             </button>
           </div>
         )}
       </section>
 
       <section className="panel">
-        <h2 className="step-title">5 · Сложность</h2>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Сложность">
+        <h2 className="step-title">{t('5 · Сложность')}</h2>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label={t('Сложность')}>
           {DIFFICULTY_ORDER.map((d) => {
             const { Icon, tone } = DIFF_STYLE[d];
             const on = difficulty === d;
@@ -242,51 +243,51 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
       </section>
 
       <section className="panel">
-        <h2 className="step-title">6 · Угрозы</h2>
-        <Stepper label="Факторы угрозы" value={hazardCount} min={0} max={4} onChange={setHazardCount} />
+        <h2 className="step-title">{t('6 · Угрозы')}</h2>
+        <Stepper label={t('Факторы угрозы')} value={hazardCount} min={0} max={4} onChange={setHazardCount} />
         <p className="mt-1 max-w-md text-xs text-dim">
-          Случайные угрозы сценария (крысы и паразиты, течь, мародёры…). В финале каждую нужно нейтрализовать подходящим навыком или картой выживших: смертельная угроза без ответа губит убежище, остальные мешают полной победе.
+          {t('Случайные угрозы сценария (крысы и паразиты, течь, мародёры…). В финале каждую нужно нейтрализовать подходящим навыком или картой выживших: смертельная угроза без ответа губит убежище, остальные мешают полной победе.')}
         </p>
       </section>
 
       {mode !== 'tabletop' && (
         <section className="panel">
-          <h2 className="step-title w-full">7 · Темп и события</h2>
+          <h2 className="step-title w-full">{t('7 · Темп и события')}</h2>
           <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
             <label className="flex w-full max-w-md cursor-pointer items-start gap-3 rounded-md border border-edge p-3">
               <input type="checkbox" className="mt-1 size-4 accent-amber" checked={roundEvents} onChange={(e) => setRoundEvents(e.target.checked)} />
-              <span className="text-sm"><b>События раунда (необязательно)</b><br /><span className="text-xs text-dim">Усложняют игру. Перед каждым раундом выпадает карта кризиса: сокращается число мест, вспыхивает болезнь, появляется новая угроза — или приходит помощь. Можно вызваться добровольцем.</span></span>
+              <span className="text-sm"><b>{t('События раунда (необязательно)')}</b><br /><span className="text-xs text-dim">{t('Усложняют игру. Перед каждым раундом выпадает карта кризиса: сокращается число мест, вспыхивает болезнь, появляется новая угроза — или приходит помощь. Можно вызваться добровольцем.')}</span></span>
             </label>
             <label className="flex w-full max-w-md cursor-pointer items-start gap-3 rounded-md border border-edge p-3">
               <input type="checkbox" className="mt-1 size-4 accent-amber" checked={autoActions} onChange={(e) => setAutoActions(e.target.checked)} />
-              <span className="text-sm"><b>Карты действий исполняются сами (бета)</b><br /><span className="text-xs text-dim">Кража и подмена багажа, смена телосложения соседей, вето, двойной голос, тайный союз и прочее выполняются в игре после выбора цели. Выключено: действие только объявляется, а выполняют его игроки.</span></span>
+              <span className="text-sm"><b>{t('Карты действий исполняются сами (бета)')}</b><br /><span className="text-xs text-dim">{t('Кража и подмена багажа, смена телосложения соседей, вето, двойной голос, тайный союз и прочее выполняются в игре после выбора цели. Выключено: действие только объявляется, а выполняют его игроки.')}</span></span>
             </label>
           <div>
-            <Stepper label="Вскрытий до голосования" value={revealsPerVote} min={1} max={3} onChange={setRevealsPerVote} />
-            <p className="mt-1 max-w-xs text-xs text-dim">Между голосованиями каждый по очереди открывает столько карт. Чем больше вскрытий, тем меньше раундов.</p>
+            <Stepper label={t('Вскрытий до голосования')} value={revealsPerVote} min={1} max={3} onChange={setRevealsPerVote} />
+            <p className="mt-1 max-w-xs text-xs text-dim">{t('Между голосованиями каждый по очереди открывает столько карт. Чем больше вскрытий, тем меньше раундов.')}</p>
           </div>
           <div>
-            <label className="label" htmlFor="sp">Время на объяснение пользы</label>
+            <label className="label" htmlFor="sp">{t('Время на объяснение пользы')}</label>
             <select id="sp" className="input" value={speechSec} onChange={(e) => setSpeechSec(Number(e.target.value))}>
-              <option value={0}>Без таймера</option>
-              {[20, 30, 45, 60, 90].map((m) => <option key={m} value={m}>{m} сек</option>)}
+              <option value={0}>{t('Без таймера')}</option>
+              {[20, 30, 45, 60, 90].map((m) => <option key={m} value={m}>{m} {t('сек')}</option>)}
             </select>
-            <p className="mt-1 max-w-xs text-xs text-dim">После вскрытия игрок объясняет, чем полезен убежищу; по таймеру ход переходит к следующему.</p>
+            <p className="mt-1 max-w-xs text-xs text-dim">{t('После вскрытия игрок объясняет, чем полезен убежищу; по таймеру ход переходит к следующему.')}</p>
           </div>
           <div>
-            <label className="label" htmlFor="tl">Время на партию</label>
+            <label className="label" htmlFor="tl">{t('Время на партию')}</label>
             <select id="tl" className="input" value={timeLimitMin} onChange={(e) => setTimeLimitMin(Number(e.target.value))}>
-              <option value={0}>Без лимита</option>
-              {[15, 30, 45, 60, 90, 120].map((m) => <option key={m} value={m}>{m} мин</option>)}
+              <option value={0}>{t('Без лимита')}</option>
+              {[15, 30, 45, 60, 90, 120].map((m) => <option key={m} value={m}>{m} {t('мин')}</option>)}
             </select>
-            <p className="mt-1 max-w-xs text-xs text-dim">Когда время выйдет, речи пропускаются, а карты открываются автоматически. Голосовать всё равно придётся самим.</p>
+            <p className="mt-1 max-w-xs text-xs text-dim">{t('Когда время выйдет, речи пропускаются, а карты открываются автоматически. Голосовать всё равно придётся самим.')}</p>
           </div>
           </div>
         </section>
       )}
 
       <button className="btn btn-primary" disabled={!canStart} onClick={start}>
-        <Dices size={18} /> {mode === 'online' ? 'Создать комнату' : 'Сгенерировать персонажей и начать'}
+        <Dices size={18} /> {mode === 'online' ? t('Создать комнату') : t('Сгенерировать персонажей и начать')}
       </button>
     </div>
   );

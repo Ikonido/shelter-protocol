@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Eye, Play, Undo2, UserRound, Zap } from 'lucide-react';
 import { CATEGORIES, categoryLabel, type Category, type GameState, type PlayerCharacter } from '../types';
 import { useStore } from '../store';
+import { t } from '../lib/i18n';
 import {
   alive,
   allVoted,
@@ -46,7 +47,7 @@ interface Undo { name: string; run: () => void }
 /** Кнопка «отменить» последнее вскрытие: случайно открыли не ту карту. Живёт, пока не началось голосование. */
 function UndoButton({ undo }: { undo?: Undo }) {
   if (!undo) return null;
-  return <button className="btn btn-sm self-center" onClick={undo.run}><Undo2 size={14} /> Отменить вскрытие ({undo.name})</button>;
+  return <button className="btn btn-sm self-center" onClick={undo.run}><Undo2 size={14} /> {t('Отменить вскрытие ({name})', { name: undo.name })}</button>;
 }
 
 export default function Game() {
@@ -73,8 +74,8 @@ export default function Game() {
   if (!game) {
     return (
       <div className="py-10 text-center">
-        <p className="mb-4 text-dim">Нет активной партии.</p>
-        <button className="btn btn-primary" onClick={() => go({ name: 'setup' })}>Новая игра</button>
+        <p className="mb-4 text-dim">{t('Нет активной партии.')}</p>
+        <button className="btn btn-primary" onClick={() => go({ name: 'setup' })}>{t('Новая игра')}</button>
       </div>
     );
   }
@@ -95,9 +96,9 @@ export default function Game() {
       {showBrief && (
         <Modal title={game.scenario.title} onClose={() => setShowBrief(false)}>
           <p className="text-sm">{game.scenario.description}</p>
-          <p className="mt-3 text-xs text-dim">Изоляция: {game.scenario.isolationDuration}</p>
-          <p className="mt-1 text-xs text-dim">Нужны: {game.scenario.requiredSkills.join(', ')}</p>
-          <p className="mt-1 text-xs text-danger/80">Угрозы: {game.scenario.threats.join('; ')}</p>
+          <p className="mt-3 text-xs text-dim">{t('Изоляция: {duration}', { duration: game.scenario.isolationDuration })}</p>
+          <p className="mt-1 text-xs text-dim">{t('Нужны: {list}', { list: game.scenario.requiredSkills.join(', ') })}</p>
+          <p className="mt-1 text-xs text-danger/80">{t('Угрозы: {list}', { list: game.scenario.threats.join('; ') })}</p>
         </Modal>
       )}
 
@@ -148,10 +149,10 @@ export function Dossier({
   const [pick, setPick] = useState<Category | null>(options.length === 1 ? options[0] : null);
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="h-hud">Досье: {player.name}</h3>
+      <h3 className="h-hud">{t('Досье: {name}', { name: player.name })}</h3>
       {mode === 'reveal' && (
         <p className="text-xs text-dim">
-          {game.round === 1 ? 'В первом раунде открывается пол и возраст (биология), дальше — по желанию.' : 'Выберите карту, которую откроете всем.'}
+          {game.round === 1 ? t('В первом раунде открывается пол и возраст (биология), дальше — по желанию.') : t('Выберите карту, которую откроете всем.')}
         </p>
       )}
       {CATEGORIES.map((c) => {
@@ -165,19 +166,19 @@ export function Dossier({
             compact
             selected={pick === c}
             onClick={selectable ? () => setPick(c) : undefined}
-            extra={slot.isRevealed && <span className="text-[10px] uppercase text-dim">{c === 'action' ? 'использована' : 'открыта всем'}</span>}
+            extra={slot.isRevealed && <span className="text-[10px] uppercase text-dim">{c === 'action' ? t('использована') : t('открыта всем')}</span>}
           />
         );
       })}
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <button className="btn" onClick={onCancel}>{mode === 'view' ? 'Скрыть' : 'Отмена'}</button>
+        <button className="btn" onClick={onCancel}>{mode === 'view' ? t('Скрыть') : t('Отмена')}</button>
         {mode !== 'view' && (
           <button
             className="btn btn-primary"
             disabled={mode === 'reveal' ? !pick : !player.slots.action || player.slots.action.isRevealed}
             onClick={() => onDone?.(mode === 'action' ? 'action' : pick ?? undefined)}
           >
-            {mode === 'reveal' ? `Открыть: ${pick ? categoryLabel(pick) : '…'}` : 'Применить'}
+            {mode === 'reveal' ? t('Открыть: {card}', { card: pick ? categoryLabel(pick) : '…' }) : t('Применить')}
           </button>
         )}
       </div>
@@ -195,7 +196,7 @@ function EventPhase({ game, update }: { game: GameState; update: Update }) {
       event={game.event}
       volunteers={quotaThisRound(game) >= 1 ? alive(game) : []}
       onVolunteer={(id) => update((g) => volunteer(g, id))}
-      action={<button className="btn btn-primary" onClick={() => update(continueEvent)}><Play size={18} /> Начать раунд</button>}
+      action={<button className="btn btn-primary" onClick={() => update(continueEvent)}><Play size={18} /> {t('Начать раунд')}</button>}
     />
   );
 }
@@ -227,11 +228,11 @@ function RevealPhase({ game, update, undo }: { game: GameState; update: Update; 
   return (
     <>
       <section className="panel hud flex flex-col items-center gap-3 text-center">
-        <h2 className="h-hud">Раунд {game.round} · вскрытие {stepOf(game)} из {perVote(game)}</h2>
-        <p className="text-xs text-dim">Игрок {done + 1} из {total}. Возьмите устройство, откройте карту и затем объясните, чем вы полезны убежищу.</p>
+        <h2 className="h-hud">{t('Раунд {n} · вскрытие {step} из {total}', { n: game.round, step: stepOf(game), total: perVote(game) })}</h2>
+        <p className="text-xs text-dim">{t('Игрок {n} из {total}. Возьмите устройство, откройте карту и затем объясните, чем вы полезны убежищу.', { n: done + 1, total })}</p>
         <Avatar id={speaker.id} name={speaker.name} size={72} ring />
         <p className="text-3xl font-bold text-amber">{speaker.name}</p>
-        <button className="btn btn-primary w-full" onClick={() => setOpen(true)}><Eye size={18} /> Я — {speaker.name}: открыть карту</button>
+        <button className="btn btn-primary w-full" onClick={() => setOpen(true)}><Eye size={18} /> {t('Я — {name}: открыть карту', { name: speaker.name })}</button>
         <UndoButton undo={undo} />
       </section>
       <ActionsPanel game={game} update={update} />
@@ -249,13 +250,13 @@ function SpeechPhase({ game, update, undo }: { game: GameState; update: Update; 
   return (
     <>
       <section className="panel hud flex flex-col gap-3">
-        <h2 className="h-hud flex items-center gap-3"><Avatar id={speaker.id} name={speaker.name} size={36} ring /> <span><UserRound size={14} className="mr-1 inline" />{speaker.name} объясняет пользу</span></h2>
+        <h2 className="h-hud flex items-center gap-3"><Avatar id={speaker.id} name={speaker.name} size={36} ring /> <span><UserRound size={14} className="mr-1 inline" />{t('{name} объясняет пользу', { name: speaker.name })}</span></h2>
         <CardFace card={speaker.slots[cat].card} showMod flip />
         <SpeechTimer endsAt={game.speechEndsAt} totalSec={game.config.speechSec} />
         <p className="text-center text-xs text-dim">
-          Почему именно вас нужно взять в убежище? {upNext ? `Затем ходит: ${upNext.name}.` : 'Это последняя речь вскрытия.'}
+          {t('Почему именно вас нужно взять в убежище?')} {upNext ? t('Затем ходит: {name}.', { name: upNext.name }) : t('Это последняя речь вскрытия.')}
         </p>
-        <button className="btn btn-primary" onClick={() => update(endSpeech)}><Play size={18} /> {upNext ? 'Следующий игрок' : 'Дальше'}</button>
+        <button className="btn btn-primary" onClick={() => update(endSpeech)}><Play size={18} /> {upNext ? t('Следующий игрок') : t('Дальше')}</button>
         <UndoButton undo={undo} />
       </section>
       <ActionsPanel game={game} update={update} />
@@ -280,7 +281,7 @@ function ActionsPanel({ game, update }: { game: GameState; update: Update }) {
     <>
       {lastAction && <p className="panel border-[#e879f9]/60 text-sm" role="status"><Zap size={14} className="mr-1 inline text-[#e879f9]" />{lastAction.text}</p>}
       <details className="panel p-3" open>
-        <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">Карты действий и своё досье</summary>
+        <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">{t('Карты действий и своё досье')}</summary>
         <div className="mt-3 flex flex-wrap gap-2">
           {living.map((p) => (
             <button key={p.id} className="btn btn-sm" disabled={p.slots.action.isRevealed} onClick={() => setActor(p.id)}>
@@ -288,9 +289,9 @@ function ActionsPanel({ game, update }: { game: GameState; update: Update }) {
             </button>
           ))}
         </div>
-        <p className="mt-1 text-[10px] uppercase tracking-widest text-dim">↑ применить карту действия (один раз за партию)</p>
+        <p className="mt-1 text-[10px] uppercase tracking-widest text-dim">{t('↑ применить карту действия (один раз за партию)')}</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          {living.map((p) => <button key={p.id} className="btn btn-sm" onClick={() => setPeek(p.id)}>Досье: {p.name}</button>)}
+          {living.map((p) => <button key={p.id} className="btn btn-sm" onClick={() => setPeek(p.id)}>{t('Досье: {name}', { name: p.name })}</button>)}
         </div>
       </details>
       {actorP && (
@@ -301,7 +302,7 @@ function ActionsPanel({ game, update }: { game: GameState; update: Update }) {
                 game={game}
                 actorId={actorP.id}
                 effect={autoEffect}
-                title={actorP.slots.action.card.title ?? 'Действие'}
+                title={actorP.slots.action.card.title ?? t('Действие')}
                 onCancel={() => setPicking(false)}
                 onConfirm={(params) => { update((g) => applyAction(g, actorP.id, params)); setPicking(false); setActor(null); }}
               />
@@ -355,18 +356,18 @@ function VoteBody({ game, update }: { game: GameState; update: Update }) {
   if (game.config.voting === 'open') {
     return (
       <section className="panel flex flex-col gap-3">
-        <h2 className="h-hud">Открытое голосование</h2>
+        <h2 className="h-hud">{t('Открытое голосование')}</h2>
         {living.map((p) => (
           <label key={p.id} className="flex items-center gap-2 text-sm">
             <Avatar id={p.id} name={p.name} size={28} /><span className="w-24 truncate text-amber">{p.name}</span>→
             <select className="input" value={game.votes[p.id] ?? ''} onChange={(e) => update((g) => castVote(g, p.id, e.target.value))}>
-              <option value="" disabled>выберите…</option>
-              <option value={ABSTAIN}>— воздержаться —</option>
+              <option value="" disabled>{t('выберите…')}</option>
+              <option value={ABSTAIN}>{t('— воздержаться —')}</option>
               {living.filter((t) => t.id !== p.id).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </label>
         ))}
-        <button className="btn btn-primary" disabled={!allVoted(game)} onClick={finish}>Подвести итоги</button>
+        <button className="btn btn-primary" disabled={!allVoted(game)} onClick={finish}>{t('Подвести итоги')}</button>
       </section>
     );
   }
@@ -375,32 +376,32 @@ function VoteBody({ game, update }: { game: GameState; update: Update }) {
     return (
       <Gate name={voter.name}>
         <section className="panel flex flex-col gap-2">
-          <h2 className="h-hud">{voter.name}: против кого вы голосуете?</h2>
+          <h2 className="h-hud">{t('{name}: против кого вы голосуете?', { name: voter.name })}</h2>
           {living.filter((t) => t.id !== voter.id).map((t) => (
             <button key={t.id} className="btn justify-start gap-3 normal-case" onClick={() => { update((g) => castVote(g, voter.id, t.id)); setVoterId(null); }}>
               <Avatar id={t.id} name={t.name} size={28} /> {t.name}
             </button>
           ))}
-          <button className="btn border-dashed" onClick={() => { update((g) => castVote(g, voter.id, ABSTAIN)); setVoterId(null); }}>Воздержаться</button>
-          <p className="text-xs text-dim">Если воздержится больше половины игроков — в этом раунде никто не покидает игру.</p>
-          <button className="btn btn-sm" onClick={() => setVoterId(null)}>Отмена</button>
+          <button className="btn border-dashed" onClick={() => { update((g) => castVote(g, voter.id, ABSTAIN)); setVoterId(null); }}>{t('Воздержаться')}</button>
+          <p className="text-xs text-dim">{t('Если воздержится больше половины игроков — в этом раунде никто не покидает игру.')}</p>
+          <button className="btn btn-sm" onClick={() => setVoterId(null)}>{t('Отмена')}</button>
         </section>
       </Gate>
     );
   }
   return (
     <section className="panel flex flex-col gap-3">
-      <h2 className="h-hud">Тайное голосование</h2>
-      <p className="text-xs text-dim">Проголосовало {living.length - waiting.length} из {living.length}. Голос можно изменить до подсчёта. Воздержаться тоже можно: если таких больше половины, никто не уходит.</p>
+      <h2 className="h-hud">{t('Тайное голосование')}</h2>
+      <p className="text-xs text-dim">{t('Проголосовало {n} из {total}. Голос можно изменить до подсчёта. Воздержаться тоже можно: если таких больше половины, никто не уходит.', { n: living.length - waiting.length, total: living.length })}</p>
       <div className="grid gap-2 sm:grid-cols-2">
         {living.map((p) => (
           <button key={p.id} className={`btn justify-start gap-3 normal-case ${game.votes[p.id] ? 'border-ok/50 text-ok' : ''}`} onClick={() => setVoterId(p.id)}>
             <Avatar id={p.id} name={p.name} size={28} /> {p.name}
-            {game.votes[p.id] && <span className="ml-auto text-xs uppercase tracking-widest">✔ проголосовал</span>}
+            {game.votes[p.id] && <span className="ml-auto text-xs uppercase tracking-widest">✔ {t('проголосовал')}</span>}
           </button>
         ))}
       </div>
-      <button className="btn btn-primary" disabled={!allVoted(game)} onClick={finish}><Play size={18} /> Подвести итоги</button>
+      <button className="btn btn-primary" disabled={!allVoted(game)} onClick={finish}><Play size={18} /> {t('Подвести итоги')}</button>
     </section>
   );
 }
@@ -413,13 +414,13 @@ function ResultPhase({ game, update }: { game: GameState; update: Update }) {
   const finishing = alive(game).length <= game.config.shelterSlots || game.round >= game.schedule.length;
   return (
     <section className="panel flex flex-col gap-3">
-      <h2 className="h-hud">Итоги раунда {game.round}</h2>
-      {r.noVote ? <p className="text-sm text-amber">Добровольцы закрыли квоту раунда — голосования не будет.</p> : <Tally players={game.players} result={r} />}
-      {r.skipped && <p className="text-sm text-amber">Большинство воздержалось ({r.abstained} из {alive(game).length}) — никто не покидает игру. Пропущенное исключение перенесено в дополнительный раунд.</p>}
-      {!r.skipped && !!r.abstained && <p className="text-xs text-dim">Воздержались: {r.abstained}.</p>}
-      {r.tieBreak && <p className="text-xs text-amber">Ничья на границе — решено жребием.</p>}
+      <h2 className="h-hud">{t('Итоги раунда {n}', { n: game.round })}</h2>
+      {r.noVote ? <p className="text-sm text-amber">{t('Добровольцы закрыли квоту раунда — голосования не будет.')}</p> : <Tally players={game.players} result={r} />}
+      {r.skipped && <p className="text-sm text-amber">{t('Большинство воздержалось ({n} из {total}) — никто не покидает игру. Пропущенное исключение перенесено в дополнительный раунд.', { n: r.abstained, total: alive(game).length })}</p>}
+      {!r.skipped && !!r.abstained && <p className="text-xs text-dim">{t('Воздержались: {n}.', { n: r.abstained })}</p>}
+      {r.tieBreak && <p className="text-xs text-amber">{t('Ничья на границе — решено жребием.')}</p>}
       <button className="btn btn-primary" onClick={() => update(nextRound)}>
-        {finishing ? 'К финалу' : 'Следующий раунд'}
+        {finishing ? t('К финалу') : t('Следующий раунд')}
       </button>
     </section>
   );

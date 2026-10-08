@@ -14,6 +14,7 @@ import { Modal } from './ui/bits';
 import { useWakeLock } from './lib/wakelock';
 import { packStats } from './lib/packs';
 import { useSettings } from './lib/settings';
+import { plural, t } from './lib/i18n';
 
 export default function App() {
   const { screen, toast, incoming, acceptIncoming, dismissIncoming } = useStore();
@@ -44,14 +45,16 @@ export default function App() {
       </div>
 
       {incoming && (
-        <Modal title="Получен пак по ссылке">
+        <Modal title={t('Получен пак по ссылке')}>
           <p className="font-bold text-amber">{incoming.name}</p>
           <p className="mt-1 text-sm text-dim">{incoming.description}</p>
-          <p className="mt-2 text-xs">{packStats(incoming).scenarios} сценариев · {packStats(incoming).cards} карт</p>
-          <p className="mt-2 text-xs text-dim">Пак придёт из внешнего источника — проверьте содержимое перед игрой.</p>
+          <p className="mt-2 text-xs">
+            {packStats(incoming).scenarios} {plural(packStats(incoming).scenarios, ['сценарий', 'сценария', 'сценариев'], ['сценарій', 'сценарії', 'сценаріїв'])} · {packStats(incoming).cards} {plural(packStats(incoming).cards, ['карта', 'карты', 'карт'], ['картка', 'картки', 'карток'])}
+          </p>
+          <p className="mt-2 text-xs text-dim">{t('Пак придёт из внешнего источника — проверьте содержимое перед игрой.')}</p>
           <div className="mt-4 grid grid-cols-2 gap-2">
-            <button className="btn" onClick={dismissIncoming}>Отклонить</button>
-            <button className="btn btn-primary" onClick={acceptIncoming}>Добавить</button>
+            <button className="btn" onClick={dismissIncoming}>{t('Отклонить')}</button>
+            <button className="btn btn-primary" onClick={acceptIncoming}>{t('Добавить')}</button>
           </div>
         </Modal>
       )}

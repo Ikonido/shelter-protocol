@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { BedDouble, DoorClosed, DoorOpen, HeartPulse, ShieldAlert, SkipForward, Users, Wrench, type LucideIcon } from 'lucide-react';
 import type { GameState } from '../types';
 import { buildChronicle, type ChronicleEntry, type ChronicleIcon } from '../lib/chronicle';
+import { t } from '../lib/i18n';
 
 const ICON: Record<ChronicleIcon, LucideIcon> = { door: DoorClosed, hazard: ShieldAlert, skill: Wrench, crowd: Users, health: HeartPulse, end: DoorOpen };
 const TONE: Record<ChronicleEntry['tone'], { text: string; border: string; dot: string }> = {
@@ -54,7 +55,7 @@ export function ChroniclePlayer({ game, onDone }: { game: GameState; onDone: () 
       {fatalNow && <div aria-hidden className="pointer-events-none fixed inset-0 z-40 bg-danger animate-[var(--animate-flash)]" />}
       <header className="text-center">
         <p className="text-[10px] uppercase tracking-[.4em] text-dim">{game.scenario.title}</p>
-        <h2 className="mt-1 text-xl font-bold uppercase tracking-[.2em] text-amber">Хроника изоляции</h2>
+        <h2 className="mt-1 text-xl font-bold uppercase tracking-[.2em] text-amber">{t('Хроника изоляции')}</h2>
       </header>
 
       <ol className="relative flex flex-col gap-4 border-l border-edge-hi pl-6" aria-live="polite">
@@ -81,7 +82,7 @@ export function ChroniclePlayer({ game, onDone }: { game: GameState; onDone: () 
 
       {finished && (
         <section className="panel hud anim-rise flex flex-col gap-2">
-          <h3 className="h-hud flex items-center gap-2"><BedDouble size={14} /> Эпилог</h3>
+          <h3 className="h-hud flex items-center gap-2"><BedDouble size={14} /> {t('Эпилог')}</h3>
           {epilogue.slice(0, Math.max(1, epiShown)).map((line, i) => (
             <p key={i} ref={i === Math.max(1, epiShown) - 1 ? (last as unknown as React.RefObject<HTMLParagraphElement>) : undefined} className="anim-rise text-sm leading-relaxed">{line}</p>
           ))}
@@ -91,9 +92,9 @@ export function ChroniclePlayer({ game, onDone }: { game: GameState; onDone: () 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-edge bg-bg/90 p-3 backdrop-blur-md">
         <div className="mx-auto flex max-w-2xl gap-2">
           {showEnd ? (
-            <button className="btn btn-primary flex-1" onClick={onDone}>Показать итог</button>
+            <button className="btn btn-primary flex-1" onClick={onDone}>{t('Показать итог')}</button>
           ) : (
-            <button className="btn flex-1" onClick={skip}><SkipForward size={16} /> Пропустить хронику</button>
+            <button className="btn flex-1" onClick={skip}><SkipForward size={16} /> {t('Пропустить хронику')}</button>
           )}
         </div>
       </div>

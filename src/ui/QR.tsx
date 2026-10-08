@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import qrcode from 'qrcode-generator';
+import { t } from '../lib/i18n';
 
 /** Матрица QR-кода (true = тёмный модуль). Отдельно от React — чтобы проверять независимым декодером. */
 export function qrMatrix(text: string): boolean[][] {
@@ -29,7 +30,7 @@ export function QR({ value, size = 224, label }: { value: string; size?: number;
   }, [value]);
   const box = n + 8; // 4 модуля тихой зоны с каждой стороны
   return (
-    <svg role="img" aria-label={label ?? 'QR-код'} width={size} height={size} viewBox={`0 0 ${box} ${box}`} shapeRendering="crispEdges" className="mx-auto rounded bg-white">
+    <svg role="img" aria-label={label ?? t('QR-код')} width={size} height={size} viewBox={`0 0 ${box} ${box}`} shapeRendering="crispEdges" className="mx-auto rounded bg-white">
       <rect width={box} height={box} fill="#fff" />
       <path d={d} fill="#000" />
     </svg>

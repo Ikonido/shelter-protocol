@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CATEGORIES, categoryLabel, type ActionEffect, type Category, type GameState } from '../types';
 import { canApply, needsCategory, type ActionParams } from '../lib/actions';
 import { Avatar } from './Avatar';
+import { t } from '../lib/i18n';
 
 /** Выбор цели для карты действия: игрок (и скрытая карта, если нужно). Работает и на одном устройстве, и в онлайне. */
 export function ActionTargetPicker({
@@ -28,7 +29,7 @@ export function ActionTargetPicker({
   const check = canApply(game, actorId, effect, params);
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="h-hud">{title}: выберите цель</h3>
+      <h3 className="h-hud">{t('{title}: выберите цель', { title })}</h3>
       <div className="grid grid-cols-2 gap-2">
         {targets.map((p) => (
           <button
@@ -46,9 +47,9 @@ export function ActionTargetPicker({
       </div>
       {needsCategory(effect) && chosen && (
         <>
-          <span className="label mt-1">Какую скрытую карту открыть</span>
+          <span className="label mt-1">{t('Какую скрытую карту открыть')}</span>
           {hidden.length === 0 ? (
-            <p className="text-xs text-dim">У игрока всё уже открыто.</p>
+            <p className="text-xs text-dim">{t('У игрока всё уже открыто.')}</p>
           ) : (
             <div className="grid grid-cols-2 gap-2">
               {hidden.map((c) => (
@@ -62,8 +63,8 @@ export function ActionTargetPicker({
       )}
       {target && !check.ok && <p className="text-xs text-danger">{check.reason}</p>}
       <div className="mt-1 grid grid-cols-2 gap-2">
-        <button className="btn" onClick={onCancel}>Отмена</button>
-        <button className="btn btn-primary" disabled={!check.ok} onClick={() => onConfirm(params)}>Применить</button>
+        <button className="btn" onClick={onCancel}>{t('Отмена')}</button>
+        <button className="btn btn-primary" disabled={!check.ok} onClick={() => onConfirm(params)}>{t('Применить')}</button>
       </div>
     </div>
   );

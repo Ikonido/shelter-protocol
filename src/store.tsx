@@ -4,6 +4,7 @@ import { BUILTIN_PACKS } from './data/classicPack';
 import { loadGame, loadPacks, saveGame, savePacks } from './lib/storage';
 import { packFromHash } from './lib/packs';
 import { uid } from './lib/rng';
+import { t } from './lib/i18n';
 
 export interface OnlineDraft {
   scenario: Scenario;
@@ -85,7 +86,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const pack = packFromHash(window.location.hash);
       history.replaceState(null, '', window.location.pathname + window.location.search);
       if (pack) setIncoming(pack);
-      else setToast('Ссылка на пак повреждена');
+      else setToast(t('Ссылка на пак повреждена'));
     };
     check();
     window.addEventListener('hashchange', check);
@@ -107,7 +108,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!incoming) return;
     // Новый id, чтобы чужой пак не перезаписал существующий.
     upsertPack({ ...incoming, id: uid('pack'), isCustom: true });
-    setToast(`Пак «${incoming.name}» добавлен`);
+    setToast(t('Пак «{name}» добавлен', { name: incoming.name }));
     setIncoming(null);
     go({ name: 'packs' });
   }, [incoming, upsertPack]);

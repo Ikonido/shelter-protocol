@@ -4,10 +4,11 @@ import { CATEGORIES, type GameState, type PlayerCharacter } from '../types';
 import { REVEALABLE } from '../lib/game';
 import { Avatar } from './Avatar';
 import { CardFace, Modal } from './bits';
+import { t } from '../lib/i18n';
 
 function Pips({ p }: { p: PlayerCharacter }) {
   return (
-    <span className="flex gap-1" aria-label={`Открыто карт: ${REVEALABLE.filter((c) => p.slots[c].isRevealed).length} из ${REVEALABLE.length}`}>
+    <span className="flex gap-1" aria-label={t('Открыто карт: {n} из {total}', { n: REVEALABLE.filter((c) => p.slots[c].isRevealed).length, total: REVEALABLE.length })}>
       {REVEALABLE.map((c) => (
         <span key={c} className={`cat-${c} h-1.5 flex-1 rounded-full transition-colors ${p.slots[c].isRevealed ? 'bg-[var(--c)] shadow-[0_0_8px_-1px_var(--c)]' : 'bg-edge'}`} />
       ))}
@@ -29,7 +30,7 @@ function PlayerTile({ p, active, you, onClick }: { p: PlayerCharacter; active: b
         <span className="min-w-0 flex-1">
           <span className={`block truncate text-sm font-bold ${p.isEliminated ? 'text-dim line-through' : active ? 'text-amber' : 'text-ink'}`}>{p.name}</span>
           <span className="block text-[10px] uppercase tracking-widest text-dim">
-            {p.isEliminated ? 'исключён' : active ? 'говорит' : you ? 'вы' : p.slots.action.isRevealed ? 'действие использовано' : 'в игре'}
+            {p.isEliminated ? t('исключён') : active ? t('говорит') : you ? t('вы') : p.slots.action.isRevealed ? t('действие использовано') : t('в игре')}
           </span>
         </span>
         {p.isEliminated ? <Skull size={16} className="text-danger" /> : p.slots.action.isRevealed ? <Zap size={14} className="text-[#e879f9]" /> : null}
@@ -57,12 +58,12 @@ export function Board({ game, speakerId, meId, side = false }: { game: GameState
             <Avatar id={sel.id} name={sel.name} size={44} dim={sel.isEliminated} />
             <div>
               <p className="font-bold text-amber">{sel.name}</p>
-              <p className="text-xs text-dim">{sel.isEliminated ? 'исключён из игры' : 'в игре'}{sel.slots.action.isRevealed ? ' · действие использовано' : ''}</p>
+              <p className="text-xs text-dim">{sel.isEliminated ? t('исключён из игры') : t('в игре')}{sel.slots.action.isRevealed ? ` · ${t('действие использовано')}` : ''}</p>
             </div>
           </div>
           <div className="flex flex-col gap-2">
             {CATEGORIES.filter((c) => c !== 'action' && sel.slots[c].isRevealed).map((c) => <CardFace key={c} card={sel.slots[c].card} compact showMod />)}
-            {CATEGORIES.every((c) => c === 'action' || !sel.slots[c].isRevealed) && <p className="text-sm text-dim">Пока ничего не открыто.</p>}
+            {CATEGORIES.every((c) => c === 'action' || !sel.slots[c].isRevealed) && <p className="text-sm text-dim">{t('Пока ничего не открыто.')}</p>}
           </div>
         </Modal>
       )}
