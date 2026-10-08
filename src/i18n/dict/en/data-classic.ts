@@ -243,7 +243,7 @@ export default {
 
   // Карты: багаж
   'ОГРОМНОЕ: Грузовой прицеп, полный коробок с носками': 'HUGE: A cargo trailer full of sock boxes',
-  'ОГРОМНОЕ: Пианино (никто не знает, зачем оно с вами)': 'HUGE: A piano (nobody knows why it came with you)',
+  'ОГРОМНОЕ: Пианино': 'HUGE: Piano',
   'ОГРОМНОЕ: Разборный сарай и инструменты к нему': 'HUGE: A prefab shed and the tools for it',
   'ОГРОМНОЕ: Холодильник на колёсах, внутри чья-то еда': 'HUGE: A wheeled fridge with someone else’s food inside',
   'ОГРОМНОЕ: Лошадь (не влезает ни в один отсек)': 'HUGE: A horse (does not fit in any compartment)',
