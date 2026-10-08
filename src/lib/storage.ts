@@ -22,8 +22,19 @@ function write(key: string, value: unknown) {
   }
 }
 
-export const loadPacks = (): CardPack[] =>
-  (read<unknown[]>(K_PACKS) ?? []).map(sanitizePack).filter((p): p is CardPack => !!p);
+/** Свои паки. Повреждённое хранилище (не список, битый пак) не должно ронять запуск: плохие записи пропускаем. */
+export const loadPacks = (): CardPack[] => {
+  const raw = read<unknown>(K_PACKS);
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((x) => {
+    try {
+      const pack = sanitizePack(x);
+      return pack ? [pack] : [];
+    } catch {
+      return [];
+    }
+  });
+};
 export const savePacks = (packs: CardPack[]) => write(K_PACKS, packs);
 
 /** Сохранения до появления новых категорий (телосложение, характер): добавляем недостающие карты, чтобы интерфейс не падал. */
@@ -45,6 +56,24 @@ const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFin
 // isRevealed может отсутствовать в старых сохранениях: тогда считаем карту закрытой.
 const validSlot = (slot: unknown) =>
   isObj(slot) && isObj(slot.card) && typeof slot.card.description === 'string' && (slot.isRevealed === undefined || typeof slot.isRevealed === 'boolean');
+const isStr = (v: unknown): v is string => typeof v === 'string';
+const strList = (v: unknown) => Array.isArray(v) && v.every(isStr);
+const MODES = ['pass-and-play', 'tabletop', 'online'];
+const VOTINGS = ['secret', 'open'];
+const MODIFIERS = ['positive', 'neutral', 'negative'];
+const validCard = (c: unknown) =>
+  isObj(c) && isStr(c.description) && (c.tags === undefined || strList(c.tags)) && (c.modifier === undefined || MODIFIERS.includes(c.modifier as string)) && (c.title === undefined || isStr(c.title));
+const validHazard = (h: unknown) => isObj(h) && isStr(h.id) && isStr(h.title) && (h.counters === undefined || strList(h.counters));
+const validDeck = (d: unknown) => d === undefined || (isObj(d) && Object.values(d).every((list) => Array.isArray(list) && list.every(validCard)));
+const validScenario = (s: unknown) =>
+  isObj(s) && isStr(s.title) && (s.description === undefined || isStr(s.description)) && (s.isolationDuration === undefined || isStr(s.isolationDuration)) &&
+  (s.requiredSkills === undefined || strList(s.requiredSkills)) && (s.hazards === undefined || (Array.isArray(s.hazards) && s.hazards.every(validHazard)));
+const validConfig = (c: unknown) =>
+  isObj(c) && isNum(c.playerCount) && isNum(c.shelterSlots) && MODES.includes(c.mode as string) && VOTINGS.includes(c.voting as string) &&
+  (c.revealsPerVote === undefined || isNum(c.revealsPerVote)) && (c.names === undefined || strList(c.names));
+const validEvent = (e: unknown) => isObj(e) && isStr(e.title) && isStr(e.text) && strList(e.outcome ?? []);
+const validPerks = (p: unknown) => p === undefined || (Array.isArray(p) && p.every((x) => isObj(x) && isStr(x.playerId) && ['steal', 'heal', 'reveal'].includes(x.kind as string)));
+const validResult = (r: unknown) => r === undefined || (isObj(r) && Array.isArray(r.eliminated) && r.eliminated.every(isStr) && isObj(r.tally) && Object.values(r.tally).every(isNum));
 const validFx = (fx: unknown) =>
   isObj(fx) &&
   ['double', 'veto', 'immune'].every((k) => Array.isArray(fx[k]) && (fx[k] as unknown[]).every((x) => typeof x === 'string')) &&
@@ -67,7 +96,13 @@ export function validateSavedGame(raw: unknown): GameState | null {
   if (!isNum(raw.seed)) return null;
   if (raw.deadline !== undefined && !isNum(raw.deadline)) return null;
   if (raw.speechEndsAt !== undefined && !isNum(raw.speechEndsAt)) return null;
-  if (raw.event !== undefined && !isObj(raw.event)) return null;
+  if (!validScenario(raw.scenario) || !validConfig(raw.config)) return null;
+  if (raw.event !== undefined && !validEvent(raw.event)) return null;
+  if (raw.hazards !== undefined && !(Array.isArray(raw.hazards) && raw.hazards.every(validHazard))) return null;
+  if (raw.usedEvents !== undefined && !strList(raw.usedEvents)) return null;
+  if (raw.lastReveal !== undefined && !(isObj(raw.lastReveal) && isStr(raw.lastReveal.playerId) && CATEGORIES.includes(raw.lastReveal.category as Category))) return null;
+  if (!validResult(raw.lastResult) || !validPerks(raw.perks) || !validDeck(raw.deck) || !validDeck(raw.discard)) return null;
+  if (raw.perkResult !== undefined && !(isObj(raw.perkResult) && isStr(raw.perkResult.playerId) && isStr(raw.perkResult.text))) return null;
   if (raw.fx !== undefined && !validFx(raw.fx)) return null;
   for (const p of raw.players) {
     if (!isObj(p) || typeof p.id !== 'string' || typeof p.name !== 'string' || !isObj(p.slots)) return null;
@@ -75,7 +110,7 @@ export function validateSavedGame(raw: unknown): GameState | null {
     for (const c of CATEGORIES) {
       const slot = p.slots[c];
       if (slot === undefined && ADDED.includes(c)) continue;
-      if (!validSlot(slot)) return null;
+      if (!validSlot(slot) || !validCard((slot as { card: unknown }).card)) return null;
     }
   }
   return raw as unknown as GameState;

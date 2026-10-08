@@ -16,6 +16,8 @@ export const LIMITS = {
   hazardCounters: 4,
   hazardStory: 160,
   maxHazardsPerGame: 4,
+  /** Сколько угроз может быть в партии одновременно: стартовые плюс те, что добавляют события раунда. */
+  maxHazardsActive: 6,
   events: 12,
   eventTitle: 60,
   eventText: 300,

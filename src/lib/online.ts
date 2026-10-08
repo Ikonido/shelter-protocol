@@ -32,6 +32,7 @@ import {
   extendDeadline,
   tickGame,
   volunteer,
+  MAX_TOTAL_ROUNDS,
 } from './game';
 import { canApply } from './actions';
 import { applyPerk, canApplyPerk, skipPerk } from './perks';
@@ -332,6 +333,8 @@ export class OnlineHost {
       if (target) next = castVote(g, id, target.id);
       if (allVoted(next)) next = resolveVote(next);
     }
+    // Действие в голосовании (неприкосновенность последнего голосующего) могло закрыть голосование: считаем итог сразу.
+    if (next !== g && next.phase === 'vote' && allVoted(next)) next = resolveVote(next);
     if (next !== g) this.setGame(next);
     return refusal;
   }
@@ -643,13 +646,14 @@ export function sanitizeView(raw: unknown): GameState | null {
     scenario,
     players,
     round: int(r.round, 1, 50),
-    schedule: Array.isArray(r.schedule) ? r.schedule.slice(0, 6).map((n) => int(n, 0, 19)) : [],
+    // Дополнительные раунды (воздержавшиеся) удлиняют расписание до MAX_TOTAL_ROUNDS: обрезать нельзя, иначе у клиента «Раунд 7/6».
+    schedule: Array.isArray(r.schedule) ? r.schedule.slice(0, MAX_TOTAL_ROUNDS).map((n) => int(n, 0, 19)) : [],
     phase: r.phase as GameState['phase'],
     revealStep: int(r.revealStep, 1, 3),
     ...(cleanEvent(r.event) ? { event: cleanEvent(r.event)! } : {}),
     ...(cleanPerks(r.perks).length ? { perks: cleanPerks(r.perks) } : {}),
     ...(cleanPerkResult(r.perkResult) ? { perkResult: cleanPerkResult(r.perkResult)! } : {}),
-    hazards: (Array.isArray(r.hazards) ? r.hazards.slice(0, L.maxHazardsPerGame) : [])
+    hazards: (Array.isArray(r.hazards) ? r.hazards.slice(0, L.maxHazardsActive) : [])
       .map((h, i) => sanitizeHazard(h, i))
       .filter((h): h is Hazard => !!h),
     ...(r.timeLeftMs !== undefined ? { deadline: Date.now() + int(r.timeLeftMs, 0, 180 * 60_000) } : {}),
