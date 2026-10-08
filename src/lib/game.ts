@@ -14,6 +14,7 @@ import {
 } from '../types';
 import { generateCharacters } from './generator';
 import { IMMUNE_VOTE, effectiveVotes, initialDeck, markImmune, runEffect, type ActionParams } from './actions';
+import { dealStartingItems } from './inventory';
 import { EVENTS, drawEvent, hiddenForLeak, unusedHazards } from './events';
 import { mulberry32, shuffle } from './rng';
 import { packT, t, tPacked } from './i18n';
@@ -44,9 +45,13 @@ export function clampConfig(playerCount: number, slots: number) {
 
 export function createGame(config: SessionConfig, scenario: Scenario, packs: CardPack[]): GameState {
   const rng = mulberry32(config.seed);
-  const players = generateCharacters(config.names, packs, rng);
+  const dealt = generateCharacters(config.names, packs, rng);
+  const stock = initialDeck(dealt, packs, config.seed);
+  // На старте у части игроков в багаже два предмета (второй берётся из колоды).
+  const { players, deck } = dealStartingItems(dealt, stock.deck, config.seed);
   const base: GameState = {
-    ...initialDeck(players, packs, config.seed),
+    ...stock,
+    deck,
     config,
     scenario: { ...scenario },
     players,
@@ -175,7 +180,7 @@ export function allVoted(g: GameState): boolean {
  */
 export function resolveVote(g: GameState): GameState {
   const next = resolveVoteCore(g);
-  return next.perks ? { ...next, perks: undefined } : next;
+  return next.perks || next.perkResult ? { ...next, perks: undefined, perkResult: undefined } : next;
 }
 
 function resolveVoteCore(g: GameState): GameState {
@@ -350,7 +355,7 @@ export function volunteer(g: GameState, playerId: string): GameState {
 export function nextRound(g: GameState): GameState {
   const done = alive(g).length <= g.config.shelterSlots || g.round >= g.schedule.length;
   if (done) return { ...g, phase: 'final', perks: undefined };
-  return openRound({ ...g, round: g.round + 1, revealStep: 1, votes: {}, perks: undefined });
+  return openRound({ ...g, round: g.round + 1, revealStep: 1, votes: {}, perks: undefined, perkResult: undefined });
 }
 
 /* ---------- Время партии ---------- */

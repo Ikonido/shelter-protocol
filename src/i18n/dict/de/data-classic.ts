@@ -315,4 +315,5 @@ export default {
   'Подмена': 'Tausch',
   'Выберите игрока — его карта багажа считается потерянной.': 'Wähle einen Spieler — dessen Gepäckkarte gilt als verloren.',
   'Саботаж': 'Sabotage',
+  'Детектив': 'Detektiv',
 };

@@ -3,6 +3,7 @@ import { CLASSIC_PACK } from '../data/classicPack';
 import { EVENTS } from './events';
 import { applyEvent } from './game';
 import { CATEGORIES } from '../types';
+import { itemsOf } from './inventory';
 import { OnlineClient, OnlineHost, type C2H, type Conn, type H2C } from './online';
 
 function pair() {
@@ -91,7 +92,7 @@ describe('online', () => {
     const g = host.game!;
     // карта «Карманник» у первого гостя (p2)
     host.game = { ...g, players: g.players.map((pl) => (pl.id === 'p2' ? { ...pl, slots: { ...pl.slots, action: { card: { ...pl.slots.action.card, title: 'Карманник', effect: 'stealLuggage' as const }, isRevealed: false } } } : pl)) };
-    const victim = host.game.players[2].slots.luggage.card.id;
+    const victim = itemsOf(host.game.players[2].slots.luggage.card).map((c) => c.id);
     guests[0].c.send({ t: 'action' }); // без цели: ничего не происходит, но гость узнаёт почему
     await tick();
     expect(host.game!.players[1].slots.action.isRevealed).toBe(false);
@@ -99,7 +100,7 @@ describe('online', () => {
     expect(refused.status === 'game' && refused.notice?.text).toContain('другого');
     guests[0].c.send({ t: 'action', target: 'p3' });
     await tick();
-    expect(host.game!.players[1].slots.luggage.card.id).toBe(victim);
+    expect(itemsOf(host.game!.players[1].slots.luggage.card).some((c) => victim.includes(c.id))).toBe(true);
     expect(host.game!.players[1].slots.action.isRevealed).toBe(true);
     // гость видит результат, но не колоду
     const st = guests[1].c.state;
@@ -127,7 +128,7 @@ describe('online', () => {
     expect(host.game!.players[1].slots.action.isRevealed).toBe(false);
   });
 
-  it('profession perks: the owner applies one from a guest, invalid targets are refused with a reason, others cannot use it', async () => {
+  it('profession perks: the owner applies one from a guest, the result stays private, others cannot use it', async () => {
     const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[0], packs: [CLASSIC_PACK], slots: 1, voting: 'open', revealsPerVote: 1, speechSec: 0, roundEvents: false, professionPerks: true }, 'Хост');
     const pairs = [pair(), pair()];
     const guests = pairs.map((p, i) => ({ p, c: new OnlineClient(p.clientSide, `Гость${i + 1}`, `pk${i}`) }));
@@ -144,13 +145,16 @@ describe('online', () => {
     guests[1].c.send({ t: 'perk', target: 'p3' });
     await tick();
     expect(host.game!.perks).toHaveLength(1);
-    // здоровая цель: отказ с причиной, бонус остаётся
+    // здоровая цель: ошибки нет, бонус потрачен, итог («лечить было нечего») видит только владелец
     guests[0].c.send({ t: 'perk', target: 'p1' });
     await tick();
-    const refused = guests[0].c.state;
-    expect(refused.status === 'game' && refused.notice?.text).toBeTruthy();
-    expect(host.game!.perks).toHaveLength(1);
-    // больная цель: лечится, бонус сгорает, карта действия цела
+    expect(host.game!.perks).toBeUndefined();
+    const mine = guests[0].c.state;
+    expect(mine.status === 'game' && mine.view.perkResult?.playerId).toBe('p2');
+    const other = guests[1].c.state;
+    expect(other.status === 'game' && other.view.perkResult).toBeUndefined();
+    // эксперт лечит больного
+    host.game = { ...host.game!, perks: [{ playerId: 'p2', kind: 'heal', level: 'expert' }] };
     guests[0].c.send({ t: 'perk', target: 'p3' });
     await tick();
     expect(host.game!.players[2].slots.health.card.modifier).toBe('neutral');

@@ -10,7 +10,7 @@ const cfg = (n: number, k: number, difficulty: SessionConfig['difficulty'] = 'no
 });
 const ship = CLASSIC_PACK.scenarios[2]; // «Большой потоп», изоляция 10 лет
 
-/** Игра, где выжили первые k игроков, а у каждого — нейтральные карты, кроме заданных тегов профессии. */
+/** Игра, где выжили первые k игроков, а у каждого — нейтральные карты без навыков, кроме заданных тегов профессии. */
 function endedGame(k: number, tags: string[][], hazards: Hazard[], difficulty: SessionConfig['difficulty'] = 'normal', scenario = ship): GameState {
   const g = createGame(cfg(6, k, difficulty), scenario, [CLASSIC_PACK]);
   const plain = (p: PlayerCharacter, i: number): PlayerCharacter => ({
@@ -21,7 +21,10 @@ function endedGame(k: number, tags: string[][], hazards: Hazard[], difficulty: S
       profession: { ...p.slots.profession, card: { ...p.slots.profession.card, description: `Профессия ${i + 1}`, title: undefined, tags: tags[i] ?? [], modifier: 'neutral' } },
       hobby: { ...p.slots.hobby, card: { ...p.slots.hobby.card, description: 'Хобби', tags: [], modifier: 'neutral' } },
       fact: { ...p.slots.fact, card: { ...p.slots.fact.card, description: 'Факт', tags: [], modifier: 'neutral' } },
-      luggage: { ...p.slots.luggage, card: { ...p.slots.luggage.card, description: 'Багаж', tags: [], modifier: 'neutral' } },
+      luggage: { ...p.slots.luggage, card: { ...p.slots.luggage.card, items: undefined, description: 'Багаж', tags: [], modifier: 'neutral' } },
+      biology: { ...p.slots.biology, card: { ...p.slots.biology.card, tags: [], modifier: 'neutral' } },
+      physique: { ...p.slots.physique, card: { ...p.slots.physique.card, tags: [], modifier: 'neutral' } },
+      character: { ...p.slots.character, card: { ...p.slots.character.card, tags: [], modifier: 'neutral' } },
     },
   });
   return { ...g, phase: 'final', players: g.players.map(plain), hazards };

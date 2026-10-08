@@ -80,7 +80,14 @@ export function CardFace({
       ) : (
         <span className="text-sm leading-snug text-ink">
           {card.title && <b className="mr-1 text-[var(--c)]">{t(card.title)}.</b>}
-          {t(card.description)}
+          {card.category === 'luggage' && !card.title && card.description.includes(' + ') ? (
+            // Составной багаж (несколько предметов): каждый предмет с новой строки.
+            <span className="flex flex-col gap-0.5">
+              {card.description.split(' + ').map((part, i) => <span key={i} className="before:mr-1.5 before:text-[var(--c)] before:content-['▸']">{t(part)}</span>)}
+            </span>
+          ) : (
+            t(card.description)
+          )}
         </span>
       )}
       {extra}

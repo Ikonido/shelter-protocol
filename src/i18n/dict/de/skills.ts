@@ -36,4 +36,5 @@ export default {
   'вирусология': 'Virologie',
   'кулинария': 'Küche',
   'энергетика': 'Energietechnik',
+  'расследование': 'Ermittlung',
 };

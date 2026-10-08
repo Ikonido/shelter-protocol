@@ -3,7 +3,7 @@ import { Sparkles } from 'lucide-react';
 import type { GameState, Perk } from '../types';
 import { PERK_EFFECT, perkLabel } from '../lib/perks';
 import type { ActionParams } from '../lib/actions';
-import { t } from '../lib/i18n';
+import { t, tPacked } from '../lib/i18n';
 import { ActionTargetPicker } from './ActionTarget';
 import { Gate } from './Gate';
 import { Modal } from './bits';
@@ -25,8 +25,20 @@ export function PerkPanel({
   onSkip: (playerId: string) => void;
 }) {
   const [active, setActive] = useState<string | null>(null);
+  // Итог бонуса (лечение удалось или нет) видит только владелец: на одном устройстве — в окне за экраном передачи, в онлайне — у себя.
+  const [watch, setWatch] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState<number | null>(null);
   const perks: Perk[] = (game.perks ?? []).filter((x) => (me ? x.playerId === me : true) && game.players.some((p) => p.id === x.playerId && !p.isEliminated));
-  if (perks.length === 0) return null;
+  const result = game.perkResult;
+  const showResult = !!result && (me ? result.playerId === me && result.id !== dismissed : result.playerId === watch);
+  const resultOwner = result && game.players.find((p) => p.id === result.playerId);
+  const resultView = showResult && result && resultOwner && (
+    <div className="panel flex flex-col gap-2 border-amber/60 p-3" role="status">
+      <p className="text-sm">{tPacked(result.text)}</p>
+      <button className="btn btn-sm self-start" onClick={() => { setDismissed(result.id); setWatch(null); }}>{t('Понятно')}</button>
+    </div>
+  );
+  if (perks.length === 0 && !resultView) return null;
   const activePerk = perks.find((x) => x.playerId === active);
   const activePlayer = game.players.find((p) => p.id === active);
 
@@ -35,11 +47,12 @@ export function PerkPanel({
       game={game}
       actorId={activePlayer.id}
       effect={PERK_EFFECT[activePerk.kind]}
-      title={perkLabel(activePerk.kind)}
+      title={perkLabel(activePerk.kind, activePerk.level)}
       perk
       onCancel={() => setActive(null)}
       onConfirm={(params) => {
         onApply(activePlayer.id, params);
+        setWatch(activePlayer.id);
         setActive(null);
       }}
     />
@@ -53,12 +66,13 @@ export function PerkPanel({
         return (
           <div key={perk.playerId} className="flex flex-wrap items-center gap-2">
             <span className="text-sm"><b>{owner.name}</b></span>
-            <button className="btn btn-sm btn-primary" onClick={() => setActive(perk.playerId)}>{perkLabel(perk.kind)}</button>
+            <button className="btn btn-sm btn-primary" onClick={() => setActive(perk.playerId)}>{perkLabel(perk.kind, perk.level)}</button>
             <button className="btn btn-sm" onClick={() => onSkip(perk.playerId)}>{t('Пропустить')}</button>
           </div>
         );
       })}
       {picker && (me ? picker : <Modal><Gate name={activePlayer!.name}>{picker}</Gate></Modal>)}
+      {resultView && (me ? resultView : <Modal><Gate name={resultOwner!.name}>{resultView}</Gate></Modal>)}
     </section>
   );
 }

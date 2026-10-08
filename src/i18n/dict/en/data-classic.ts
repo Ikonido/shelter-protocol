@@ -315,4 +315,5 @@ export default {
   'Подмена': 'Swap',
   'Выберите игрока — его карта багажа считается потерянной.': 'Choose a player — their luggage card counts as lost.',
   'Саботаж': 'Sabotage',
+  'Детектив': 'Detective',
 };
