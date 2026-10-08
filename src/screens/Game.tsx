@@ -416,7 +416,7 @@ function ResultPhase({ game, update }: { game: GameState; update: Update }) {
     <section className="panel flex flex-col gap-3">
       <h2 className="h-hud">{t('Итоги раунда {n}', { n: game.round })}</h2>
       {r.noVote ? <p className="text-sm text-amber">{t('Добровольцы закрыли квоту раунда — голосования не будет.')}</p> : <Tally players={game.players} result={r} />}
-      {r.skipped && <p className="text-sm text-amber">{t('Большинство воздержалось ({n} из {total}) — никто не покидает игру. Пропущенное исключение перенесено в дополнительный раунд.', { n: r.abstained, total: alive(game).length })}</p>}
+      {r.skipped && <p className="text-sm text-amber">{t('Большинство воздержалось ({n} из {total}) — никто не покидает игру. Пропущенное исключение перенесено в дополнительный раунд.', { n: r.abstained ?? 0, total: alive(game).length })}</p>}
       {!r.skipped && !!r.abstained && <p className="text-xs text-dim">{t('Воздержались: {n}.', { n: r.abstained })}</p>}
       {r.tieBreak && <p className="text-xs text-amber">{t('Ничья на границе — решено жребием.')}</p>}
       <button className="btn btn-primary" onClick={() => update(nextRound)}>

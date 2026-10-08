@@ -1,6 +1,7 @@
 import type { GameState } from '../types';
 import { evaluate } from './evaluate';
 import { rulesFor } from './difficulty';
+import { t } from './i18n';
 
 export interface ResultCard {
   scenario: string;
@@ -22,7 +23,7 @@ export function resultCard(game: GameState): ResultCard {
     headline: ev.headline,
     verdict: ev.verdict,
     score: ev.score,
-    difficulty: rulesFor(game.config.difficulty).label,
+    difficulty: t(rulesFor(game.config.difficulty).label),
     survivors: survivors.map((p) => p.name),
     threats: ev.hazards.map((h) => ({ title: h.hazard.title, ok: h.ok })),
     notes: ev.notes.slice(0, 4),
@@ -52,7 +53,7 @@ export function renderResult(card: ResultCard): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   const measure = canvas.getContext('2d')!;
   measure.font = '30px ui-monospace, Menlo, Consolas, monospace';
-  const survivorLines = wrap(measure, card.survivors.join(' · ') || 'никого', W - pad * 2);
+  const survivorLines = wrap(measure, card.survivors.join(' · ') || t('никого'), W - pad * 2);
   const noteLines = card.notes.flatMap((n) => wrap(measure, `• ${n}`, W - pad * 2));
   const H = 520 + survivorLines.length * 44 + card.threats.slice(0, 8).length * 42 + noteLines.length * 40 + 90;
   canvas.width = W;
@@ -68,7 +69,7 @@ export function renderResult(card: ResultCard): HTMLCanvasElement {
   let y = 110;
   ctx.fillStyle = '#75998c';
   mono(26);
-  ctx.fillText('ПРОТОКОЛ «УБЕЖИЩЕ»', pad, y);
+  ctx.fillText(t('ПРОТОКОЛ «УБЕЖИЩЕ»'), pad, y);
   y += 60;
   ctx.fillStyle = '#d3ebe2';
   mono(44, true);
@@ -85,11 +86,11 @@ export function renderResult(card: ResultCard): HTMLCanvasElement {
   y += 20;
   ctx.fillStyle = '#75998c';
   mono(26);
-  ctx.fillText(`${card.difficulty.toUpperCase()} СЛОЖНОСТЬ`, pad, y);
+  ctx.fillText(t('{level} СЛОЖНОСТЬ', { level: card.difficulty.toUpperCase() }), pad, y);
   y += 60;
   ctx.fillStyle = '#fbbf24';
   mono(28, true);
-  ctx.fillText(`ВЫЖИЛИ (${card.survivors.length})`, pad, y);
+  ctx.fillText(t('ВЫЖИЛИ ({n})', { n: card.survivors.length }), pad, y);
   y += 46;
   ctx.fillStyle = '#d3ebe2';
   mono(30);
@@ -98,12 +99,12 @@ export function renderResult(card: ResultCard): HTMLCanvasElement {
     y += 20;
     ctx.fillStyle = '#fbbf24';
     mono(28, true);
-    ctx.fillText('УГРОЗЫ', pad, y);
+    ctx.fillText(t('УГРОЗЫ'), pad, y);
     y += 46;
     mono(30);
-    card.threats.slice(0, 8).forEach((t) => {
-      ctx.fillStyle = t.ok ? '#4ade80' : '#f87171';
-      ctx.fillText(`${t.ok ? '✔' : '✘'} ${t.title}`, pad, y);
+    card.threats.slice(0, 8).forEach((th) => {
+      ctx.fillStyle = th.ok ? '#4ade80' : '#f87171';
+      ctx.fillText(`${th.ok ? '✔' : '✘'} ${th.title}`, pad, y);
       y += 42;
     });
   }
@@ -126,7 +127,7 @@ export async function shareResultImage(card: ResultCard): Promise<'shared' | 'do
     const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
     if (nav.canShare?.({ files: [file] })) {
       try {
-        await nav.share({ files: [file], title: 'Протокол «Убежище»', text: `${card.scenario}: ${card.headline}` });
+        await nav.share({ files: [file], title: t('Протокол «Убежище»'), text: `${card.scenario}: ${card.headline}` });
         return 'shared';
       } catch (e) {
         if ((e as Error).name === 'AbortError') return 'shared'; // человек закрыл окно — не ошибка

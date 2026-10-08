@@ -8,7 +8,7 @@ export function Tally({ players, result }: { players: PlayerCharacter[]; result:
   const rows = Object.entries(result.tally).sort((a, b) => b[1] - a[1]);
   const max = Math.max(1, ...rows.map(([, v]) => v));
   return (
-    <ul className="flex flex-col gap-2" aria-label="Результаты голосования">
+    <ul className="flex flex-col gap-2" aria-label={t('Результаты голосования')}>
       {rows.map(([id, v]) => {
         const p = players.find((x) => x.id === id);
         if (!p) return null;
