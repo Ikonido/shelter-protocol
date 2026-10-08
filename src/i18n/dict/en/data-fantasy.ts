@@ -269,7 +269,7 @@ export default {
   'Плащ вора': 'Thief’s Cloak',
   'Украдите карту багажа у любого игрока вместо своей: у него остаётся пустое место': 'Steal a luggage card from any player instead of your own: they are left with an empty slot',
   'Проклятый дар': 'Cursed Gift',
-  'Замените карту багажа любого игрока случайной картой из колоды': 'Replace any player\'s luggage card with a random card from the deck',
+  'Замените карту багажа любого игрока случайной картой из колоды': 'Replace any player’s luggage card with a random card from the deck',
   'Превращение': 'Transformation',
   'Игрок перед вами в порядке хода получает новую расу (карту биологии) из колоды': 'The player before you in turn order receives a new race (biology card) from the deck',
   'Обмен обликами': 'Exchange of Forms',
