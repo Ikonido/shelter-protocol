@@ -2,6 +2,7 @@ import { plural, t } from './i18n';
 import type { GameState, PlayerCharacter } from '../types';
 import { evaluate, type Evaluation } from './evaluate';
 import { mulberry32, shuffle } from './rng';
+import { declassifiedLines } from './threat/chronicle';
 
 export type ChronicleTone = 'ok' | 'bad' | 'warn' | 'neutral';
 export type ChronicleIcon = 'door' | 'hazard' | 'skill' | 'crowd' | 'health' | 'end';
@@ -179,6 +180,8 @@ export function buildChronicle(game: GameState): Chronicle {
     return { ...d, when: whenLabel(day) };
   });
 
+  const materials = declassifiedLines(game);
+  materials.forEach((text, i) => entries.push({ id: `declassified-${i}`, when: t('Рассекреченные материалы'), title: i === 0 ? t('Скрытая угроза') : t('Рассекреченные материалы'), text, tone: 'neutral', icon: 'end' }));
   return { entries, epilogue: epilogue(game, survivors, outside, ev, isolation, !!fatalEntry), evaluation: ev, fatal: !!fatalEntry };
 }
 

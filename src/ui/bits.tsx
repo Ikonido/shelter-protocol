@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { categoryLabel, type Card, type Category } from '../types';
-import { t } from '../lib/i18n';
+import { t, tPacked } from '../lib/i18n';
 
 export const CATEGORY_ICON: Record<Category, LucideIcon> = {
   profession: Briefcase,
@@ -86,7 +86,7 @@ export function CardFace({
               {card.description.split(' + ').map((part, i) => <span key={i} className="before:mr-1.5 before:text-[var(--c)] before:content-['▸']">{t(part)}</span>)}
             </span>
           ) : (
-            t(card.description)
+            tPacked(card.description)
           )}
         </span>
       )}

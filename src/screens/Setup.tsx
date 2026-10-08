@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { validateThreatConfig } from '../lib/threat/roles';
 import { ArrowLeft, Dices, Eye, EyeOff, Flame, Gauge, Globe, Pencil, Printer, Skull, Smartphone, Smile, Wand2 } from 'lucide-react';
 import { useStore } from '../store';
 import { Stepper } from '../ui/bits';
@@ -53,6 +54,9 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
   const [roundEvents, setRoundEvents] = useState(last?.roundEvents ?? false);
   const [autoActions, setAutoActions] = useState(last?.autoActions ?? false);
   const [professionPerks, setProfessionPerks] = useState(last?.professionPerks ?? false);
+  const [variant, setVariant] = useState<'classic' | 'hidden-threat'>('classic');
+  const [criminal, setCriminal] = useState<'maniac' | 'mafia'>('maniac');
+  const [report, setReport] = useState<'hidden' | 'detailed'>('hidden');
   // Пресет подставляет рекомендуемые значения, после чего их можно поменять вручную.
   const pickDifficulty = (d: Difficulty) => {
     const r = DIFFICULTIES[d];
@@ -89,15 +93,17 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
     setPackIds((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
   };
 
-  const canStart = scenarios.length > 0 && activePacks.some((p) => Object.values(p.cards).some((c) => c.length));
+  const threatError = variant === 'hidden-threat' && mode !== 'online' ? validateThreatConfig(n, k, { criminal, report }) : null;
+  const canStart = !threatError && scenarios.length > 0 && activePacks.some((p) => Object.values(p.cards).some((c) => c.length));
   const start = () => {
     const chosen = scenario ?? scenarios[Math.floor(Math.random() * scenarios.length)];
     saveLastSetup({ packIds, n, k, names: Array.from({ length: n }, (_, i) => nameAt(i)), voting, revealsPerVote, timeLimitMin, speechSec, hazardCount, difficulty, roundEvents, autoActions, professionPerks, scenarioId });
     if (mode === 'online') {
-      go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting, revealsPerVote, speechSec, hazardCount, difficulty, roundEvents, autoActions, professionPerks, timeLimitMin, adult: activePacks.some((p) => p.adult) } });
+      go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting, revealsPerVote, speechSec, hazardCount, difficulty, roundEvents, autoActions, professionPerks, timeLimitMin, adult: activePacks.some((p) => p.adult), ...(variant === 'hidden-threat' ? { variant, hiddenThreat: { criminal, report } } : {}) } });
       return;
     }
     const config: SessionConfig = {
+      ...(variant === 'hidden-threat' ? { variant, hiddenThreat: { criminal, report } } : {}),
       scenarioId: chosen.id,
       packIds,
       playerCount: n,
@@ -124,6 +130,18 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
     <div className="mx-auto flex max-w-2xl flex-col gap-5 py-6">
       <button className="btn btn-sm self-start" onClick={() => go({ name: 'home' })}><ArrowLeft size={16} /> {t('Назад')}</button>
       <h1 className="h-hud text-base">{t('Настройка партии')}</h1>
+      <section className="panel flex flex-col gap-3">
+        <h2 className="step-title">{t('Правила партии')}</h2>
+        <div className="grid grid-cols-2 gap-2"><button className={`btn ${variant === 'classic' ? 'btn-primary' : ''}`} onClick={() => setVariant('classic')}>{t('Классическая игра')}</button><button className={`btn ${variant === 'hidden-threat' ? 'btn-primary' : ''}`} onClick={() => setVariant('hidden-threat')}>{t('Скрытая угроза')}</button></div>
+        {variant === 'hidden-threat' && <>
+          <p className="text-sm">{t('4–5: маньяк; 6–7: один преступник на выбор; 8–9: два мафиози; 10–12: три мафиози. Всегда один полицейский. Остальные мирные.')}</p>
+          <p className="text-xs text-dim">{t('Роли независимы от профессий. Исключённые не раскрывают роль. Все роли раскрываются только в финале.')}</p>
+          <label className="label">{t('Преступник для 6–7 игроков')}<select className="input mt-1" value={criminal} onChange={e => setCriminal(e.target.value as 'maniac' | 'mafia')}><option value="maniac">{t('Маньяк')}</option><option value="mafia">{t('Мафия')}</option></select></label>
+          <label className="label">{t('Отчёт в конце круга')}<select className="input mt-1" value={report} onChange={e => setReport(e.target.value as 'hidden' | 'detailed')}><option value="hidden">{t('Скрытые уведомления')}</option><option value="detailed">{t('Подробный отчёт без имён и целей')}</option></select></label>
+          <p className="text-xs text-dim">{t('На общем устройстве секретность обеспечивается шторкой передачи. В настольном режиме устройство ведёт раунды и выдаёт роли лично. В онлайне хост хранит все секреты и технически может их прочитать.')}</p>
+          {threatError && <p className="text-sm text-danger" role="alert">{t(threatError)}</p>}
+        </>}
+      </section>
 
       <section className="panel">
         <h2 className="step-title">{t('1 · Паки карт')}</h2>

@@ -5,8 +5,11 @@ import { loadGame, loadPacks, saveGame, savePacks } from './lib/storage';
 import { packFromHash, withFreshIds } from './lib/packs';
 import { uid } from './lib/rng';
 import { t } from './lib/i18n';
+import type { ThreatConfig } from './lib/threat/types';
 
 export interface OnlineDraft {
+  variant?: 'classic' | 'hidden-threat';
+  hiddenThreat?: ThreatConfig;
   scenario: Scenario;
   packs: CardPack[];
   slots: number;
@@ -30,7 +33,7 @@ export type Screen =
   | { name: 'packs' }
   | { name: 'editor'; packId: string }
   | { name: 'rules' }
-  | { name: 'lobby'; draft: OnlineDraft }
+  | { name: 'lobby'; draft: OnlineDraft; resume?: boolean }
   | { name: 'join'; code?: string; ticket?: string }
   | { name: 'install' }
   | { name: 'settings' };

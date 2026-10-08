@@ -43,6 +43,7 @@ import { EventCard } from '../ui/EventCard';
 import { Gate } from '../ui/Gate';
 import Final from './Final';
 import Tabletop from './Tabletop';
+import { ThreatLocal } from '../ui/HiddenThreat';
 
 type Update = (fn: (g: GameState) => GameState) => void;
 interface Undo { name: string; run: () => void }
@@ -89,7 +90,7 @@ export default function Game() {
       : undefined;
 
   const speaker = currentSpeaker(game);
-  const live = game.config.mode !== 'tabletop' && game.phase !== 'final';
+  const live = (game.config.mode !== 'tabletop' || !!game.hiddenThreat) && game.phase !== 'final';
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4 pb-6">
@@ -105,7 +106,7 @@ export default function Game() {
         </Modal>
       )}
 
-      {game.config.mode === 'tabletop' ? (
+      {game.config.mode === 'tabletop' && !game.hiddenThreat ? (
         <Tabletop game={game} />
       ) : game.phase === 'final' ? (
         <Final game={game} />
@@ -114,6 +115,7 @@ export default function Game() {
       {live && (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
           <div className="anim-rise flex min-w-0 flex-col gap-4" key={`${game.round}-${stepOf(game)}-${game.phase}-${speaker?.id ?? ''}`}>
+            {game.hiddenThreat && <ThreatLocal game={game} update={update} />}
             {timed && game.deadline && (
               <MatchClock deadline={game.deadline} totalMin={game.config.timeLimitMin} onExtend={() => update((g) => extendDeadline(g, 5 * 60_000))} />
             )}

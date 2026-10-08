@@ -40,7 +40,7 @@ export default function App() {
       {screen.name === 'rules' && <Rules />}
       {screen.name === 'install' && <Install />}
       {screen.name === 'settings' && <Settings />}
-      {screen.name === 'lobby' && <Lobby draft={screen.draft} />}
+      {screen.name === 'lobby' && <Lobby draft={screen.draft} resume={screen.resume} />}
       {screen.name === 'join' && <Join initialCode={screen.code} initialTicket={screen.ticket} />}
       </div>
 
