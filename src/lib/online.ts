@@ -34,6 +34,7 @@ import {
   tickGame,
   volunteer,
   MAX_TOTAL_ROUNDS,
+  finishDiscussion,
 } from './game';
 import { canApply } from './actions';
 import { MAX_ITEMS } from './inventory';
@@ -42,10 +43,21 @@ import { newSeed, randomCode } from './rng';
 import { LIMITS as L, clip } from './limits';
 import { sanitizeHazard, sanitizeScenario } from './packs';
 import { t } from './i18n';
+import { parseSecretCommand, secretCommandError, submitSecret, publishFinding, releasePublications } from './hiddenThreat/engine';
+import { auxiliaryAction, cooperate } from './hiddenThreat/economy';
+import { threatViewFor } from './hiddenThreat/views';
+import { sanitizeThreatView, validThreatSettings } from './hiddenThreat/validation';
+import { threatConfigError } from './hiddenThreat/roles';
+import type { SecretCommand, ThreatSettings } from './hiddenThreat/types';
+import { validateSavedGame } from './storage';
 
 /* ---------- Протокол ---------- */
 
 export type C2H =
+  | { t: 'secret'; command: SecretCommand }
+  | { t: 'publish'; finding: string }
+  | { t: 'auxiliary'; target: string; kind: 'aid' | 'disrupt' }
+  | { t: 'cooperate' }
   | { t: 'hello'; name: string; token: string; ticket?: string }
   | { t: 'reveal'; category: Category }
   | { t: 'action'; target?: string; category?: Category }
@@ -103,9 +115,11 @@ export function viewFor(g: GameState, me: string, voting: VotingMode = g.config.
         : {};
   // Часы хоста клиентам не нужны (у телефонов они расходятся): передаём «сколько осталось» на момент отправки.
   // Колода, сброс и накопленные действия (тайные союзы) остаются у хоста.
-  const { deadline, speechEndsAt, deck: _deck, discard: _discard, fx: _fx, perkResult, ...rest } = g;
+  const { deadline, speechEndsAt, deck: _deck, discard: _discard, fx: _fx, perkResult, hiddenThreat: _secrets, threatView: _projection, ...rest } = g;
+  const threatView = threatViewFor(g, me);
   return {
     ...rest,
+    ...(threatView ? { threatView } : {}),
     players,
     votes,
     seed: 0,
@@ -126,8 +140,10 @@ interface Member {
   connected: boolean;
   playerId?: string;
 }
+export interface HostCheckpoint { version: 1; game: GameState; members: { token: string; name: string; playerId: string }[]; locked: boolean; requireTicket: boolean }
 
 export interface HostSetup {
+  hiddenThreat?: ThreatSettings;
   scenario: Scenario;
   packs: CardPack[];
   slots: number;
@@ -163,6 +179,26 @@ export class OnlineHost {
     hostName = t('Хост'),
   ) {
     this.members = [{ token: 'host', name: cleanName(hostName) || t('Хост'), conn: null, connected: true }];
+  }
+
+  /** Host-local only. Tokens and authoritative secrets are excluded from all network projections. */
+  checkpoint(): HostCheckpoint | null {
+    const g = this.game;
+    if (!g?.hiddenThreat) return null;
+    return { version: 1, game: g, members: this.members.map((m) => ({ token: m.token, name: g.players.find((p) => p.id === m.playerId)!.name, playerId: m.playerId! })), locked: this.locked, requireTicket: this.requireTicket };
+  }
+
+  static restoreCheckpoint(raw: unknown): OnlineHost | null {
+    const r = rec(raw), g = validateSavedGame(r.game);
+    if (r.version !== 1 || !g?.hiddenThreat || g.config.mode !== 'online' || !Array.isArray(r.members) || r.members.length !== g.players.length || typeof r.locked !== 'boolean' || typeof r.requireTicket !== 'boolean') return null;
+    const members = r.members.map(rec);
+    if (new Set(members.map((m) => m.token)).size !== members.length || members.some((m, i) => typeof m.token !== 'string' || !m.token || m.token.length > 64 || (i === 0 ? m.token !== 'host' : m.token === 'host') || m.playerId !== g.players[i].id || m.name !== g.players[i].name)) return null;
+    const c = g.config;
+    const host = new OnlineHost({ scenario: g.scenario, packs: [], slots: c.shelterSlots, voting: c.voting, revealsPerVote: c.revealsPerVote, speechSec: c.speechSec, hazardCount: c.hazardCount, difficulty: c.difficulty, roundEvents: c.roundEvents, autoActions: c.autoActions, professionPerks: c.professionPerks, timeLimitMin: c.timeLimitMin, hiddenThreat: c.hiddenThreat }, String(members[0].name));
+    host.game = g;
+    host.members = members.map((m, i) => ({ token: String(m.token), name: String(m.name), playerId: String(m.playerId), conn: null, connected: i === 0 }));
+    host.locked = r.locked; host.requireTicket = r.requireTicket;
+    return host;
   }
 
   subscribe(cb: () => void) {
@@ -291,7 +327,13 @@ export class OnlineHost {
     const member = this.members.find((m) => m.conn === conn);
     if (!member) return;
     let refusal: string | null = null;
-    if (msg.t === 'reveal' && CATEGORIES.includes(msg.category as Category)) this.act(member, { t: 'reveal', category: msg.category as Category });
+    if (msg.t === 'secret') {
+      const command = parseSecretCommand(msg.command);
+      refusal = command ? this.act(member, { t: 'secret', command }) : 'Некорректная секретная команда';
+    } else if (msg.t === 'publish' && typeof msg.finding === 'string' && msg.finding.length <= 80) refusal = this.act(member, { t: 'publish', finding: msg.finding });
+    else if (msg.t === 'auxiliary' && typeof msg.target === 'string' && (msg.kind === 'aid' || msg.kind === 'disrupt')) refusal = this.act(member, { t: 'auxiliary', target: msg.target, kind: msg.kind });
+    else if (msg.t === 'cooperate') refusal = this.act(member, { t: 'cooperate' });
+    else if (msg.t === 'reveal' && CATEGORIES.includes(msg.category as Category)) this.act(member, { t: 'reveal', category: msg.category as Category });
     else if (msg.t === 'action') refusal = this.act(member, { t: 'action', ...(typeof msg.target === 'string' ? { target: msg.target.slice(0, 12) } : {}), ...(CATEGORIES.includes(msg.category as Category) ? { category: msg.category as Category } : {}) });
     else if (msg.t === 'perk') refusal = this.act(member, { t: 'perk', ...(msg.skip === true ? { skip: true } : {}), ...(typeof msg.target === 'string' ? { target: msg.target.slice(0, 12) } : {}), ...(CATEGORIES.includes(msg.category as Category) ? { category: msg.category as Category } : {}) });
     else if (msg.t === 'done') this.act(member, { t: 'done' });
@@ -309,9 +351,23 @@ export class OnlineHost {
     if (!me || me.isEliminated) return null;
     let next = g;
     let refusal: string | null = null;
-    if (msg.t === 'reveal') next = revealCard(g, id, msg.category);
+    if (msg.t === 'secret') {
+      const command = parseSecretCommand(msg.command);
+      if (command) {
+        // A repeated commit is a silent no-op, even after resolution; no private outcome oracle.
+        const duplicate = g.hiddenThreat?.pending[id] || g.hiddenThreat?.processed.includes(`${id}:${command.id}`);
+        if (!duplicate && secretCommandError(g, id, command)) refusal = 'Секретная команда отклонена. Проверьте очки и лимиты в личном досье';
+        if (!refusal) next = submitSecret(g, id, command);
+      } else refusal = 'Некорректная секретная команда';
+    } else if (msg.t === 'publish') next = publishFinding(g, id, msg.finding);
+    else if (msg.t === 'auxiliary') {
+      next = auxiliaryAction(g, id, msg.target, msg.kind);
+      if (next === g) refusal = 'Действие подготовки недоступно: проверьте лимит и цель';
+    }
+    else if (msg.t === 'cooperate') next = cooperate(g, id);
+    else if (msg.t === 'reveal') next = revealCard(g, id, msg.category);
     else if (msg.t === 'action') {
-      if (g.phase === 'reveal' || g.phase === 'speech' || g.phase === 'vote') {
+      if (g.phase === 'reveal' || g.phase === 'speech' || g.phase === 'vote' || (!!g.hiddenThreat && g.phase === 'discussion')) {
         const effect = g.config.autoActions ? me.slots.action.card.effect : undefined;
         const check = effect && !me.slots.action.isRevealed ? canApply(g, id, effect, { target: msg.target, category: msg.category }) : null;
         if (check && !check.ok) refusal = check.reason;
@@ -319,7 +375,7 @@ export class OnlineHost {
       } else refusal = t('Сейчас действие применить нельзя');
       if (!refusal && next === g) refusal = me.slots.action.isRevealed ? t('Действие уже использовано') : t('Действие не сработало');
     } else if (msg.t === 'perk') {
-      if (g.phase === 'reveal' || g.phase === 'speech' || g.phase === 'vote') {
+      if (g.phase === 'reveal' || g.phase === 'speech' || g.phase === 'vote' || (!!g.hiddenThreat && g.phase === 'discussion')) {
         if (msg.skip) next = skipPerk(g, id);
         else {
           const check = canApplyPerk(g, id, { target: msg.target, category: msg.category });
@@ -354,6 +410,7 @@ export class OnlineHost {
 
   start(): boolean {
     if (this.game || this.members.length < 2) return false;
+    if (this.startError()) return false;
     const names = uniqueNames(this.members.map((m) => m.name));
     const n = names.length;
     const g = createGame(
@@ -361,7 +418,8 @@ export class OnlineHost {
         scenarioId: this.setup.scenario.id,
         packIds: this.setup.packs.map((p) => p.id),
         playerCount: n,
-        shelterSlots: Math.max(1, Math.min(this.setup.slots, n - 1)),
+        shelterSlots: this.setup.hiddenThreat ? this.setup.slots : Math.max(1, Math.min(this.setup.slots, n - 1)),
+        ...(this.setup.hiddenThreat ? { hiddenThreat: this.setup.hiddenThreat } : {}),
         mode: 'online',
         voting: this.setup.voting,
         revealsPerVote: Math.min(3, Math.max(1, this.setup.revealsPerVote ?? 2)),
@@ -384,6 +442,9 @@ export class OnlineHost {
   }
 
   /* Управление раундом — только у хоста */
+  startError(): string | null { return this.setup.hiddenThreat ? threatConfigError(this.members.length, this.setup.slots) : null; }
+  finishDiscussion() { if (this.game?.phase === 'discussion') this.setGame(finishDiscussion(this.game)); }
+  releasePublications() { if (this.game?.phase === 'discussion') this.setGame(releasePublications(this.game)); }
   /** Игроки прочитали карту кризиса — хост запускает вскрытия. */
   startRound() {
     if (this.game?.phase === 'event') this.setGame(continueEvent(this.game));
@@ -418,6 +479,7 @@ export class OnlineHost {
       g = g.phase === 'reveal' ? revealCard(g, sp.id, revealOptions(g, sp)[0]) : endSpeech(g);
     }
     for (const m of this.members) {
+      if (!m.connected && m.playerId && g.phase === 'secret' && !g.hiddenThreat?.pending[m.playerId]) g = submitSecret(g, m.playerId, { id: `offline-${g.round}-${m.playerId}`, round: g.round, operation: { kind: 'pass' } });
       if (m.connected || !m.playerId || g.phase !== 'vote') continue;
       const p = g.players.find((x) => x.id === m.playerId);
       if (!p || p.isEliminated || g.votes[p.id]) continue;
@@ -548,7 +610,7 @@ export class OnlineClient {
         adult: m.adult === true,
       });
     else if (m.t === 'view' && typeof m.me === 'string') {
-      const view = sanitizeView(m.view);
+      const view = sanitizeView(m.view, m.me);
       // Имена отключившихся (нужны всем, чтобы понимать, кого ждём); приходят от хоста, поэтому чистим и ограничиваем.
       const offline = Array.isArray(m.offline) ? m.offline.slice(0, MAX_ONLINE_PLAYERS).map((x) => clip(String(x ?? ''), 24)).filter(Boolean) : [];
       if (view && view.players.some((p) => p.id === m.me)) {
@@ -568,7 +630,7 @@ const EVENT_TONES = ['good', 'bad', 'neutral'] as const;
 
 /* ---------- Недоверенное состояние от хоста ---------- */
 
-const PHASES = ['event', 'reveal', 'speech', 'vote', 'result', 'final'];
+const PHASES = ['event', 'reveal', 'speech', 'secret', 'discussion', 'vote', 'result', 'final'];
 const MODS = ['positive', 'neutral', 'negative'];
 const text = (v: unknown, max: number) => (typeof v === 'string' ? clip(v, max) : '');
 const rec = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -625,7 +687,7 @@ function cleanEvent(raw: unknown): ActiveEvent | null {
   };
 }
 
-export function sanitizeView(raw: unknown): GameState | null {
+export function sanitizeView(raw: unknown, me?: string): GameState | null {
   const r = rec(raw);
   if (!Array.isArray(r.players) || r.players.length < 1 || r.players.length > MAX_ONLINE_PLAYERS) return null;
   const scenario = sanitizeScenario(r.scenario, 0);
@@ -644,6 +706,9 @@ export function sanitizeView(raw: unknown): GameState | null {
     players.push({ id: text(p.id, 12), name: text(p.name, 24), isEliminated: p.isEliminated === true, slots: out as PlayerCharacter['slots'] });
   }
   const cfg = rec(r.config);
+  const hiddenThreat = validThreatSettings(cfg.hiddenThreat) ? { loneCriminal: rec(cfg.hiddenThreat).loneCriminal as 'maniac' | 'mafia', report: rec(cfg.hiddenThreat).report as 'hidden' | 'detailed' } : undefined;
+  const threatView = hiddenThreat ? sanitizeThreatView(r.threatView, r.phase as GameState['phase'], players.map((p) => p.id), me) : undefined;
+  if ((cfg.hiddenThreat !== undefined && (!hiddenThreat || !threatView || (me && !threatView.mine))) || (!hiddenThreat && ['secret', 'discussion'].includes(String(r.phase)))) return null;
   const int = (v: unknown, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(Number(v)) || lo));
   const votes: Record<string, string> = {};
   for (const [k, v] of Object.entries(rec(r.votes)).slice(0, MAX_ONLINE_PLAYERS)) votes[text(k, 12)] = text(v, 12);
@@ -651,7 +716,9 @@ export function sanitizeView(raw: unknown): GameState | null {
   const tally: Record<string, number> = {};
   for (const [k, v] of Object.entries(rec(lr.tally)).slice(0, MAX_ONLINE_PLAYERS)) tally[text(k, 12)] = int(v, 0, 99);
   const game: GameState = {
+    ...(threatView ? { threatView } : {}),
     config: {
+      ...(hiddenThreat ? { hiddenThreat } : {}),
       scenarioId: scenario.id,
       packIds: [],
       playerCount: players.length,

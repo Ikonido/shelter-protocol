@@ -1,4 +1,5 @@
 import { t } from './lib/i18n';
+import type { HiddenThreatState, HiddenThreatView, ThreatSettings } from './lib/hiddenThreat/types';
 export type Category =
   | 'profession'
   | 'biology'
@@ -182,6 +183,8 @@ export type PlayMode = 'pass-and-play' | 'tabletop' | 'online';
 export type VotingMode = 'secret' | 'open';
 
 export interface SessionConfig {
+  /** Optional independent rules layer; absent in all legacy/classic games. */
+  hiddenThreat?: ThreatSettings;
   scenarioId: string;
   packIds: string[];
   playerCount: number; // N
@@ -210,7 +213,7 @@ export interface SessionConfig {
 
 /** reveal — ходящий открывает карту; speech — он объясняет пользу (таймер); затем следующий игрок. */
 /** event — карта кризиса в начале раунда; reveal — ходящий открывает карту; speech — он объясняет пользу. */
-export type Phase = 'event' | 'reveal' | 'speech' | 'vote' | 'result' | 'final';
+export type Phase = 'event' | 'reveal' | 'speech' | 'secret' | 'discussion' | 'vote' | 'result' | 'final';
 
 export type EventKind = 'shrink' | 'plague' | 'volunteer' | 'leak' | 'silence' | 'newHazard' | 'relief' | 'prompt';
 
@@ -265,6 +268,10 @@ export interface PerkResult {
 }
 
 export interface GameState {
+  /** Authoritative secrets: local owner/host only. */
+  hiddenThreat?: HiddenThreatState;
+  /** Filtered online/local projection, never an authoritative saved state. */
+  threatView?: HiddenThreatView;
   config: SessionConfig;
   scenario: Scenario; // снимок: правка пака не ломает идущую партию
   players: PlayerCharacter[];

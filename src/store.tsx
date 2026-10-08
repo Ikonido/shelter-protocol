@@ -5,8 +5,11 @@ import { loadGame, loadPacks, saveGame, savePacks } from './lib/storage';
 import { packFromHash, withFreshIds } from './lib/packs';
 import { uid } from './lib/rng';
 import { t } from './lib/i18n';
+import type { ThreatSettings } from './lib/hiddenThreat/types';
 
 export interface OnlineDraft {
+  hiddenThreat?: ThreatSettings;
+  resume?: boolean;
   scenario: Scenario;
   packs: CardPack[];
   slots: number;

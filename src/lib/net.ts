@@ -93,15 +93,19 @@ export interface Room {
 }
 
 /** Хост: занимает случайный код комнаты и отдаёт каждое входящее соединение в `onConn`. */
-export async function createRoom(onConn: (c: Conn<unknown>) => void, mode: NetMode = 'internet'): Promise<Room> {
+export async function createRoom(onConn: (c: Conn<unknown>) => void, mode: NetMode = 'internet', resumeCode?: string): Promise<Room> {
+  if (resumeCode !== undefined && !isValidCode(resumeCode)) throw new Error(t('Некорректный код комнаты'));
   for (let attempt = 0; attempt < 5; attempt++) {
-    const code = randomCode(5);
+    const code = resumeCode ?? randomCode(5);
     const peer = await newPeer(mode, ROOM_PREFIX + code);
     try {
       await waitOpen(peer, 12000);
     } catch (e) {
       peer.destroy();
-      if ((e as { type?: string }).type === 'unavailable-id') continue; // код занят — берём другой
+      if ((e as { type?: string }).type === 'unavailable-id') {
+        if (resumeCode) throw new Error(t('Код сохранённой комнаты ещё занят. Закройте прежнего хоста и повторите вход'));
+        continue;
+      }
       throw new Error(t('Не удалось связаться с брокером соединений. Проверьте интернет.'));
     }
     peer.on('connection', (dc) => dc.on('open', () => onConn(wrap(dc))));

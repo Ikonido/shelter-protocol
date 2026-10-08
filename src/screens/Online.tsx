@@ -5,7 +5,10 @@ import { OnlineClient, OnlineHost, type C2H, type Conn, type H2C } from '../lib/
 import { QRScanner } from '../ui/QRScanner';
 import { createRoom, isValidCode, isValidTicket, joinRoom, normalizeCode, probeLan, shareOrigin, type NetMode } from '../lib/net';
 import { randomToken } from '../lib/rng';
-import { plural, t } from '../lib/i18n';
+import { plural, t, tPacked } from '../lib/i18n';
+import { PrivateAccess, ThreatPrivatePanel } from '../ui/HiddenThreatPrivate';
+import { ThreatAuxiliary, ThreatPublicPanel } from '../ui/HiddenThreatPublic';
+import { loadHiddenRoom, saveHiddenRoom } from '../lib/hiddenThreat/roomStorage';
 import { copyText } from '../ui/clipboard';
 import { QR } from '../ui/QR';
 import { ABSTAIN, alive, currentSpeaker, perVote, quotaThisRound, revealOptions, stepOf } from '../lib/game';
@@ -76,13 +79,16 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
   useEffect(() => {
     let room: { destroy(): void } | null = null;
     let cancelled = false;
-    const h = new OnlineHost(draft, readLS('shelter:name') ?? t('Хост'));
+    const saved = draft.resume ? loadHiddenRoom() : null;
+    const restored = saved ? OnlineHost.restoreCheckpoint(saved.checkpoint) : null;
+    if (draft.resume && !restored) { setError(t('Сохранение скрытой комнаты повреждено или отсутствует')); return; }
+    const h = restored ?? new OnlineHost(draft, readLS('shelter:name') ?? t('Хост'));
     setHost(h);
     (async () => {
-      const mode: NetMode = (await probeLan()) ? 'lan' : 'internet';
+      const mode: NetMode = saved?.net ?? ((await probeLan()) ? 'lan' : 'internet');
       if (cancelled) return;
       setNet(mode);
-      const r = await createRoom((c) => h.addConn(c as Conn<H2C>), mode);
+      const r = await createRoom((c) => h.addConn(c as Conn<H2C>), mode, saved?.code);
       if (cancelled) r.destroy();
       else {
         room = r;
@@ -96,7 +102,13 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
     };
   }, [draft]);
 
-  if (!host) return null;
+  useEffect(() => {
+    if (!host || !code || !net || !draft.hiddenThreat) return;
+    const persist = () => { try { saveHiddenRoom(host, code, net); } catch { setError(t('Не удалось сохранить комнату на этом устройстве')); } };
+    persist(); return host.subscribe(persist);
+  }, [host, code, net, draft.hiddenThreat]);
+
+  if (!host) return error ? <p className="panel text-danger">{error}</p> : null;
   // currentTicket() сам выпускает новый билет по истечении срока — QR «живой», старый перестаёт работать.
   const ticket = code ? host.currentTicket() : null;
   const left = ticket ? Math.max(0, Math.ceil((ticket.expiresAt - now) / 1000)) : 0;
@@ -105,9 +117,12 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
   const copy = async (text: string) => notify((await copyText(text)) ? t('Скопировано') : t('Не удалось скопировать'));
 
   if (host.game) {
+    if (!code) return <section className="panel"><p>{error ?? t('Создаём комнату…')}</p><button className="btn mt-3" onClick={() => go({ name: 'home' })}>{t('Назад')}</button></section>;
     // Хосту часы нужны по его же времени (клиенты получают «осталось» и пересчитывают у себя).
     const view = { ...host.viewFor(0)!, deadline: host.game.deadline };
     return (
+      <>
+      {error && <p role="alert" className="panel text-danger">{error}</p>}
       <OnlineGame
         view={view}
         me={host.members[0].playerId!}
@@ -118,6 +133,7 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
         host={host}
         onExit={() => go({ name: 'home' })}
       />
+      </>
     );
   }
 
@@ -182,7 +198,9 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
         <button className="btn btn-sm" onClick={() => host.setLocked(!host.locked)}>
           {host.locked ? <><Unlock size={14} /> {t('Открыть комнату')}</> : <><Lock size={14} /> {t('Закрыть комнату для новых игроков')}</>}
         </button>
-        <button className="btn btn-primary" disabled={n < 2 || !code} onClick={() => host.start()}>
+        {draft.hiddenThreat && <p className="text-xs text-dim">{t('Хост хранит тайные данные. От недобросовестного хоста без независимого сервера абсолютной защиты нет')}</p>}
+        {host.startError() && <p className="text-xs text-danger">{t(host.startError()!)}</p>}
+        <button className="btn btn-primary" disabled={n < 2 || !code || !!host.startError()} onClick={() => host.start()}>
           {t('Начать игру ({n} {w})', { n, w: plural(n, { ru: ['игрок', 'игрока', 'игроков'], uk: ['гравець', 'гравці', 'гравців'], en: ['player', 'players'], de: ['Spieler', 'Spieler'] }) })}
         </button>
         {n < 2 && <p className="text-xs text-dim">{t('Нужен хотя бы ещё один игрок.')}</p>}
@@ -343,7 +361,7 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
             <>
               <details className="panel">
                 <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">{t('Журнал партии')}</summary>
-                <ol className="mt-2 flex flex-col gap-1 text-xs text-dim">{view.log.map((l, i) => <li key={i}>{t('[Р{n}] {text}', { n: l.round, text: t(l.text) })}</li>)}</ol>
+                <ol className="mt-2 flex flex-col gap-1 text-xs text-dim">{view.log.map((l, i) => <li key={i}>{t('[Р{n}] {text}', { n: l.round, text: tPacked(l.text) })}</li>)}</ol>
               </details>
               <button className="btn btn-primary" onClick={onExit}>{t('В меню')}</button>
             </>
@@ -352,6 +370,13 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
       ) : (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
           <div className="anim-rise flex min-w-0 flex-col gap-4" key={`${view.round}-${stepOf(view)}-${view.phase}-${speaker?.id ?? ''}`}>
+            {view.threatView && <>
+              <ThreatPublicPanel game={view} />
+              {view.threatView.mine && <PrivateAccess key={`${me}:${view.round}:${view.phase}:${view.threatView.public.publicationsReleased.length}`} name={player.name} render={(close) => <ThreatPrivatePanel game={view} mine={view.threatView!.mine!} onClose={close} onSubmit={(command) => send({ t: 'secret', command })} onPublish={(finding) => send({ t: 'publish', finding })} />} />}
+              <ThreatAuxiliary key={`${me}:${view.round}`} game={view} actor={me} onAction={(target, kind) => send({ t: 'auxiliary', target, kind })} onCooperate={() => send({ t: 'cooperate' })} />
+              {view.phase === 'secret' && <p className="panel text-sm">{t('Все живые кандидаты подтверждают секретный выбор или пропуск. Передавайте устройство по очереди')}</p>}
+              {view.phase === 'discussion' && (host ? (view.threatView.public.publicationsReleased.includes(view.round) ? <button className="btn btn-primary" onClick={() => host.finishDiscussion()}>{t('Обсуждение закончено — голосовать')}</button> : <button className="btn btn-primary" onClick={() => host.releasePublications()}>{t('Открыть материалы для обсуждения')}</button>) : <p className="text-sm text-dim">{t('Обсудите опубликованные материалы. Голосование начнёт хост')}</p>)}
+            </>}
             {view.deadline && (
               <MatchClock deadline={view.deadline} totalMin={view.config.timeLimitMin} onExtend={host ? () => host.extendTime(5 * 60_000) : undefined} />
             )}

@@ -14,6 +14,7 @@ export function undoable(after: GameState, current: GameState): boolean {
     after.discard === current.discard &&
     after.fx === current.fx &&
     after.votes === current.votes &&
+    after.hiddenThreat === current.hiddenThreat &&
     after.round === current.round
   );
 }

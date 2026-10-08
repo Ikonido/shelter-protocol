@@ -8,8 +8,9 @@ import { t } from '../lib/i18n';
 export function PhaseSteps({ game }: { game: GameState }) {
   const n = perVote(game);
   const ev = game.config.roundEvents ? 1 : 0;
-  const steps = [...(ev ? [t('Событие')] : []), ...Array.from({ length: n }, (_, i) => t('Вскрытие {n}', { n: i + 1 })), t('Голосование'), t('Итоги')];
-  const current = game.phase === 'event' ? 0 : game.phase === 'vote' ? ev + n : game.phase === 'result' ? ev + n + 1 : ev + stepOf(game) - 1;
+  const secret = game.config.hiddenThreat ? 2 : 0;
+  const steps = [...(ev ? [t('Событие')] : []), ...Array.from({ length: n }, (_, i) => t('Вскрытие {n}', { n: i + 1 })), ...(secret ? [t('Секретный выбор'), t('Обсуждение')] : []), t('Голосование'), t('Итоги')];
+  const current = game.phase === 'event' ? 0 : game.phase === 'secret' ? ev + n : game.phase === 'discussion' ? ev + n + 1 : game.phase === 'vote' ? ev + n + secret : game.phase === 'result' ? ev + n + secret + 1 : ev + stepOf(game) - 1;
   return (
     <ol className="flex items-center gap-1 overflow-x-auto text-[10px] uppercase tracking-widest" aria-label={t('Шаги раунда')}>
       {steps.map((label, i) => {

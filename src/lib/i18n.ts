@@ -16,7 +16,7 @@ export function t(text: string, vars?: Record<string, string | number>): string 
 }
 
 /** Переменные, чьи значения — данные игры и переводятся при показе (названия категорий, описания, названия угроз). */
-const TRANSLATED_VARS = ['cat', 'desc', 'title'];
+const TRANSLATED_VARS = ['cat', 'desc', 'title', 'direction', 'result', 'evidence', 'action'];
 
 /**
  * Хранимая строка «шаблон + переменные»: в состоянии партии лежит русский ключ, а переводится он при показе,
