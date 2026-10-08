@@ -25,7 +25,7 @@ export const LIMITS = {
   cardTitle: 40,
   cardTags: 5,
   tagLen: 24,
-  cardsPerCategory: 60,
+  cardsPerCategory: 120,
   tagOverrides: 1000,
 } as const;
 

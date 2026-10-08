@@ -243,7 +243,7 @@ export default {
 
   // Карты: багаж
   'ОГРОМНОЕ: Грузовой прицеп, полный коробок с носками': 'RIESIG: Ein Lastanhänger voller Kisten mit Socken',
-  'ОГРОМНОЕ: Пианино (никто не знает, зачем оно с вами)': 'RIESIG: Ein Klavier (niemand weiß, warum es mitgekommen ist)',
+  'ОГРОМНОЕ: Пианино': 'RIESIG: Klavier',
   'ОГРОМНОЕ: Разборный сарай и инструменты к нему': 'RIESIG: Ein zerlegbarer Schuppen samt Werkzeugen',
   'ОГРОМНОЕ: Холодильник на колёсах, внутри чья-то еда': 'RIESIG: Ein Kühlschrank auf Rädern, darin das Essen von jemand anderem',
   'ОГРОМНОЕ: Лошадь (не влезает ни в один отсек)': 'RIESIG: Ein Pferd (passt in kein Abteil)',

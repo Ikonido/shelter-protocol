@@ -148,7 +148,7 @@ describe('profession perks', () => {
     const base = run('novice', 1);
     expect(canApplyPerk(base.g, 'p1', { target: 'p2' }).ok).toBe(false); // не выбрана карта
     expect(base.done.players[1].slots.fact.isRevealed).toBe(true);
-    expect(base.done.perks).toBeUndefined();
+    expect(base.done.perks?.some((p) => p.playerId === 'p1')).toBe(false); // the detective spent the perk; revealed cards may grant the target a new perk
     expect(base.done.players[0].slots.action.isRevealed).toBe(false);
     const counts = (level: 'novice' | 'experienced' | 'expert') => new Set(Array.from({ length: 60 }, (_, i) => run(level, i + 1).opened));
     expect([...counts('novice')]).toEqual([1]);
