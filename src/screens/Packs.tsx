@@ -20,7 +20,7 @@ export default function Packs() {
       const pack = await importPackFile();
       if (pack) {
         upsertPack({ ...pack, id: uid('pack') });
-        notify(t('Импортирован пак «{name}»', { name: pack.name }));
+        notify(t('Импортирован пак «{name}»', { name: t(pack.name) }));
       }
     } catch (e) {
       notify((e as Error).message);
@@ -46,8 +46,8 @@ export default function Packs() {
         return (
           <article key={p.id} className="panel flex flex-col gap-2">
             <div>
-              <h2 className="font-bold text-amber">{p.name} {!p.isCustom && <span className="text-xs font-normal text-dim">{t('[встроенный]')}</span>}</h2>
-              <p className="text-xs text-dim">{p.description || t('Без описания')}</p>
+              <h2 className="font-bold text-amber">{t(p.name)} {!p.isCustom && <span className="text-xs font-normal text-dim">{t('[встроенный]')}</span>}</h2>
+              <p className="text-xs text-dim">{p.description ? t(p.description) : t('Без описания')}</p>
               <p className="mt-1 text-xs">{s.scenarios} {plural(s.scenarios, ['сценарий', 'сценария', 'сценариев'], ['сценарій', 'сценарії', 'сценаріїв'])} · {s.cards} {plural(s.cards, ['карта', 'карты', 'карт'], ['картка', 'картки', 'карток'])}</p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -56,7 +56,7 @@ export default function Packs() {
               <button className="btn btn-sm" onClick={() => exportPackFile(p)}><Download size={14} /> JSON</button>
               <button className="btn btn-sm" onClick={() => share(p)}><Link2 size={14} /> {t('Ссылка')}</button>
               {p.isCustom && (
-                <button className="btn btn-sm btn-danger" onClick={() => confirm(t('Удалить пак «{name}»?', { name: p.name })) && removePack(p.id)}>
+                <button className="btn btn-sm btn-danger" onClick={() => confirm(t('Удалить пак «{name}»?', { name: t(p.name) })) && removePack(p.id)}>
                   <Trash2 size={14} />
                 </button>
               )}

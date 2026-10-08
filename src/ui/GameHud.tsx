@@ -43,7 +43,7 @@ export function GameHud({ game, onBack, backLabel = t('Меню'), onTitle }: { 
       <div className="flex items-center gap-2">
         <button className="btn btn-sm" onClick={onBack} aria-label={backLabel}><ArrowLeft size={16} /> <span className="hidden sm:inline">{backLabel}</span></button>
         <button className="min-w-0 flex-1 truncate text-left text-sm font-bold uppercase tracking-wider text-amber" onClick={onTitle} disabled={!onTitle}>
-          {game.scenario.title}
+          {t(game.scenario.title)}
         </button>
         <span className="chip hidden sm:inline-flex">{t(rulesFor(game.config.difficulty).label)}</span>
         <span className="chip" title={t('Игроков в игре')}><Users size={11} /> <b className="text-amber">{living}</b></span>

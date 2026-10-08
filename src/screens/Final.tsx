@@ -50,7 +50,7 @@ export function Verdict({ game }: { game: GameState }) {
     <div className="flex flex-col gap-4">
       <div className={`panel hud anim-rise text-center ${ev.verdict === 'survived' ? 'border-ok/60' : ev.verdict === 'fragile' ? 'border-amber/60' : 'border-danger/60'}`}>
         <Icon className={`mx-auto mb-2 ${tone}`} size={32} />
-        <h2 className={`text-xl font-bold uppercase tracking-widest ${tone}`}>{ev.headline}</h2>
+        <h2 className={`text-xl font-bold uppercase tracking-widest ${tone}`}>{t(ev.headline)}</h2>
         <p className="mb-4 mt-1 text-xs uppercase tracking-widest text-dim">
           {t('{label} сложность · нужно {score}+ для победы', { label: t(rulesFor(game.config.difficulty).label), score: rulesFor(game.config.difficulty).winScore })}
         </p>
@@ -58,12 +58,12 @@ export function Verdict({ game }: { game: GameState }) {
       </div>
 
       <div className="panel">
-        <h3 className="label">{t('Требования сценария «{title}»', { title: game.scenario.title })}</h3>
+        <h3 className="label">{t('Требования сценария «{title}»', { title: t(game.scenario.title) })}</h3>
         <ul className="flex flex-col gap-1 text-sm">
           {ev.coverage.map((c) => (
             <li key={c.skill} className="flex gap-2">
               <span className={c.by.length ? 'text-ok' : 'text-danger'}>{c.by.length ? '✔' : '✘'}</span>
-              <b>{c.skill}</b>
+              <b>{t(c.skill)}</b>
               <span className="text-dim">{c.by.length ? `— ${c.by.join(', ')}` : t('— никто не владеет')}</span>
             </li>
           ))}
@@ -74,15 +74,15 @@ export function Verdict({ game }: { game: GameState }) {
           <Meter label={t('Стабильность')} value={ev.stability} />
         </div>
         {ev.notes.length > 0 && (
-          <ul className="mt-3 list-disc pl-5 text-sm text-danger/90">{ev.notes.map((n) => <li key={n}>{n}</li>)}</ul>
+          <ul className="mt-3 list-disc pl-5 text-sm text-danger/90">{ev.notes.map((n) => <li key={n}>{t(n)}</li>)}</ul>
         )}
       </div>
 
       <ThreatsPanel hazards={game.hazards ?? []} results={ev.hazards} />
       {!(game.hazards?.length) && game.scenario.threats.length > 0 && (
         <div className="panel">
-          <h3 className="label">{t('Угрозы изоляции ({duration})', { duration: game.scenario.isolationDuration })}</h3>
-          <ul className="list-disc pl-5 text-sm text-dim">{game.scenario.threats.map((t) => <li key={t}>{t}</li>)}</ul>
+          <h3 className="label">{t('Угрозы изоляции ({duration})', { duration: t(game.scenario.isolationDuration) })}</h3>
+          <ul className="list-disc pl-5 text-sm text-dim">{game.scenario.threats.map((th) => <li key={th}>{t(th)}</li>)}</ul>
         </div>
       )}
 
@@ -131,7 +131,7 @@ export default function Final({ game }: { game: GameState }) {
       <details className="panel">
         <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">{t('Журнал партии')}</summary>
         <ol className="mt-2 flex flex-col gap-1 text-xs text-dim">
-          {game.log.map((l, i) => <li key={i}>{t('[Р{round}]', { round: l.round })} {l.text}</li>)}
+          {game.log.map((l, i) => <li key={i}>{t('[Р{round}]', { round: l.round })} {t(l.text)}</li>)}
         </ol>
       </details>
       <div className="grid gap-2 sm:grid-cols-2">

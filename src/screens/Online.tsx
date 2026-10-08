@@ -124,7 +124,7 @@ export function Lobby({ draft }: { draft: OnlineDraft }) {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4 py-6">
       <button className="btn btn-sm self-start" onClick={() => go({ name: 'home' })}><ArrowLeft size={16} /> {t('Закрыть комнату')}</button>
-      <h1 className="h-hud text-base">{t('Онлайн-комната · {title}', { title: draft.scenario.title })}</h1>
+      <h1 className="h-hud text-base">{t('Онлайн-комната · {title}', { title: t(draft.scenario.title) })}</h1>
       {draft.adult && <p className="rounded-md border border-danger/60 bg-danger/10 p-2 text-xs text-danger"><b>18+</b>: {t('гости увидят предупреждение о мате и грубом юморе, пока ждут начала. Приглашайте только взрослых.')}</p>}
 
       <section className="panel text-center">
@@ -287,7 +287,7 @@ export function Join({ initialCode, initialTicket }: { initialCode?: string; ini
       {st?.status === 'connecting' && <p className="text-center text-sm text-dim">{t('Ожидаем ответ хоста…')}</p>}
       {st?.status === 'lobby' && (
         <section className="panel">
-          <p className="text-sm">{t('Вы в комнате. Сценарий:')} <b className="text-amber">{st.scenario}</b></p>
+          <p className="text-sm">{t('Вы в комнате. Сценарий:')} <b className="text-amber">{t(st.scenario)}</b></p>
           {st.adult && (
             <p className="mt-2 rounded-md border border-danger/60 bg-danger/10 p-2 text-xs text-danger" role="alert">
               <b>18+</b>: {t('в этой комнате ненормативная лексика и грубый юмор. Если вам нет 18 лет или это не для вас, нажмите «Назад» и выйдите.')}
@@ -342,7 +342,7 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
             <>
               <details className="panel">
                 <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">{t('Журнал партии')}</summary>
-                <ol className="mt-2 flex flex-col gap-1 text-xs text-dim">{view.log.map((l, i) => <li key={i}>{t('[Р{n}] {text}', { n: l.round, text: l.text })}</li>)}</ol>
+                <ol className="mt-2 flex flex-col gap-1 text-xs text-dim">{view.log.map((l, i) => <li key={i}>{t('[Р{n}] {text}', { n: l.round, text: t(l.text) })}</li>)}</ol>
               </details>
               <button className="btn btn-primary" onClick={onExit}>{t('В меню')}</button>
             </>
@@ -435,7 +435,7 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
               </p>
             )}
             {myRevealTurn && <p className="panel animate-pulse border-amber text-center text-sm font-bold uppercase tracking-widest text-amber" role="alert">{t('Ваш ход: откройте карту')}</p>}
-            {lastAction && <p className="panel border-[#e879f9]/60 text-sm" role="status"><Zap size={14} className="mr-1 inline text-[#e879f9]" />{lastAction.text}</p>}
+            {lastAction && <p className="panel border-[#e879f9]/60 text-sm" role="status"><Zap size={14} className="mr-1 inline text-[#e879f9]" />{t(lastAction.text)}</p>}
             <section className="panel flex flex-col gap-2">
               <h2 className="h-hud flex items-center gap-2"><Avatar id={player.id} name={player.name} size={24} /> {player.name}{player.isEliminated ? t(' — вы наблюдатель') : t(' — ваши карты')}</h2>
               {CATEGORIES.map((c) => {
@@ -458,7 +458,7 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
                   game={view}
                   actorId={player.id}
                   effect={autoEffect}
-                  title={player.slots.action.card.title ?? t('Действие')}
+                  title={t(player.slots.action.card.title ?? 'Действие')}
                   onCancel={() => setPicking(false)}
                   onConfirm={(params) => { send({ t: 'action', ...params }); setPicking(false); setPick(null); }}
                 />

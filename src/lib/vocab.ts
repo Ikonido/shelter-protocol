@@ -1,6 +1,7 @@
 import type { Card, CardPack, Scenario } from '../types';
 import { cardMatchesSkill, SKILL_CATEGORIES } from './evaluate';
 import { mergePools } from './generator';
+import { t } from './i18n';
 
 /** Все карты, из которых игроки получают навыки (профессия, хобби, багаж, факт), с учётом переопределений способностей. */
 export function skillCards(packs: CardPack[]): Card[] {
@@ -41,6 +42,8 @@ export function skillVocabulary(packs: CardPack[], extra: string[] = []): SkillI
 export const cardsWithSkill = (cards: Card[], skill: string): Card[] => cards.filter((c) => cardMatchesSkill(c, skill));
 
 export const cardLabel = (c: Card) => c.title ?? c.description;
+/** Название навыка для показа. Сам навык (русский ключ) остаётся данными для сравнения. */
+export const skillLabel = (name: string): string => t(name);
 
 export interface Problem {
   level: 'error' | 'warn';
@@ -54,17 +57,17 @@ export interface Problem {
 export function validateScenario(sc: Scenario, packs: CardPack[]): Problem[] {
   const cards = skillCards(packs);
   const out: Problem[] = [];
-  if (!sc.title.trim()) out.push({ level: 'error', text: 'Дайте сценарию название.' });
-  if (sc.shelterSlots < 1) out.push({ level: 'error', text: 'Нужно хотя бы одно место в бункере.' });
+  if (!sc.title.trim()) out.push({ level: 'error', text: t('Дайте сценарию название.') });
+  if (sc.shelterSlots < 1) out.push({ level: 'error', text: t('Нужно хотя бы одно место в бункере.') });
   for (const skill of sc.requiredSkills) {
-    if (!cardsWithSkill(cards, skill).length) out.push({ level: 'warn', text: `Навык «${skill}» требуется, но ни одна карта его не даёт — выиграть будет нельзя. Откройте шаг «Способности карт».` });
+    if (!cardsWithSkill(cards, skill).length) out.push({ level: 'warn', text: t('Навык «{skill}» требуется, но ни одна карта его не даёт — выиграть будет нельзя. Откройте шаг «Способности карт».', { skill: skillLabel(skill) }) });
   }
   for (const h of sc.hazards ?? []) {
-    if (!h.title.trim()) out.push({ level: 'error', text: 'У одной из угроз нет названия.' });
-    else if (!h.counters.length) out.push({ level: 'warn', text: `Угрозу «${h.title}» ничто не нейтрализует — она всегда будет непобедимой.` });
-    else if (!h.counters.some((s) => cardsWithSkill(cards, s).length)) out.push({ level: 'warn', text: `Угрозу «${h.title}» не может снять ни одна карта колоды.` });
+    if (!h.title.trim()) out.push({ level: 'error', text: t('У одной из угроз нет названия.') });
+    else if (!h.counters.length) out.push({ level: 'warn', text: t('Угрозу «{title}» ничто не нейтрализует — она всегда будет непобедимой.', { title: h.title }) });
+    else if (!h.counters.some((s) => cardsWithSkill(cards, s).length)) out.push({ level: 'warn', text: t('Угрозу «{title}» не может снять ни одна карта колоды.', { title: h.title }) });
   }
-  if (!(sc.hazards?.length)) out.push({ level: 'warn', text: 'Угроз нет — игра будет проще и без хроники угроз.' });
+  if (!(sc.hazards?.length)) out.push({ level: 'warn', text: t('Угроз нет — игра будет проще и без хроники угроз.') });
   return out;
 }
 

@@ -9,7 +9,7 @@ export function SkillsStrip({ scenario }: { scenario: Scenario }) {
       <summary className="flex cursor-pointer flex-wrap items-center gap-1.5 text-xs text-dim">
         <Target size={12} className="text-amber" />
         <span className="uppercase tracking-widest">{t('Убежищу нужны:')}</span>
-        {scenario.requiredSkills.map((s) => <span key={s} className="chip text-amber">{s}</span>)}
+        {scenario.requiredSkills.map((s) => <span key={s} className="chip text-amber">{t(s)}</span>)}
       </summary>
       <ul className="mt-2 flex flex-col gap-1 text-xs text-dim">
         <li><b className="text-ok">{t('ПЛЮС')}</b> {t('у карты — сильная сторона,')} <b className="text-danger">{t('МИНУС')}</b> {t('— слабость,')} <b>{t('НЕЙТР.')}</b> {t('— ни то ни сё.')}</li>

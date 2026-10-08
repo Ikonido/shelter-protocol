@@ -65,13 +65,13 @@ export function ChroniclePlayer({ game, onDone }: { game: GameState; onDone: () 
           return (
             <li key={e.id} ref={i === shown - 1 && epiShown === 0 ? last : undefined} className="anim-rise relative">
               <span aria-hidden className={`absolute -left-[31px] top-3 size-3 rounded-full ring-4 ring-bg ${tone.dot}`} />
-              <p className="mb-1 text-[10px] uppercase tracking-[.25em] text-dim">{e.when}</p>
+              <p className="mb-1 text-[10px] uppercase tracking-[.25em] text-dim">{t(e.when)}</p>
               <div className={`panel relative overflow-hidden ${tone.border}`}>
-                <h3 className={`flex items-center gap-2 text-sm font-bold uppercase tracking-wider ${tone.text}`}><Icon size={16} /> {e.title}</h3>
-                <p className="mt-2 pr-16 text-sm leading-relaxed text-ink/90">{e.text}</p>
+                <h3 className={`flex items-center gap-2 text-sm font-bold uppercase tracking-wider ${tone.text}`}><Icon size={16} /> {t(e.title)}</h3>
+                <p className="mt-2 pr-16 text-sm leading-relaxed text-ink/90">{t(e.text)}</p>
                 {e.stamp && (
                   <span className={`absolute bottom-3 right-3 rotate-[-8deg] rounded border-2 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest animate-[var(--animate-stamp)] ${tone.text} ${tone.border}`}>
-                    {e.stamp}
+                    {t(e.stamp)}
                   </span>
                 )}
               </div>
@@ -84,7 +84,7 @@ export function ChroniclePlayer({ game, onDone }: { game: GameState; onDone: () 
         <section className="panel hud anim-rise flex flex-col gap-2">
           <h3 className="h-hud flex items-center gap-2"><BedDouble size={14} /> {t('Эпилог')}</h3>
           {epilogue.slice(0, Math.max(1, epiShown)).map((line, i) => (
-            <p key={i} ref={i === Math.max(1, epiShown) - 1 ? (last as unknown as React.RefObject<HTMLParagraphElement>) : undefined} className="anim-rise text-sm leading-relaxed">{line}</p>
+            <p key={i} ref={i === Math.max(1, epiShown) - 1 ? (last as unknown as React.RefObject<HTMLParagraphElement>) : undefined} className="anim-rise text-sm leading-relaxed">{t(line)}</p>
           ))}
         </section>
       )}

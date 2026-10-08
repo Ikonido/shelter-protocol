@@ -30,12 +30,12 @@ export function ThreatsPanel({ hazards, results, defaultOpen = false }: { hazard
             <li key={h.id} className="rounded-md border border-edge p-2 text-sm">
               <div className="flex items-center gap-2">
                 <Icon size={16} className={tone} />
-                <b>{h.title}</b>
+                <b>{t(h.title)}</b>
                 <span className={`ml-auto text-[10px] uppercase tracking-widest ${tone}`}>{t(label)}</span>
               </div>
-              {h.description && <p className="mt-1 text-xs text-dim">{h.description}</p>}
+              {h.description && <p className="mt-1 text-xs text-dim">{t(h.description)}</p>}
               <p className="mt-1 text-xs">
-                {t('Нейтрализуют:')} <span className="text-amber">{h.counters.join(', ') || '—'}</span>
+                {t('Нейтрализуют:')} <span className="text-amber">{h.counters.map((c) => t(c)).join(', ') || '—'}</span>
                 {need > 1 && <span className="text-danger"> {t('· нужно {n} чел.', { n: need })}</span>}
               </p>
               {by && (

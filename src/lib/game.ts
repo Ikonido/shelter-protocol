@@ -15,6 +15,7 @@ import { generateCharacters } from './generator';
 import { IMMUNE_VOTE, effectiveVotes, initialDeck, markImmune, runEffect, type ActionParams } from './actions';
 import { EVENTS, drawEvent, hiddenForLeak, unusedHazards } from './events';
 import { mulberry32, shuffle } from './rng';
+import { t } from './i18n';
 
 export const MAX_ROUNDS = 6;
 /** Потолок раундов, включая добавленные из-за воздержавшихся. */
@@ -113,7 +114,7 @@ export function revealCard(g: GameState, playerId: string, category: Category): 
     lastReveal: { playerId, category },
     log: [
       ...g.log,
-      { round: g.round, text: `${p.name} открывает «${categoryLabel(category)}»: ${p.slots[category].card.description}` },
+      { round: g.round, text: t('{who} открывает «{cat}»: {desc}', { who: p.name, cat: categoryLabel(category), desc: p.slots[category].card.description }) },
     ],
   };
   const sec = g.config.speechSec ?? 0;
@@ -134,7 +135,7 @@ export function playAction(g: GameState, playerId: string, params?: ActionParams
     ),
     log: [
       ...g.log,
-      { round: g.round, kind: 'action', text: `${p.name} применяет карту действия «${card.title ?? 'Действие'}»: ${card.description}` },
+      { round: g.round, kind: 'action', text: t('{who} применяет карту действия «{title}»: {desc}', { who: p.name, title: card.title ?? t('Действие'), desc: card.description }) },
     ],
   };
 }
@@ -148,7 +149,7 @@ export function startVote(g: GameState): GameState {
       votes: {},
       fx: undefined,
       lastResult: { eliminated: [], tally: Object.fromEntries(alive(g).map((p) => [p.id, 0])), tieBreak: false, noVote: true },
-      log: [...g.log, { round: g.round, text: 'Добровольцы закрыли квоту — голосования нет' }],
+      log: [...g.log, { round: g.round, text: t('Добровольцы закрыли квоту — голосования нет') }],
     };
   }
   return markImmune({ ...g, phase: 'vote', votes: {} });
@@ -190,7 +191,7 @@ export function resolveVote(g: GameState): GameState {
       phase: 'result',
       lastResult: { eliminated: [], tally, tieBreak: false, abstained, skipped: true },
       schedule: extend ? [...g.schedule, quota] : g.schedule,
-      log: [...g.log, { round: g.round, text: `Большинство воздержалось (${abstained} из ${living.length}) — никто не покидает игру` }],
+      log: [...g.log, { round: g.round, text: t('Большинство воздержалось ({abstained} из {total}) — никто не покидает игру', { abstained, total: living.length }) }],
     };
   }
   const rng = mulberry32(g.seed ^ (g.round * 2654435761));
@@ -209,7 +210,7 @@ export function resolveVote(g: GameState): GameState {
     phase: 'result',
     lastResult: result,
     players: g.players.map((p) => (eliminated.includes(p.id) ? { ...p, isEliminated: true } : p)),
-    log: [...g.log, { round: g.round, text: `Исключён(ы): ${names || 'никто'}${tieBreak ? ' (ничья решена жребием)' : ''}${abstained ? `; воздержались: ${abstained}` : ''}` }],
+    log: [...g.log, { round: g.round, text: t('Исключён(ы): {names}{tie}{abs}', { names: names || t('никто'), tie: tieBreak ? t(' (ничья решена жребием)') : '', abs: abstained ? t('; воздержались: {n}', { n: abstained }) : '' }) }],
   };
 }
 
@@ -269,13 +270,13 @@ export function applyEvent(g: GameState, def: (typeof EVENTS)[number]): GameStat
       const schedule = cur.schedule.slice();
       schedule[cur.round - 1] = (schedule[cur.round - 1] ?? 0) + 1;
       cur = { ...cur, config: { ...cur.config, shelterSlots: slots }, schedule };
-      outcome.push(`Мест в бункере: ${slots}. В этом раунде исключается: ${schedule[cur.round - 1]}.`);
+      outcome.push(t('Мест в бункере: {slots}. В этом раунде исключается: {n}.', { slots, n: schedule[cur.round - 1] }));
       break;
     }
     case 'plague': {
       const sick = living().filter((p) => p.slots.health.card.modifier === 'negative' && !p.slots.health.isRevealed);
       cur = { ...cur, players: cur.players.map((p) => (sick.some((s) => s.id === p.id) ? { ...p, slots: { ...p.slots, health: { ...p.slots.health, isRevealed: true } } } : p)) };
-      for (const p of sick) outcome.push(`${p.name} открывает здоровье: ${p.slots.health.card.description}`);
+      for (const p of sick) outcome.push(t('{who} открывает здоровье: {desc}', { who: p.name, desc: p.slots.health.card.description }));
       break;
     }
     case 'leak': {
@@ -286,7 +287,7 @@ export function applyEvent(g: GameState, def: (typeof EVENTS)[number]): GameStat
           const hidden = hiddenForLeak(p, cur);
           if (!hidden.length) return p;
           const cat = hidden[Math.floor(rng() * hidden.length)];
-          outcome.push(`${p.name} раскрывает «${categoryLabel(cat)}»: ${p.slots[cat].card.description}`);
+          outcome.push(t('{who} раскрывает «{cat}»: {desc}', { who: p.name, cat: categoryLabel(cat), desc: p.slots[cat].card.description }));
           return { ...p, slots: { ...p.slots, [cat]: { ...p.slots[cat], isRevealed: true } } };
         }),
       };
@@ -294,27 +295,27 @@ export function applyEvent(g: GameState, def: (typeof EVENTS)[number]): GameStat
     }
     case 'silence':
       cur = { ...cur, speechFactor: 0.5 };
-      outcome.push(`Время речи: ${Math.max(5, Math.round((cur.config.speechSec ?? 0) * 0.5))} с.`);
+      outcome.push(t('Время речи: {n} с.', { n: Math.max(5, Math.round((cur.config.speechSec ?? 0) * 0.5)) }));
       break;
     case 'newHazard': {
       const pool = unusedHazards(cur);
       const h = pool[Math.floor(rng() * pool.length)];
       cur = { ...cur, hazards: [...(cur.hazards ?? []), h] };
-      outcome.push(`Новая угроза: «${h.title}». ${h.description}`);
+      outcome.push(t('Новая угроза: «{title}». {desc}', { title: h.title, desc: h.description }));
       break;
     }
     case 'relief': {
       const rank = { minor: 0, major: 1, critical: 2 } as const;
       const target = (cur.hazards ?? []).filter((h) => h.severity !== 'critical').sort((a, b) => rank[a.severity] - rank[b.severity])[0];
       cur = { ...cur, hazards: (cur.hazards ?? []).filter((h) => h.id !== target.id) };
-      outcome.push(`Угроза снята: «${target.title}».`);
+      outcome.push(t('Угроза снята: «{title}».', { title: target.title }));
       break;
     }
     default:
       break;
   }
-  const event: ActiveEvent = { id: def.id, kind: def.kind, title: def.title, text: def.text, tone: def.tone, outcome };
-  return { ...cur, event, log: [...cur.log, { round: cur.round, text: `Событие «${def.title}»${outcome.length ? ': ' + outcome.join(' ') : ''}` }] };
+  const event: ActiveEvent = { id: def.id, kind: def.kind, title: t(def.title), text: t(def.text), tone: def.tone, outcome };
+  return { ...cur, event, log: [...cur.log, { round: cur.round, text: outcome.length ? t('Событие «{title}»: {outcome}', { title: event.title, outcome: outcome.join(' ') }) : t('Событие «{title}»', { title: event.title }) }] };
 }
 
 /** Игроки прочитали событие — начинаются вскрытия. */
@@ -332,8 +333,8 @@ export function volunteer(g: GameState, playerId: string): GameState {
     ...g,
     schedule,
     players: g.players.map((x) => (x.id === playerId ? { ...x, isEliminated: true } : x)),
-    event: { ...g.event, outcome: [...g.event.outcome, `${p.name} добровольно уходит из бункера.`] },
-    log: [...g.log, { round: g.round, text: `${p.name} вызвался добровольцем и покидает бункер` }],
+    event: { ...g.event, outcome: [...g.event.outcome, t('{who} добровольно уходит из бункера.', { who: p.name })] },
+    log: [...g.log, { round: g.round, text: t('{who} вызвался добровольцем и покидает бункер', { who: p.name }) }],
   };
   return alive(next).length <= next.config.shelterSlots ? { ...next, phase: 'final' } : next;
 }

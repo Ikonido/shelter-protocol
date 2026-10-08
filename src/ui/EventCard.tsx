@@ -36,13 +36,13 @@ export function EventCard({
         </span>
         <div className="min-w-0">
           <p className={`text-[10px] uppercase tracking-[.3em] ${tone.text}`}>{t('Событие раунда {n} · {label}', { n: round, label: t(tone.label) })}</p>
-          <h2 className="text-lg font-bold uppercase leading-tight tracking-wider">{event.title}</h2>
+          <h2 className="text-lg font-bold uppercase leading-tight tracking-wider">{t(event.title)}</h2>
         </div>
       </div>
-      <p className="text-sm leading-relaxed text-ink/90">{event.text}</p>
+      <p className="text-sm leading-relaxed text-ink/90">{t(event.text)}</p>
       {event.outcome.length > 0 && (
         <ul className="flex flex-col gap-1 rounded-md border border-edge bg-bg p-3 text-sm">
-          {event.outcome.map((o, i) => <li key={i} className={`${tone.text} before:mr-2 before:content-['▸']`}>{o}</li>)}
+          {event.outcome.map((o, i) => <li key={i} className={`${tone.text} before:mr-2 before:content-['▸']`}>{t(o)}</li>)}
         </ul>
       )}
       {event.kind === 'volunteer' && volunteers && volunteers.length > 0 && onVolunteer && (

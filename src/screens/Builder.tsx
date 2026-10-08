@@ -116,7 +116,7 @@ function StepHazards({ draft, setDraft, vocab, cards }: Ctx) {
           <section key={h.id} className="panel flex flex-col gap-3 p-3">
             <button className="flex items-center gap-2 text-left" onClick={() => setOpen(isOpen ? null : h.id)} aria-expanded={isOpen}>
               <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-widest ${SEVERITY.find((s) => s[0] === h.severity)![2]}`}>{t(SEVERITY.find((s) => s[0] === h.severity)![1])}</span>
-              <b className="min-w-0 flex-1 truncate">{h.title || t('Без названия')}</b>
+              <b className="min-w-0 flex-1 truncate">{h.title ? t(h.title) : t('Без названия')}</b>
               {!matching.length && <AlertTriangle size={16} className="text-danger" aria-label={t('Никто не снимет')} />}
               <ChevronDown size={16} className={`transition ${isOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -134,7 +134,7 @@ function StepHazards({ draft, setDraft, vocab, cards }: Ctx) {
                   <ChipPicker options={vocab} value={h.counters} max={L.hazardCounters} onChange={(v) => set(h.id, { counters: v })} />
                   <p className={`mt-2 text-xs ${matching.length ? 'text-ok' : 'text-danger'}`}>
                     {matching.length
-                      ? t('Снимут: {list}', { list: `${matching.slice(0, 5).map((c) => clip(cardLabel(c), 28)).join(', ')}${matching.length > 5 ? ` ${t('и ещё {n}', { n: matching.length - 5 })}` : ''}` })
+                      ? t('Снимут: {list}', { list: `${matching.slice(0, 5).map((c) => clip(t(cardLabel(c)), 28)).join(', ')}${matching.length > 5 ? ` ${t('и ещё {n}', { n: matching.length - 5 })}` : ''}` })
                       : t('Ни одна карта колоды не подходит — добавьте способность на шаге 4.')}
                   </p>
                 </div>
@@ -161,7 +161,7 @@ function StepHazards({ draft, setDraft, vocab, cards }: Ctx) {
           <div className="mt-3 flex flex-col gap-2">
             {fresh.map((tpl) => (
               <button key={tpl.title} className="rounded-md border border-edge p-2 text-left text-sm hover:border-amber" onClick={() => add(newHazard(tpl))}>
-                <b>{t(tpl.title)}</b> <span className="text-xs text-dim">{t('· {sev} · нейтрализует: {list}', { sev: t(SEVERITY.find((s) => s[0] === tpl.severity)![1]).toLowerCase(), list: tpl.counters.join(', ') })}</span>
+                <b>{t(tpl.title)}</b> <span className="text-xs text-dim">{t('· {sev} · нейтрализует: {list}', { sev: t(SEVERITY.find((s) => s[0] === tpl.severity)![1]).toLowerCase(), list: tpl.counters.map((c) => t(c)).join(', ') })}</span>
               </button>
             ))}
           </div>
@@ -194,7 +194,7 @@ function StepAbilities({
   const pool = useMemo(() => mergePools(preview)[cat].filter((c) => !removed.includes(c.id)), [preview, cat, removed]);
   const needed = useMemo(() => [...draft.requiredSkills, ...(draft.hazards ?? []).flatMap((h) => h.counters)], [draft]);
   const relevant = (c: Card) => needed.some((s) => cardsWithSkill([c], s).length > 0);
-  const rows = pool.filter((c) => (!onlyRelevant || relevant(c) || overrides[c.id] !== undefined || newCards.some((n) => n.id === c.id)) && (!q || cardLabel(c).toLowerCase().includes(q.toLowerCase())));
+  const rows = pool.filter((c) => (!onlyRelevant || relevant(c) || overrides[c.id] !== undefined || newCards.some((n) => n.id === c.id)) && (!q || matchesQuery(cardLabel(c), q)));
   const origin = (id: string) => base[cat].find((c) => c.id === id)?.tags ?? [];
 
   const setTags = (c: Card, tags: string[]) => {
@@ -238,9 +238,9 @@ function StepAbilities({
             <li key={c.id} className={`cat-${c.category} rounded-md border bg-bg ${isOpen ? 'border-[var(--c)]' : 'border-edge'}`}>
               <button className="flex w-full items-start gap-2 p-3 text-left" onClick={() => setOpenId(isOpen ? null : c.id)} aria-expanded={isOpen}>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm">{clip(cardLabel(c), 80)}</span>
+                  <span className="block text-sm">{clip(t(cardLabel(c)), 80)}</span>
                   <span className="mt-1 flex flex-wrap gap-1">
-                    {(c.tags ?? []).length ? (c.tags ?? []).map((tag) => <span key={tag} className={`chip !px-1.5 ${needed.some((n) => n.toLowerCase() === tag.toLowerCase()) ? '!border-ok !text-ok' : ''}`}>{tag}</span>) : <span className="text-[10px] text-dim">{t('нет способностей')}</span>}
+                    {(c.tags ?? []).length ? (c.tags ?? []).map((tag) => <span key={tag} className={`chip !px-1.5 ${needed.some((n) => n.toLowerCase() === tag.toLowerCase()) ? '!border-ok !text-ok' : ''}`}>{t(tag)}</span>) : <span className="text-[10px] text-dim">{t('нет способностей')}</span>}
                   </span>
                 </span>
                 {(changed || isMine(c.id)) && <span className="chip !border-amber !text-amber">{isMine(c.id) ? t('моя') : t('изменена')}</span>}
@@ -298,9 +298,9 @@ function StepReview({ draft, vocab, cards, preview, onSave, onDelete, editing, s
   return (
     <div className="flex flex-col gap-3">
       <section className="panel hud">
-        <h2 className="step-title">{draft.title || t('Без названия')}</h2>
-        <p className="text-sm text-ink/90">{draft.description || t('Описание не задано.')}</p>
-        <p className="mt-2 text-xs text-dim">{t('Срок: {dur} · мест: {slots} · навыков: {skills} · угроз: {threats}', { dur: draft.isolationDuration || '—', slots: draft.shelterSlots, skills: draft.requiredSkills.length, threats: draft.hazards?.length ?? 0 })}</p>
+        <h2 className="step-title">{draft.title ? t(draft.title) : t('Без названия')}</h2>
+        <p className="text-sm text-ink/90">{draft.description ? t(draft.description) : t('Описание не задано.')}</p>
+        <p className="mt-2 text-xs text-dim">{t('Срок: {dur} · мест: {slots} · навыков: {skills} · угроз: {threats}', { dur: draft.isolationDuration ? t(draft.isolationDuration) : '—', slots: draft.shelterSlots, skills: draft.requiredSkills.length, threats: draft.hazards?.length ?? 0 })}</p>
       </section>
 
       {errors.length === 0 && warns.length === 0 && (
@@ -308,7 +308,7 @@ function StepReview({ draft, vocab, cards, preview, onSave, onDelete, editing, s
       )}
       {[...errors, ...warns].map((p, i) => (
         <p key={i} className={`panel flex gap-2 text-sm ${p.level === 'error' ? 'border-danger/60 text-danger' : 'border-amber/50 text-amber'}`}>
-          <AlertTriangle size={16} className="mt-0.5 shrink-0" /> {p.text}
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" /> {t(p.text)}
         </p>
       ))}
 
@@ -318,7 +318,7 @@ function StepReview({ draft, vocab, cards, preview, onSave, onDelete, editing, s
           <ul className="flex flex-col gap-1 text-sm">
             {draft.requiredSkills.map((s) => {
               const m = cardsWithSkill(cards, s);
-              return <li key={s}><b className={m.length ? 'text-ok' : 'text-danger'}>{s}</b> <span className="text-xs text-dim">— {m.length ? t('{n} {cards}: {list}', { n: m.length, cards: plural(m.length, ['карта', 'карты', 'карт'], ['картка', 'картки', 'карток']), list: m.slice(0, 3).map((c) => clip(cardLabel(c), 22)).join(', ') }) : t('никто')}</span></li>;
+              return <li key={s}><b className={m.length ? 'text-ok' : 'text-danger'}>{t(s)}</b> <span className="text-xs text-dim">— {m.length ? t('{n} {cards}: {list}', { n: m.length, cards: plural(m.length, ['карта', 'карты', 'карт'], ['картка', 'картки', 'карток']), list: m.slice(0, 3).map((c) => clip(t(cardLabel(c)), 22)).join(', ') }) : t('никто')}</span></li>;
             })}
           </ul>
         </section>
@@ -335,6 +335,13 @@ function StepReview({ draft, vocab, cards, preview, onSave, onDelete, editing, s
 }
 
 /* ---------- Мастер ---------- */
+
+
+/** Поиск по тексту карты: и по исходному русскому, и по переводу, чтобы украинский запрос тоже находил карту. */
+const matchesQuery = (raw: string, q: string) => {
+  const needle = q.toLowerCase();
+  return raw.toLowerCase().includes(needle) || t(raw).toLowerCase().includes(needle);
+};
 
 export default function Builder({ scenarioId }: { scenarioId?: string }) {
   const { allPacks, builtinPacks, customPacks, upsertPack, go, notify } = useStore();

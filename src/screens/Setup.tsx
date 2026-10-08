@@ -130,11 +130,11 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
             <label key={p.id} className="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border border-edge p-2">
               <input type="checkbox" className="mt-1 size-4 accent-amber" checked={packIds.includes(p.id)} onChange={() => toggle(p.id)} />
               <span className="text-sm">
-                <b>{p.name}</b>
+                <b>{t(p.name)}</b>
                 {p.adult && <span className="ml-2 rounded border border-danger px-1 text-[10px] font-bold text-danger">18+</span>}
                 {p.isCustom && <span className="ml-2 text-xs text-amber">{t('[свой]')}</span>}
                 <span className="ml-2 text-[10px] uppercase tracking-widest text-dim">{p.scenarios.length} {t('сцен.')}</span>
-                <br /><span className="text-xs text-dim">{p.description}</span>
+                <br /><span className="text-xs text-dim">{t(p.description)}</span>
               </span>
             </label>
           ))}
@@ -146,13 +146,13 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
         <h2 className="step-title">{t('2 · Сценарий катастрофы')}</h2>
         <select className="input" value={scenarioId} onChange={(e) => setScenarioId(e.target.value)}>
           <option value="random">🎲 {t('Случайный')}</option>
-          {scenarios.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
+          {scenarios.map((s) => <option key={s.id} value={s.id}>{t(s.title)}</option>)}
         </select>
         {scenario ? (
           <div className="mt-3 text-sm">
-            <p className="text-ink/90">{scenario.description}</p>
+            <p className="text-ink/90">{t(scenario.description)}</p>
             <p className="mt-2 text-xs text-dim">
-              {t('Изоляция: {iso} · Нужны: {skills}', { iso: scenario.isolationDuration || '—', skills: scenario.requiredSkills.join(', ') || '—' })}
+              {t('Изоляция: {iso} · Нужны: {skills}', { iso: scenario.isolationDuration ? t(scenario.isolationDuration) : '—', skills: scenario.requiredSkills.map((s) => t(s)).join(', ') || '—' })}
             </p>
           </div>
         ) : (
@@ -231,14 +231,14 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
                 className={`flex flex-col items-center gap-1 rounded-lg border p-3 text-center transition active:scale-[.98] ${on ? `${tone.border} ${tone.bg}` : 'border-edge bg-bg hover:border-edge-hi'}`}
               >
                 <Icon size={22} className={tone.text} />
-                <span className={`text-sm font-bold uppercase tracking-wider ${on ? tone.text : ''}`}>{DIFFICULTIES[d].label}</span>
+                <span className={`text-sm font-bold uppercase tracking-wider ${on ? tone.text : ''}`}>{t(DIFFICULTIES[d].label)}</span>
               </button>
             );
           })}
         </div>
-        <p className="mt-3 text-sm text-ink/90">{DIFFICULTIES[difficulty].tagline}</p>
+        <p className="mt-3 text-sm text-ink/90">{t(DIFFICULTIES[difficulty].tagline)}</p>
         <ul className="mt-1 list-disc pl-5 text-xs text-dim">
-          {DIFFICULTIES[difficulty].details.map((t) => <li key={t}>{t}</li>)}
+          {DIFFICULTIES[difficulty].details.map((line) => <li key={line}>{t(line)}</li>)}
         </ul>
       </section>
 

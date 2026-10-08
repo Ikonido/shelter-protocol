@@ -94,11 +94,11 @@ export default function Game() {
       {game.config.mode !== 'tabletop' && game.phase !== 'final' && <SkillsStrip scenario={game.scenario} />}
 
       {showBrief && (
-        <Modal title={game.scenario.title} onClose={() => setShowBrief(false)}>
-          <p className="text-sm">{game.scenario.description}</p>
-          <p className="mt-3 text-xs text-dim">{t('Изоляция: {duration}', { duration: game.scenario.isolationDuration })}</p>
-          <p className="mt-1 text-xs text-dim">{t('Нужны: {list}', { list: game.scenario.requiredSkills.join(', ') })}</p>
-          <p className="mt-1 text-xs text-danger/80">{t('Угрозы: {list}', { list: game.scenario.threats.join('; ') })}</p>
+        <Modal title={t(game.scenario.title)} onClose={() => setShowBrief(false)}>
+          <p className="text-sm">{t(game.scenario.description)}</p>
+          <p className="mt-3 text-xs text-dim">{t('Изоляция: {duration}', { duration: t(game.scenario.isolationDuration) })}</p>
+          <p className="mt-1 text-xs text-dim">{t('Нужны: {list}', { list: game.scenario.requiredSkills.map((s) => t(s)).join(', ') })}</p>
+          <p className="mt-1 text-xs text-danger/80">{t('Угрозы: {list}', { list: game.scenario.threats.map((s) => t(s)).join('; ') })}</p>
         </Modal>
       )}
 
@@ -279,7 +279,7 @@ function ActionsPanel({ game, update }: { game: GameState; update: Update }) {
   const lastAction = [...game.log].reverse().find((l) => l.round === game.round && l.kind === 'action');
   return (
     <>
-      {lastAction && <p className="panel border-[#e879f9]/60 text-sm" role="status"><Zap size={14} className="mr-1 inline text-[#e879f9]" />{lastAction.text}</p>}
+      {lastAction && <p className="panel border-[#e879f9]/60 text-sm" role="status"><Zap size={14} className="mr-1 inline text-[#e879f9]" />{t(lastAction.text)}</p>}
       <details className="panel p-3" open>
         <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">{t('Карты действий и своё досье')}</summary>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -302,7 +302,7 @@ function ActionsPanel({ game, update }: { game: GameState; update: Update }) {
                 game={game}
                 actorId={actorP.id}
                 effect={autoEffect}
-                title={actorP.slots.action.card.title ?? t('Действие')}
+                title={t(actorP.slots.action.card.title ?? 'Действие')}
                 onCancel={() => setPicking(false)}
                 onConfirm={(params) => { update((g) => applyAction(g, actorP.id, params)); setPicking(false); setActor(null); }}
               />

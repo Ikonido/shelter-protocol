@@ -42,9 +42,9 @@ export function ChipPicker({
             type="button"
             onClick={() => onChange(value.filter((v) => v !== s))}
             className="inline-flex items-center gap-1 rounded-full border border-amber bg-amber/15 py-1 pl-3 pr-2 text-xs text-amber active:scale-95"
-            aria-label={t('Убрать «{s}»', { s })}
+            aria-label={t('Убрать «{s}»', { s: t(s) })}
           >
-            {s}
+            {t(s)}
             <span className={`rounded-full px-1.5 text-[10px] ${count(s) ? 'bg-bg text-ok' : 'bg-danger/20 text-danger'}`}>{count(s)}</span>
             <X size={12} />
           </button>
@@ -54,7 +54,7 @@ export function ChipPicker({
         <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto rounded-md border border-edge bg-bg p-2" aria-label={t('Доступные навыки')}>
           {free.map((o) => (
             <button key={o.skill} type="button" onClick={() => add(o.skill)} className="inline-flex items-center gap-1 rounded-full border border-edge px-3 py-1 text-xs text-ink hover:border-amber active:scale-95">
-              {o.skill}
+              {t(o.skill)}
               <span className={`text-[10px] ${o.count ? 'text-dim' : 'text-danger'}`}>{o.count}</span>
             </button>
           ))}

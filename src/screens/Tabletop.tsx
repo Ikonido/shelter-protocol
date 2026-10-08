@@ -20,7 +20,10 @@ export default function Tabletop({ game }: { game: GameState }) {
 
   const copyCard = (id: string) => {
     const p = game.players.find((x) => x.id === id)!;
-    const text = `${p.name}\n` + CATEGORIES.map((c) => `${categoryLabel(c)}: ${p.slots[c].card.title ? p.slots[c].card.title + '. ' : ''}${p.slots[c].card.description}`).join('\n');
+    const text = `${p.name}\n` + CATEGORIES.map((c) => {
+      const card = p.slots[c].card;
+      return `${categoryLabel(c)}: ${card.title ? t(card.title) + '. ' : ''}${t(card.description)}`;
+    }).join('\n');
     copyText(text).then((ok) => notify(ok ? t('Карточка скопирована') : t('Не удалось скопировать')));
   };
 

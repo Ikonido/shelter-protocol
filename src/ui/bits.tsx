@@ -79,8 +79,8 @@ export function CardFace({
         <span className="text-sm tracking-[.3em] text-dim">▓▓▓▓▓▓▓▓</span>
       ) : (
         <span className="text-sm leading-snug text-ink">
-          {card.title && <b className="mr-1 text-[var(--c)]">{card.title}.</b>}
-          {card.description}
+          {card.title && <b className="mr-1 text-[var(--c)]">{t(card.title)}.</b>}
+          {t(card.description)}
         </span>
       )}
       {extra}

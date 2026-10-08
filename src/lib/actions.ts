@@ -2,6 +2,7 @@ import { CATEGORIES, categoryLabel, type ActionEffect, type ActionFx, type Card,
 import { cardMatchesSkill } from './evaluate';
 import { mergePools } from './generator';
 import { mulberry32, shuffle } from './rng';
+import { t } from './i18n';
 
 /**
  * Автоисполнение карт действий. Модуль не зависит от game.ts (там он подключается), чтобы не было циклов.
@@ -23,8 +24,9 @@ const living = (g: GameState) => g.players.filter((p) => !p.isEliminated);
 const find = (g: GameState, id?: string) => g.players.find((p) => p.id === id);
 const rank = (c: Card) => (c.modifier === 'positive' ? 2 : c.modifier === 'negative' ? 0 : 1) + (c.tags?.length ? 0.5 : 0);
 
-const LOST: Card = { id: 'lost-luggage', category: 'luggage', description: 'Багаж потерян: пусто', modifier: 'negative' };
-const STOLEN: Card = { id: 'stolen-luggage', category: 'luggage', description: 'Багаж украден: пусто', modifier: 'negative' };
+// Карты-заглушки создаются при каждом применении: описание переводится в момент события.
+const lostCard = (): Card => ({ id: 'lost-luggage', category: 'luggage', description: t('Багаж потерян: пусто'), modifier: 'negative' });
+const stolenCard = (): Card => ({ id: 'stolen-luggage', category: 'luggage', description: t('Багаж украден: пусто'), modifier: 'negative' });
 
 /** Сосед по кругу среди живых: -1 предыдущий, +1 следующий. */
 function neighbor(g: GameState, actorId: string, dir: -1 | 1): PlayerCharacter | undefined {
@@ -67,12 +69,12 @@ const emptyFx = (): ActionFx => ({ double: [], veto: [], immune: [], allies: [] 
 /** Можно ли применить эффект сейчас; причина нужна, чтобы показать её игроку. */
 export function canApply(g: GameState, actorId: string, effect: ActionEffect, params: ActionParams = {}): { ok: true } | { ok: false; reason: string } {
   const actor = find(g, actorId);
-  if (!actor || actor.isEliminated) return { ok: false, reason: 'Игрок выбыл' };
-  if (actor.slots.action.isRevealed) return { ok: false, reason: 'Действие уже использовано' };
+  if (!actor || actor.isEliminated) return { ok: false, reason: t('Игрок выбыл') };
+  if (actor.slots.action.isRevealed) return { ok: false, reason: t('Действие уже использовано') };
   const fail = (reason: string) => ({ ok: false as const, reason });
   const target = find(g, params.target);
   if (needsTarget(effect)) {
-    if (!target || target.isEliminated || target.id === actorId) return fail('Выберите другого живого игрока');
+    if (!target || target.isEliminated || target.id === actorId) return fail(t('Выберите другого живого игрока'));
   }
   // В «виде» онлайн-клиента нет ни колоды, ни чужих карт: такие проверки пропускаем, их повторяет хост.
   const full = g.deck !== undefined;
@@ -80,32 +82,32 @@ export function canApply(g: GameState, actorId: string, effect: ActionEffect, pa
   switch (effect) {
     case 'drawLuggage':
     case 'giveLuggage':
-      return hasDeck('luggage') ? { ok: true } : fail('В колоде не осталось карт багажа');
+      return hasDeck('luggage') ? { ok: true } : fail(t('В колоде не осталось карт багажа'));
     case 'rerollHobby':
-      return hasDeck('hobby') ? { ok: true } : fail('В колоде не осталось карт хобби');
+      return hasDeck('hobby') ? { ok: true } : fail(t('В колоде не осталось карт хобби'));
     case 'rerollPrevPhysique':
     case 'rerollNextPhysique':
-      if (living(g).length < 2) return fail('Нужен хотя бы один сосед');
-      return hasDeck('physique') ? { ok: true } : fail('В колоде не осталось телосложений');
+      if (living(g).length < 2) return fail(t('Нужен хотя бы один сосед'));
+      return hasDeck('physique') ? { ok: true } : fail(t('В колоде не осталось телосложений'));
     case 'rerollPrevBiology':
-      if (living(g).length < 2) return fail('Нужен хотя бы один сосед');
-      return hasDeck('biology') ? { ok: true } : fail('В колоде не осталось карт биологии');
+      if (living(g).length < 2) return fail(t('Нужен хотя бы один сосед'));
+      return hasDeck('biology') ? { ok: true } : fail(t('В колоде не осталось карт биологии'));
     case 'swapNeighborsPhysique':
     case 'swapNeighborsBiology':
-      return living(g).length >= 3 ? { ok: true } : fail('Для обмена нужно хотя бы три живых игрока');
+      return living(g).length >= 3 ? { ok: true } : fail(t('Для обмена нужно хотя бы три живых игрока'));
     case 'forceReveal': {
-      if (!target) return fail('Выберите игрока');
+      if (!target) return fail(t('Выберите игрока'));
       const hidden = CATEGORIES.filter((c) => c !== 'action' && !target.slots[c].isRevealed);
-      if (!params.category || !hidden.includes(params.category)) return hidden.length ? fail('Выберите скрытую карту игрока') : fail('У игрока всё уже открыто');
+      if (!params.category || !hidden.includes(params.category)) return hidden.length ? fail(t('Выберите скрытую карту игрока')) : fail(t('У игрока всё уже открыто'));
       return { ok: true };
     }
     case 'heal': {
-      if (actor.slots.health.card.modifier !== 'negative') return fail('У вас нет проблем со здоровьем');
+      if (actor.slots.health.card.modifier !== 'negative') return fail(t('У вас нет проблем со здоровьем'));
       const doctor = !full || living(g).some((p) => p.id !== actorId && (['profession', 'biology', 'hobby', 'fact', 'luggage'] as const).some((c) => HEALING.some((s) => cardMatchesSkill(p.slots[c].card, s))));
-      return doctor ? { ok: true } : fail('Среди живых нет врача или лекаря');
+      return doctor ? { ok: true } : fail(t('Среди живых нет врача или лекаря'));
     }
     case 'ally':
-      return g.fx?.allies.some(([a]) => a === actorId) ? fail('Союзник уже выбран') : { ok: true };
+      return g.fx?.allies.some(([a]) => a === actorId) ? fail(t('Союзник уже выбран')) : { ok: true };
     default:
       return { ok: true };
   }
@@ -116,8 +118,8 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
   if (!canApply(g, actorId, effect, params).ok) return g;
   const actor = find(g, actorId)!;
   const target = find(g, params.target);
-  const title = actor.slots.action.card.title ?? 'Действие';
-  const head = `${actor.name} применяет «${title}»`;
+  const title = actor.slots.action.card.title ?? t('Действие');
+  const vars = { who: actor.name, title };
   let n = used(g, actorId);
 
   const reroll = (victim: PlayerCharacter, cat: 'physique' | 'biology'): GameState => {
@@ -126,7 +128,10 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
     const old = victim.slots[cat];
     let next = withSlot(d.g, victim.id, cat, { card: d.card, isRevealed: old.isRevealed });
     next = toDiscard(next, cat, old.card);
-    return say(next, `${head}: у ${victim.name} новая карта «${categoryLabel(cat)}»${old.isRevealed ? `: ${d.card.description}` : ''}`);
+    const msg = old.isRevealed
+      ? t('{who} применяет «{title}»: у {victim} новая карта «{cat}»: {desc}', { ...vars, victim: victim.name, cat: categoryLabel(cat), desc: d.card.description })
+      : t('{who} применяет «{title}»: у {victim} новая карта «{cat}»', { ...vars, victim: victim.name, cat: categoryLabel(cat) });
+    return say(next, msg);
   };
 
   switch (effect) {
@@ -141,40 +146,40 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
         next = toDiscard(next, 'luggage', old.card);
       } else next = toDiscard(next, 'luggage', d.card);
       // Журнал видят все: исход (оставил ли новую) не раскрываем, пока багаж закрыт.
-      return say(next, `${head}: тянет ещё один багаж и оставляет лучший`);
+      return say(next, t('{who} применяет «{title}»: тянет ещё один багаж и оставляет лучший', vars));
     }
     case 'stealLuggage': {
-      const t = target!;
-      let next = withSlot(n, actorId, 'luggage', { card: t.slots.luggage.card, isRevealed: t.slots.luggage.isRevealed });
-      next = withSlot(next, t.id, 'luggage', { card: STOLEN, isRevealed: true });
+      const tg = target!;
+      let next = withSlot(n, actorId, 'luggage', { card: tg.slots.luggage.card, isRevealed: tg.slots.luggage.isRevealed });
+      next = withSlot(next, tg.id, 'luggage', { card: stolenCard(), isRevealed: true });
       next = toDiscard(next, 'luggage', actor.slots.luggage.card);
-      return say(next, `${head}: крадёт багаж у ${t.name}`);
+      return say(next, t('{who} применяет «{title}»: крадёт багаж у {victim}', { ...vars, victim: tg.name }));
     }
     case 'giveLuggage': {
-      const t = target!;
+      const tg = target!;
       const d = draw(n, 'luggage');
       if (!d) return g;
-      let next = withSlot(d.g, t.id, 'luggage', { card: d.card, isRevealed: t.slots.luggage.isRevealed });
-      next = toDiscard(next, 'luggage', t.slots.luggage.card);
-      return say(next, `${head}: у ${t.name} теперь другой багаж`);
+      let next = withSlot(d.g, tg.id, 'luggage', { card: d.card, isRevealed: tg.slots.luggage.isRevealed });
+      next = toDiscard(next, 'luggage', tg.slots.luggage.card);
+      return say(next, t('{who} применяет «{title}»: у {victim} теперь другой багаж', { ...vars, victim: tg.name }));
     }
     case 'swapLuggage': {
-      const t = target!;
-      let next = withSlot(n, actorId, 'luggage', t.slots.luggage);
-      next = withSlot(next, t.id, 'luggage', actor.slots.luggage);
-      return say(next, `${head}: меняется багажом с ${t.name}`);
+      const tg = target!;
+      let next = withSlot(n, actorId, 'luggage', tg.slots.luggage);
+      next = withSlot(next, tg.id, 'luggage', actor.slots.luggage);
+      return say(next, t('{who} применяет «{title}»: меняется багажом с {victim}', { ...vars, victim: tg.name }));
     }
     case 'sabotage': {
-      const t = target!;
-      let next = withSlot(n, t.id, 'luggage', { card: LOST, isRevealed: true });
-      next = toDiscard(next, 'luggage', t.slots.luggage.card);
-      return say(next, `${head}: багаж ${t.name} потерян`);
+      const tg = target!;
+      let next = withSlot(n, tg.id, 'luggage', { card: lostCard(), isRevealed: true });
+      next = toDiscard(next, 'luggage', tg.slots.luggage.card);
+      return say(next, t('{who} применяет «{title}»: багаж {victim} потерян', { ...vars, victim: tg.name }));
     }
     case 'forceReveal': {
-      const t = target!;
+      const tg = target!;
       const cat = params.category!;
-      const next = withSlot(n, t.id, cat, { card: t.slots[cat].card, isRevealed: true });
-      return say(next, `${head}: ${t.name} вынужден открыть «${categoryLabel(cat)}»: ${t.slots[cat].card.description}`);
+      const next = withSlot(n, tg.id, cat, { card: tg.slots[cat].card, isRevealed: true });
+      return say(next, t('{who} применяет «{title}»: {victim} вынужден открыть «{cat}»: {desc}', { ...vars, victim: tg.name, cat: categoryLabel(cat), desc: tg.slots[cat].card.description }));
     }
     case 'rerollPrevPhysique':
       return reroll(neighbor(g, actorId, -1)!, 'physique');
@@ -189,32 +194,35 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
       const b = neighbor(g, actorId, 1)!;
       let next = withSlot(n, a.id, cat, b.slots[cat]);
       next = withSlot(next, b.id, cat, a.slots[cat]);
-      return say(next, `${head}: ${a.name} и ${b.name} меняются картами «${categoryLabel(cat)}»`);
+      return say(next, t('{who} применяет «{title}»: {a} и {b} меняются картами «{cat}»', { ...vars, a: a.name, b: b.name, cat: categoryLabel(cat) }));
     }
     case 'rerollHobby': {
       const d = draw(n, 'hobby');
       if (!d) return g;
       let next = withSlot(d.g, actorId, 'hobby', { card: d.card, isRevealed: actor.slots.hobby.isRevealed });
       next = toDiscard(next, 'hobby', actor.slots.hobby.card);
-      return say(next, `${head}: меняет хобби`);
+      return say(next, t('{who} применяет «{title}»: меняет хобби', vars));
     }
     case 'heal': {
       const h = actor.slots.health;
-      const next = withSlot(n, actorId, 'health', { card: { ...h.card, modifier: 'neutral', description: `${h.card.description} (вылечен)` }, isRevealed: h.isRevealed });
-      return say(next, `${head}: его вылечили`);
+      const next = withSlot(n, actorId, 'health', { card: { ...h.card, modifier: 'neutral', description: t('{desc} (вылечен)', { desc: h.card.description }) }, isRevealed: h.isRevealed });
+      return say(next, t('{who} применяет «{title}»: его вылечили', vars));
     }
     case 'veto':
-      return say({ ...n, fx: { ...(n.fx ?? emptyFx()), veto: [...(n.fx?.veto ?? []), actorId] } }, `${head}: один голос против него будет отменён`);
+      return say({ ...n, fx: { ...(n.fx ?? emptyFx()), veto: [...(n.fx?.veto ?? []), actorId] } }, t('{who} применяет «{title}»: один голос против него будет отменён', vars));
     case 'doubleVote':
-      return say({ ...n, fx: { ...(n.fx ?? emptyFx()), double: [...(n.fx?.double ?? []), actorId] } }, `${head}: его голос считается за два`);
+      return say({ ...n, fx: { ...(n.fx ?? emptyFx()), double: [...(n.fx?.double ?? []), actorId] } }, t('{who} применяет «{title}»: его голос считается за два', vars));
     case 'immunity': {
       const next: GameState = { ...n, fx: { ...(n.fx ?? emptyFx()), immune: [...(n.fx?.immune ?? []), actorId] } };
       // Во время голосования отметка сразу закрывает ему голос.
-      return say(next.phase === 'vote' ? { ...next, votes: { ...next.votes, [actorId]: IMMUNE_VOTE } } : next, `${head}: на этот раунд он неприкосновенен, но не голосует`);
+      return say(
+        next.phase === 'vote' ? { ...next, votes: { ...next.votes, [actorId]: IMMUNE_VOTE } } : next,
+        t('{who} применяет «{title}»: на этот раунд он неприкосновенен, но не голосует', vars),
+      );
     }
     case 'ally':
       // Имя союзника в журнал не пишем: союз тайный.
-      return say({ ...n, fx: { ...(n.fx ?? emptyFx()), allies: [...(n.fx?.allies ?? []), [actorId, target!.id]] } }, `${head}: заключает тайный союз`);
+      return say({ ...n, fx: { ...(n.fx ?? emptyFx()), allies: [...(n.fx?.allies ?? []), [actorId, target!.id]] } }, t('{who} применяет «{title}»: заключает тайный союз', vars));
   }
 }
 

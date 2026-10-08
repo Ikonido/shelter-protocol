@@ -72,7 +72,7 @@ export default function Editor({ packId }: { packId: string }) {
     <div className="mx-auto flex max-w-3xl flex-col gap-4 py-4">
       <div className="flex flex-wrap items-center gap-2">
         <button className="btn btn-sm" onClick={() => go({ name: 'packs' })}><ArrowLeft size={16} /> {t('Паки')}</button>
-        <h1 className="truncate text-sm font-bold text-amber">{pack.name}</h1>
+        <h1 className="truncate text-sm font-bold text-amber">{t(pack.name)}</h1>
         <div className="ml-auto flex gap-2">
           <button className="btn btn-sm" onClick={() => exportPackFile(pack)}><Download size={14} /> JSON</button>
           <button className="btn btn-sm" onClick={async () => { const u = shareUrl(pack); notify(!u ? t('Пак слишком большой для ссылки — используйте JSON-файл') : (await copyText(u)) ? t('Ссылка скопирована') : t('Не удалось скопировать')); }}><Link2 size={14} /> {t('Ссылка')}</button>
@@ -131,7 +131,7 @@ export default function Editor({ packId }: { packId: string }) {
               </div>
             </div>
           ))}
-          <button className="btn" disabled={pack.scenarios.length >= L.scenarios} onClick={() => save({ ...pack, scenarios: [...pack.scenarios, { id: uid('sc'), title: t('Новая катастрофа'), description: '', shelterSlots: 4, isolationDuration: '1 год', requiredSkills: [], threats: [] }] })}><Plus size={16} /> {t('Добавить сценарий ({n}/{max})', { n: pack.scenarios.length, max: L.scenarios })}</button>
+          <button className="btn" disabled={pack.scenarios.length >= L.scenarios} onClick={() => save({ ...pack, scenarios: [...pack.scenarios, { id: uid('sc'), title: 'Новая катастрофа', description: '', shelterSlots: 4, isolationDuration: '1 год', requiredSkills: [], threats: [] }] })}><Plus size={16} /> {t('Добавить сценарий ({n}/{max})', { n: pack.scenarios.length, max: L.scenarios })}</button>
         </div>
       )}
 

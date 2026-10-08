@@ -1,6 +1,7 @@
 import type { Card, CardPack, Hazard, Scenario } from '../types';
 import { CATEGORIES } from '../types';
 import { uid } from './rng';
+import { t } from './i18n';
 
 /** Пак, в который конструктор складывает сценарии, свои карты и «переобученные» способности. */
 export const MY_PACK_ID = 'my-scenarios';
@@ -8,8 +9,8 @@ export const MY_PACK_ID = 'my-scenarios';
 export function emptyMyPack(): CardPack {
   return {
     id: MY_PACK_ID,
-    name: 'Мои сценарии',
-    description: 'Сценарии, карты и способности, созданные в конструкторе.',
+    name: t('Мои сценарии'),
+    description: t('Сценарии, карты и способности, созданные в конструкторе.'),
     isCustom: true,
     scenarios: [],
     cards: Object.fromEntries(CATEGORIES.map((c) => [c, []])) as unknown as CardPack['cards'],
