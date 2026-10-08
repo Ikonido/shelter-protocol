@@ -133,3 +133,31 @@ function parse(when: string): number {
   const m = /(\d+) месяц/.exec(when);
   return (y ? Number(y[1]) * 12 : 0) + (m ? Number(m[1]) : 0);
 }
+
+describe('isolation duration in both languages', () => {
+  it('reads Russian and Ukrainian units the same way', async () => {
+    const { isolationDays } = await import('./chronicle');
+    expect(isolationDays('2 года')).toBe(isolationDays('2 роки'));
+    expect(isolationDays('6 месяцев')).toBe(isolationDays('6 місяців'));
+    expect(isolationDays('10 дней')).toBe(isolationDays('10 днів'));
+    expect(isolationDays('2 недели')).toBe(isolationDays('2 тижні'));
+    expect(isolationDays('3 года')).toBe(isolationDays('3 роки'));
+  });
+});
+
+describe('chronicle in Ukrainian', () => {
+  it('builds without leftover placeholders and keeps the player names', async () => {
+    const { updateSettings } = await import('./settings');
+    updateSettings({ lang: 'uk' });
+    try {
+      const g = endedGame(3, [['дератизация'], [], []], [rats, pirates]);
+      const c = buildChronicle(g);
+      const text = c.entries.map((e) => `${e.stamp} ${e.text}`).join('\n');
+      expect(text).not.toMatch(/\{\w+\}/);
+      expect(text).toMatch(/[іїєґ]/);
+      expect(c.entries.find((e) => e.id === `hz-${rats.id}`)!.text).toContain('П1');
+    } finally {
+      updateSettings({ lang: 'ru' });
+    }
+  });
+});

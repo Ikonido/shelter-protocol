@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { t } from '../lib/i18n';
 
 const KEY = 'shelter:tourDone';
 export const tourSeen = () => {
@@ -18,6 +19,7 @@ export const markTourSeen = () => {
   }
 };
 
+// Тексты хранятся как русские ключи и переводятся через t() при рендере (см. Onboarding ниже).
 export const TOUR: { title: string; text: string; points?: string[] }[] = [
   { title: 'Мест на всех не хватит', text: 'Случилась катастрофа, и бункер вмещает не всех. Вы вместе решаете, кто войдёт внутрь, а кто останется снаружи. Убежище должно пережить изоляцию.' },
   {
@@ -60,24 +62,24 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
     onClose();
   };
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Обучение" onClick={close}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={t('Обучение')} onClick={close}>
       <div className="flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-t-lg border border-edge bg-panel p-4 sm:rounded-lg" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <span className="chip">{i + 1} из {TOUR.length}</span>
-          <button className="btn btn-sm" onClick={close} aria-label="Пропустить обучение"><X size={14} /> Пропустить</button>
+          <span className="chip">{t('{i} из {n}', { i: i + 1, n: TOUR.length })}</span>
+          <button className="btn btn-sm" onClick={close} aria-label={t('Пропустить обучение')}><X size={14} /> {t('Пропустить')}</button>
         </div>
-        <h2 className="text-lg font-bold uppercase tracking-wider text-amber">{step.title}</h2>
-        <p className="text-sm leading-relaxed">{step.text}</p>
-        {step.points && <ul className="flex flex-col gap-1 text-sm text-dim">{step.points.map((p) => <li key={p}>• {p}</li>)}</ul>}
+        <h2 className="text-lg font-bold uppercase tracking-wider text-amber">{t(step.title)}</h2>
+        <p className="text-sm leading-relaxed">{t(step.text)}</p>
+        {step.points && <ul className="flex flex-col gap-1 text-sm text-dim">{step.points.map((p) => <li key={p}>• {t(p)}</li>)}</ul>}
         <div className="flex justify-center gap-1.5" aria-hidden>
           {TOUR.map((_, k) => <span key={k} className={`h-1.5 w-6 rounded ${k === i ? 'bg-amber' : 'bg-edge'}`} />)}
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <button className="btn" disabled={i === 0} onClick={() => setI(i - 1)}><ChevronLeft size={16} /> Назад</button>
+          <button className="btn" disabled={i === 0} onClick={() => setI(i - 1)}><ChevronLeft size={16} /> {t('Назад')}</button>
           {last ? (
-            <button className="btn btn-primary" onClick={close}>Понятно, играем</button>
+            <button className="btn btn-primary" onClick={close}>{t('Понятно, играем')}</button>
           ) : (
-            <button className="btn btn-primary" onClick={() => setI(i + 1)}>Дальше <ChevronRight size={16} /></button>
+            <button className="btn btn-primary" onClick={() => setI(i + 1)}>{t('Дальше')} <ChevronRight size={16} /></button>
           )}
         </div>
       </div>

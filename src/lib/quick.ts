@@ -2,6 +2,7 @@ import type { CardPack, Difficulty, GameState, SessionConfig, VotingMode } from 
 import { DIFFICULTIES } from './difficulty';
 import { clampConfig, createGame } from './game';
 import { newSeed } from './rng';
+import { t } from './i18n';
 
 /** Что запоминается между партиями: настройки и имена игроков (только на этом устройстве). */
 export interface LastSetup {
@@ -102,7 +103,7 @@ export function buildQuickGame(allPacks: CardPack[], last: LastSetup | null): Ga
     roundEvents: last?.roundEvents ?? false,
     autoActions: last?.autoActions ?? false,
     timeLimitMin: last?.timeLimitMin ?? rules.timeLimitMin,
-    names: Array.from({ length: base.n }, (_, i) => last?.names[i]?.trim() || `Игрок ${i + 1}`),
+    names: Array.from({ length: base.n }, (_, i) => last?.names[i]?.trim() || t('Игрок {n}', { n: i + 1 })),
     seed: newSeed(),
   };
   return createGame(config, chosen, packs);

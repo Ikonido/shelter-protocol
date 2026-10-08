@@ -1,6 +1,7 @@
 import LZString from 'lz-string';
 import { ACTION_EFFECTS, CATEGORIES, type ActionEffect, type Card, type CardPack, type Category, type EventKind, type Hazard, type Modifier, type Scenario, type ScenarioEvent, type Severity } from '../types';
 import { uid } from './rng';
+import { t } from './i18n';
 import { LIMITS as L } from './limits';
 
 
@@ -124,7 +125,7 @@ function cleanOverrides(_cards: unknown, raw: unknown): { tagOverrides?: Record<
 export function emptyPack(): CardPack {
   return {
     id: uid('pack'),
-    name: 'Новый пак',
+    name: t('Новый пак'),
     description: '',
     isCustom: true,
     scenarios: [],
@@ -132,7 +133,7 @@ export function emptyPack(): CardPack {
   };
 }
 
-export function clonePack(pack: CardPack, name = `${pack.name} (копия)`): CardPack {
+export function clonePack(pack: CardPack, name = t('{name} (копия)', { name: pack.name })): CardPack {
   return { ...(JSON.parse(JSON.stringify(pack)) as CardPack), id: uid('pack'), name, isCustom: true };
 }
 
@@ -227,12 +228,12 @@ export async function importPackFile(): Promise<CardPack | null> {
     });
   }
   if (!file) return null;
-  if (file.size > MAX_FILE_BYTES) throw new Error('Файл слишком большой (>500 КБ)');
+  if (file.size > MAX_FILE_BYTES) throw new Error(t('Файл слишком большой (>500 КБ)'));
   try {
     const pack = sanitizePack(JSON.parse(await file.text()));
     if (!pack) throw new Error();
     return pack;
   } catch {
-    throw new Error('Не удалось прочитать пак: неверный формат JSON');
+    throw new Error(t('Не удалось прочитать пак: неверный формат JSON'));
   }
 }

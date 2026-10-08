@@ -1,3 +1,6 @@
+import { t } from './i18n';
+import { getSettings } from './settings';
+
 export interface AppVersion {
   id: string;
   builtAt: string;
@@ -23,21 +26,21 @@ export async function checkForUpdate(
   current: AppVersion = APP_VERSION,
   base: string = typeof document !== 'undefined' ? document.baseURI : 'http://localhost/',
 ): Promise<UpdateResult> {
-  if (current.id === 'dev') return { status: 'error', reason: 'Режим разработки: версии не сравниваются' };
+  if (current.id === 'dev') return { status: 'error', reason: t('Режим разработки: версии не сравниваются') };
   let res: Response;
   try {
     res = await fetchImpl(new URL(`version.json?t=${Date.now()}`, base).toString(), { cache: 'no-store' });
   } catch {
     return { status: 'offline' };
   }
-  if (!res.ok) return { status: 'error', reason: `Сервер ответил ${res.status}` };
+  if (!res.ok) return { status: 'error', reason: t('Сервер ответил {status}', { status: res.status }) };
   let data: unknown;
   try {
     data = await res.json();
   } catch {
-    return { status: 'error', reason: 'Файл версии повреждён' };
+    return { status: 'error', reason: t('Файл версии повреждён') };
   }
-  if (!isVersion(data)) return { status: 'error', reason: 'Файл версии повреждён' };
+  if (!isVersion(data)) return { status: 'error', reason: t('Файл версии повреждён') };
   return data.id === current.id ? { status: 'latest', latest: data } : { status: 'available', latest: data };
 }
 
@@ -76,5 +79,5 @@ export async function applyUpdate(deps: UpdateDeps = browserDeps()): Promise<voi
 /** Дата для показа: «7 окт. 2026, 12:41»; пустую строку возвращаем как есть. */
 export function formatBuilt(builtAt: string): string {
   const d = new Date(builtAt);
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString(getSettings().lang === 'uk' ? 'uk-UA' : 'ru-RU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }

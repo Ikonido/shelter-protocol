@@ -1,6 +1,7 @@
 import type { DataConnection, Peer as PeerT, PeerOptions } from 'peerjs';
 import type { Conn } from './online';
 import { randomCode } from './rng';
+import { t } from './i18n';
 
 /**
  * WebRTC через PeerJS: публичный брокер нужен только для рукопожатия (SDP/ICE),
@@ -81,9 +82,9 @@ function wrap<Out>(dc: DataConnection): Conn<Out> {
 
 const waitOpen = (peer: PeerT, ms: number) =>
   new Promise<string>((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error('Нет ответа от брокера соединений')), ms);
-    peer.once('open', (id) => (clearTimeout(t), resolve(id)));
-    peer.once('error', (e) => (clearTimeout(t), reject(e)));
+    const timer = setTimeout(() => reject(new Error(t('Нет ответа от брокера соединений'))), ms);
+    peer.once('open', (id) => (clearTimeout(timer), resolve(id)));
+    peer.once('error', (e) => (clearTimeout(timer), reject(e)));
   });
 
 export interface Room {
@@ -101,14 +102,14 @@ export async function createRoom(onConn: (c: Conn<unknown>) => void, mode: NetMo
     } catch (e) {
       peer.destroy();
       if ((e as { type?: string }).type === 'unavailable-id') continue; // код занят — берём другой
-      throw new Error('Не удалось связаться с брокером соединений. Проверьте интернет.');
+      throw new Error(t('Не удалось связаться с брокером соединений. Проверьте интернет.'));
     }
     peer.on('connection', (dc) => dc.on('open', () => onConn(wrap(dc))));
     // Потеря связи с брокером не рвёт уже установленные P2P-каналы, но мешает входу новых игроков — переподключаемся.
     peer.on('disconnected', () => !peer.destroyed && peer.reconnect());
     return { code, destroy: () => peer.destroy() };
   }
-  throw new Error('Не удалось получить код комнаты, попробуйте ещё раз');
+  throw new Error(t('Не удалось получить код комнаты, попробуйте ещё раз'));
 }
 
 /** Гость: подключение к комнате по коду. */
@@ -118,19 +119,19 @@ export async function joinRoom(code: string, mode: NetMode = 'internet'): Promis
     await waitOpen(peer, 12000);
   } catch {
     peer.destroy();
-    throw new Error('Не удалось связаться с брокером соединений. Проверьте интернет.');
+    throw new Error(t('Не удалось связаться с брокером соединений. Проверьте интернет.'));
   }
   return new Promise((resolve, reject) => {
     const dc = peer.connect(ROOM_PREFIX + code, { serialization: 'json', reliable: true });
     const fail = (msg: string) => (peer.destroy(), reject(new Error(msg)));
-    const t = setTimeout(
-      () => fail('Не удалось соединиться. Проверьте код — или сеть хоста/ваша блокирует прямые соединения (нужен TURN).'),
+    const timer = setTimeout(
+      () => fail(t('Не удалось соединиться. Проверьте код — или сеть хоста/ваша блокирует прямые соединения (нужен TURN).')),
       15000,
     );
     peer.once('error', (e) =>
-      (clearTimeout(t), fail((e as { type?: string }).type === 'peer-unavailable' ? 'Комната с таким кодом не найдена' : 'Ошибка соединения')),
+      (clearTimeout(timer), fail((e as { type?: string }).type === 'peer-unavailable' ? t('Комната с таким кодом не найдена') : t('Ошибка соединения'))),
     );
-    dc.on('open', () => (clearTimeout(t), resolve({ conn: wrap(dc), destroy: () => peer.destroy() })));
+    dc.on('open', () => (clearTimeout(timer), resolve({ conn: wrap(dc), destroy: () => peer.destroy() })));
   });
 }
 

@@ -1,5 +1,6 @@
 import { CATEGORIES, type Card, type Difficulty, type Hazard, type PlayerCharacter, type Scenario } from '../types';
 import { rulesFor } from './difficulty';
+import { plural, t } from './i18n';
 
 export interface SkillCoverage {
   skill: string;
@@ -37,7 +38,7 @@ const stem = (s: string) => (s.length >= 6 ? s.slice(0, s.length - 2) : s);
 export function cardMatchesSkill(card: Card, skill: string): boolean {
   const k = norm(skill);
   if (!k) return false;
-  if (card.tags?.some((t) => norm(t) === k)) return true;
+  if (card.tags?.some((tag) => norm(tag) === k)) return true;
   const hay = norm(`${card.title ?? ''} ${card.description}`);
   return hay.includes(stem(k));
 }
@@ -122,25 +123,35 @@ export function evaluate(scenario: Scenario, survivors: PlayerCharacter[], slots
 
   const notes: string[] = [];
   const missing = coverage.filter((c) => c.by.length === 0).map((c) => c.skill);
-  if (missing.length) notes.push(`Не хватило специалистов: ${missing.join(', ')}.`);
-  if (badHealth) notes.push(`Проблемы со здоровьем у ${badHealth} из ${survivors.length} выживших.`);
-  if (severe.length) notes.push(healers > 0 ? `Тяжёлых больных: ${severe.length}, но врач держит их на ногах.` : `Тяжёлых больных: ${severe.length}, а лечить их некому.`);
-  if (resources < 0.4) notes.push('Запасов и снаряжения мало — зимовка будет тяжёлой.');
+  if (missing.length) notes.push(t('Не хватило специалистов: {skills}.', { skills: missing.join(', ') }));
+  if (badHealth) notes.push(t('Проблемы со здоровьем у {bad} из {total} выживших.', { bad: badHealth, total: survivors.length }));
+  if (severe.length) notes.push(healers > 0 ? t('Тяжёлых больных: {n}, но врач держит их на ногах.', { n: severe.length }) : t('Тяжёлых больных: {n}, а лечить их некому.', { n: severe.length }));
+  if (resources < 0.4) notes.push(t('Запасов и снаряжения мало — зимовка будет тяжёлой.'));
   for (const r of open) {
-    const lack = r.by.length ? ` (нужно ${r.need}, есть ${r.by.length})` : '';
-    notes.push(`Угроза «${r.hazard.title}» не нейтрализована${lack}${r.hazard.severity === 'critical' && fatal ? ' — это гибель убежища' : ''}.`);
+    const lack = r.by.length ? ` ${t('(нужно {need}, есть {have})', { need: r.need, have: r.by.length })}` : '';
+    const doom = r.hazard.severity === 'critical' && fatal ? ` — ${t('это гибель убежища')}` : '';
+    notes.push(t('Угроза «{title}» не нейтрализована{lack}{doom}.', { title: r.hazard.title, lack, doom }));
   }
-  if (overcrowd) notes.push(`Бункер переполнен: ${survivors.length} человек на ${slots} мест.`);
-  if (!survivors.length) notes.push('В убежище никого не осталось.');
+  if (overcrowd) {
+    notes.push(
+      t('Бункер переполнен: {n} {people} на {slots} {places}.', {
+        n: survivors.length,
+        people: plural(survivors.length, ['человек', 'человека', 'человек'], ['людина', 'людини', 'людей']),
+        slots: slots ?? 0,
+        places: plural(slots ?? 0, ['место', 'места', 'мест'], ['місце', 'місця', 'місць']),
+      }),
+    );
+  }
+  if (!survivors.length) notes.push(t('В убежище никого не осталось.'));
 
   const headline =
     verdict === 'survived'
-      ? 'Убежище выстояло'
+      ? t('Убежище выстояло')
       : verdict === 'fragile'
-        ? 'Колония на грани'
+        ? t('Колония на грани')
         : fatal
-          ? `Убежище погубила угроза: ${criticalOpen[0].hazard.title}`
-          : 'Убежище не пережило катастрофу';
+          ? t('Убежище погубила угроза: {title}', { title: criticalOpen[0].hazard.title })
+          : t('Убежище не пережило катастрофу');
   return { hazards: hazardResults, fatal, coverage, coveredCount, health, resources, stability, score, verdict, headline, notes };
 }
 

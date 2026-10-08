@@ -1,6 +1,7 @@
 import { CATEGORIES, type Card, type CardPack, type Category, type PlayerCharacter } from '../types';
 import { BASE_CHARACTER, BASE_PHYSIQUE } from '../data/baseCards';
 import { shuffle, type Rng } from './rng';
+import { t } from './i18n';
 
 /** Объединяет пулы выбранных паков по категориям (без дублей по id). */
 export function mergePools(packs: CardPack[]): Record<Category, Card[]> {
@@ -49,7 +50,7 @@ export function drawCards(pool: Card[], count: number, rng: Rng): Card[] {
 }
 
 export function emptyCard(category: Category): Card {
-  return { id: `empty-${category}`, category, description: '— нет карт в выбранных паках —', modifier: 'neutral' };
+  return { id: `empty-${category}`, category, description: t('— нет карт в выбранных паках —'), modifier: 'neutral' };
 }
 
 export function generateCharacters(names: string[], packs: CardPack[], rng: Rng): PlayerCharacter[] {

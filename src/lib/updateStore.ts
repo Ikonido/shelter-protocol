@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { APP_VERSION, applyUpdate, checkForUpdate, type AppVersion } from './update';
+import { t } from './i18n';
 
 export type UpdateUi =
   | { phase: 'idle' }
@@ -43,7 +44,7 @@ export async function runApply(): Promise<void> {
   try {
     await applyUpdate();
   } catch (e) {
-    set({ phase: 'error', reason: (e as Error).message || 'Не удалось обновить' });
+    set({ phase: 'error', reason: (e as Error).message || t('Не удалось обновить') });
   }
 }
 

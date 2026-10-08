@@ -12,7 +12,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { CATEGORY_LABEL, type Card, type Category } from '../types';
+import { categoryLabel, type Card, type Category } from '../types';
+import { t } from '../lib/i18n';
 
 export const CATEGORY_ICON: Record<Category, LucideIcon> = {
   profession: Briefcase,
@@ -35,7 +36,7 @@ const MOD_HINT = { positive: 'Плюс: сильная сторона, помо�
 const MOD_LABEL = { positive: 'плюс', neutral: 'нейтр.', negative: 'минус' } as const;
 
 export function ModBadge({ mod = 'neutral' }: { mod?: Card['modifier'] }) {
-  return <span className={`rounded-full border px-1.5 py-px text-[9px] font-bold uppercase tracking-widest ${MOD_STYLE[mod]}`} title={MOD_HINT[mod]}>{MOD_LABEL[mod]}</span>;
+  return <span className={`rounded-full border px-1.5 py-px text-[9px] font-bold uppercase tracking-widest ${MOD_STYLE[mod]}`} title={t(MOD_HINT[mod])}>{t(MOD_LABEL[mod])}</span>;
 }
 
 /** Карта персонажа: цветная полоса и иконка категории, значок «плюс/минус», «переворот» при появлении. */
@@ -71,15 +72,15 @@ export function CardFace({
     >
       <span aria-hidden className="absolute inset-y-0 left-0 w-1.5 bg-[var(--c)]" style={{ opacity: hidden ? 0.35 : 1 }} />
       <span className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-[var(--c)]">
-        <Icon size={14} /> {CATEGORY_LABEL[card.category]}
+        <Icon size={14} /> {categoryLabel(card.category)}
         {showMod && !hidden && <span className="ml-auto"><ModBadge mod={card.modifier} /></span>}
       </span>
       {hidden ? (
         <span className="text-sm tracking-[.3em] text-dim">▓▓▓▓▓▓▓▓</span>
       ) : (
         <span className="text-sm leading-snug text-ink">
-          {card.title && <b className="mr-1 text-[var(--c)]">{card.title}.</b>}
-          {card.description}
+          {card.title && <b className="mr-1 text-[var(--c)]">{t(card.title)}.</b>}
+          {t(card.description)}
         </span>
       )}
       {extra}
@@ -95,7 +96,7 @@ export function Modal({ children, onClose, title }: { children: ReactNode; onClo
         {children}
         {onClose && (
           <button className="btn btn-sm mt-4 w-full" onClick={onClose}>
-            Закрыть
+            {t('Закрыть')}
           </button>
         )}
       </div>
@@ -109,9 +110,9 @@ export function Stepper({ value, min, max, onChange, label }: { value: number; m
     <div>
       <span className="label">{label}</span>
       <div className="flex items-center gap-2">
-        <button className="btn w-12" onClick={() => onChange(Math.max(min, value - 1))} aria-label="меньше">−</button>
+        <button className="btn w-12" onClick={() => onChange(Math.max(min, value - 1))} aria-label={t('меньше')}>−</button>
         <span className="w-12 text-center text-xl text-amber">{value}</span>
-        <button className="btn w-12" onClick={() => onChange(Math.min(max, value + 1))} aria-label="больше">+</button>
+        <button className="btn w-12" onClick={() => onChange(Math.min(max, value + 1))} aria-label={t('больше')}>+</button>
       </div>
     </div>
   );

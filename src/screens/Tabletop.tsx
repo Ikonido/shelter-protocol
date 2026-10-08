@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Dices, Eye, EyeOff, Printer, UserX, UserCheck } from 'lucide-react';
-import { CATEGORIES, CATEGORY_LABEL, type GameState } from '../types';
+import { CATEGORIES, categoryLabel, type GameState } from '../types';
 import { CardFace } from '../ui/bits';
 import { useStore } from '../store';
 import { rerollCard } from '../lib/generator';
@@ -9,6 +9,7 @@ import { FinalReport } from './Final';
 import { Avatar } from '../ui/Avatar';
 import { ThreatsPanel } from '../ui/Threats';
 import { copyText } from '../ui/clipboard';
+import { t } from '../lib/i18n';
 
 /** Режим «генератор карточек»: раздаём персонажей на бумаге/в мессенджер, а исход считаем по отметкам выживших. */
 export default function Tabletop({ game }: { game: GameState }) {
@@ -19,17 +20,20 @@ export default function Tabletop({ game }: { game: GameState }) {
 
   const copyCard = (id: string) => {
     const p = game.players.find((x) => x.id === id)!;
-    const text = `${p.name}\n` + CATEGORIES.map((c) => `${CATEGORY_LABEL[c]}: ${p.slots[c].card.title ? p.slots[c].card.title + '. ' : ''}${p.slots[c].card.description}`).join('\n');
-    copyText(text).then((ok) => notify(ok ? 'Карточка скопирована' : 'Не удалось скопировать'));
+    const text = `${p.name}\n` + CATEGORIES.map((c) => {
+      const card = p.slots[c].card;
+      return `${categoryLabel(c)}: ${card.title ? t(card.title) + '. ' : ''}${t(card.description)}`;
+    }).join('\n');
+    copyText(text).then((ok) => notify(ok ? t('Карточка скопирована') : t('Не удалось скопировать')));
   };
 
   return (
     <div className="flex flex-col gap-5">
       <ThreatsPanel hazards={game.hazards ?? []} defaultOpen />
       <div className="no-print flex flex-wrap gap-2">
-        <button className="btn btn-sm" onClick={() => window.print()}><Printer size={16} /> Печать карточек</button>
-        <button className="btn btn-sm" onClick={() => setShown(Object.fromEntries(game.players.map((p) => [p.id, true])))}><Eye size={16} /> Показать все</button>
-        <button className="btn btn-sm" onClick={() => setShown({})}><EyeOff size={16} /> Скрыть все</button>
+        <button className="btn btn-sm" onClick={() => window.print()}><Printer size={16} /> {t('Печать карточек')}</button>
+        <button className="btn btn-sm" onClick={() => setShown(Object.fromEntries(game.players.map((p) => [p.id, true])))}><Eye size={16} /> {t('Показать все')}</button>
+        <button className="btn btn-sm" onClick={() => setShown({})}><EyeOff size={16} /> {t('Скрыть все')}</button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -41,11 +45,11 @@ export default function Tabletop({ game }: { game: GameState }) {
                 <Avatar id={p.id} name={p.name} size={32} dim={p.isEliminated} />
                 <h3 className="font-bold text-amber">{p.name}</h3>
                 <button className="btn btn-sm no-print ml-auto" onClick={() => setShown((s) => ({ ...s, [p.id]: !visible }))}>
-                  {visible ? <EyeOff size={14} /> : <Eye size={14} />}{visible ? 'Скрыть' : 'Показать'}
+                  {visible ? <EyeOff size={14} /> : <Eye size={14} />}{visible ? t('Скрыть') : t('Показать')}
                 </button>
-                <button className="btn btn-sm no-print" onClick={() => copyCard(p.id)}>Копир.</button>
+                <button className="btn btn-sm no-print" onClick={() => copyCard(p.id)}>{t('Копир.')}</button>
               </div>
-              {!visible && <p className="no-print text-xs tracking-widest text-dim">▓▓▓▓▓▓ карточка скрыта — нажмите «Показать», когда её держит владелец</p>}
+              {!visible && <p className="no-print text-xs tracking-widest text-dim">{t('▓▓▓▓▓▓ карточка скрыта — нажмите «Показать», когда её держит владелец')}</p>}
               <div className={`flex flex-col gap-2 ${visible ? '' : 'hidden print:flex'}`}>
                 {CATEGORIES.map((c) => (
                   <CardFace
@@ -58,7 +62,7 @@ export default function Tabletop({ game }: { game: GameState }) {
                         className="no-print self-end text-[10px] uppercase tracking-widest text-dim hover:text-amber"
                         onClick={() => setGame((g) => (g ? { ...g, players: g.players.map((x) => (x.id === p.id ? rerollCard(x, c, packs, Math.random) : x)) } : g))}
                       >
-                        <Dices className="mr-1 inline" size={12} />перекинуть
+                        <Dices className="mr-1 inline" size={12} />{t('перекинуть')}
                       </button>
                     )}
                   />
@@ -70,9 +74,9 @@ export default function Tabletop({ game }: { game: GameState }) {
       </div>
 
       <section className="panel no-print">
-        <h2 className="h-hud mb-1">Итог партии</h2>
+        <h2 className="h-hud mb-1">{t('Итог партии')}</h2>
         <p className="mb-3 text-xs text-dim">
-          Проведите раунды за столом, затем отметьте исключённых. Выжило: {survivors} из {game.players.length} (мест: {game.config.shelterSlots}).
+          {t('Проведите раунды за столом, затем отметьте исключённых. Выжило: {alive} из {total} (мест: {slots}).', { alive: survivors, total: game.players.length, slots: game.config.shelterSlots })}
         </p>
         <div className="mb-4 flex flex-wrap gap-2">
           {game.players.map((p) => (

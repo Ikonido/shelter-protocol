@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { copyText } from './clipboard';
+import { t } from '../lib/i18n';
 
 interface State {
   error: Error | null;
@@ -44,15 +45,15 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
     if (!this.state.error) return this.props.children;
     return (
       <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 p-6 text-center">
-        <h1 className="text-xl font-bold text-danger">Что-то пошло не так</h1>
-        <p className="text-sm text-dim">Ваши паки останутся нетронутыми. Если ошибка повторяется, нажмите «Скопировать отчёт» и отправьте разработчику.</p>
+        <h1 className="text-xl font-bold text-danger">{t('Что-то пошло не так')}</h1>
+        <p className="text-sm text-dim">{t('Ваши паки останутся нетронутыми. Если ошибка повторяется, нажмите «Скопировать отчёт» и отправьте разработчику.')}</p>
         <pre className="max-h-40 w-full overflow-auto whitespace-pre-wrap break-words rounded-md border border-edge bg-bg p-3 text-left text-[11px] text-danger/90">
           {this.state.error.name}: {this.state.error.message}
         </pre>
         <div className="flex w-full flex-col gap-2">
-          <button className="btn btn-primary" onClick={this.reset}>Сбросить партию и перезагрузить</button>
-          <button className="btn" onClick={() => (location.href = location.pathname)}>Просто перезагрузить</button>
-          <button className="btn btn-sm" onClick={this.copy}>{this.state.copied ? 'Скопировано ✔' : 'Скопировать отчёт'}</button>
+          <button className="btn btn-primary" onClick={this.reset}>{t('Сбросить партию и перезагрузить')}</button>
+          <button className="btn" onClick={() => (location.href = location.pathname)}>{t('Просто перезагрузить')}</button>
+          <button className="btn btn-sm" onClick={this.copy}>{this.state.copied ? t('Скопировано ✔') : t('Скопировать отчёт')}</button>
         </div>
       </main>
     );

@@ -35,6 +35,7 @@ import { canApply } from './actions';
 import { newSeed, randomCode } from './rng';
 import { LIMITS as L, clip } from './limits';
 import { sanitizeHazard, sanitizeScenario } from './packs';
+import { t } from './i18n';
 
 /* ---------- Протокол ---------- */
 
@@ -148,9 +149,9 @@ export class OnlineHost {
 
   constructor(
     public setup: HostSetup,
-    hostName = 'Хост',
+    hostName = t('Хост'),
   ) {
-    this.members = [{ token: 'host', name: cleanName(hostName) || 'Хост', conn: null, connected: true }];
+    this.members = [{ token: 'host', name: cleanName(hostName) || t('Хост'), conn: null, connected: true }];
   }
 
   subscribe(cb: () => void) {
@@ -231,7 +232,7 @@ export class OnlineHost {
   kick(index: number) {
     const m = this.members[index];
     if (this.game || index === 0 || !m) return;
-    m.conn?.send({ t: 'reject', reason: 'Хост исключил вас из комнаты' });
+    m.conn?.send({ t: 'reject', reason: t('Хост исключил вас из комнаты') });
     const conn = m.conn;
     this.members.splice(index, 1);
     if (conn) {
@@ -247,7 +248,7 @@ export class OnlineHost {
     if (msg.t === 'hello') {
       const token = typeof msg.token === 'string' ? msg.token.slice(0, 64) : '';
       const name = cleanName(msg.name);
-      if (!token || !name || token === 'host') return conn.send({ t: 'reject', reason: 'Некорректные данные' });
+      if (!token || !name || token === 'host') return conn.send({ t: 'reject', reason: t('Некорректные данные') });
       // Одно соединение — один участник: повторный hello с другим токеном игнорируется.
       const bound = this.members.find((m) => m.conn === conn);
       if (bound) return bound.token === token ? this.changed() : undefined;
@@ -261,15 +262,15 @@ export class OnlineHost {
           old.close();
         }
       } else if (this.game) {
-        return conn.send({ t: 'reject', reason: 'Партия уже началась' });
+        return conn.send({ t: 'reject', reason: t('Партия уже началась') });
       } else if (this.locked) {
-        return conn.send({ t: 'reject', reason: 'Комната закрыта хостом' });
+        return conn.send({ t: 'reject', reason: t('Комната закрыта хостом') });
       } else if (msg.ticket !== undefined && !this.ticketValid(msg.ticket)) {
-        return conn.send({ t: 'reject', reason: 'QR-код устарел — отсканируйте актуальный у хоста' });
+        return conn.send({ t: 'reject', reason: t('QR-код устарел — отсканируйте актуальный у хоста') });
       } else if (this.requireTicket && msg.ticket === undefined) {
-        return conn.send({ t: 'reject', reason: 'Вход только по QR-коду хоста' });
+        return conn.send({ t: 'reject', reason: t('Вход только по QR-коду хоста') });
       } else if (this.members.length >= MAX_ONLINE_PLAYERS) {
-        return conn.send({ t: 'reject', reason: 'Комната заполнена' });
+        return conn.send({ t: 'reject', reason: t('Комната заполнена') });
       } else {
         this.members.push({ token, name, conn, connected: true });
       }
@@ -303,8 +304,8 @@ export class OnlineHost {
         const check = effect && !me.slots.action.isRevealed ? canApply(g, id, effect, { target: msg.target, category: msg.category }) : null;
         if (check && !check.ok) refusal = check.reason;
         else next = playAction(g, id, { target: msg.target, category: msg.category });
-      } else refusal = 'Сейчас действие применить нельзя';
-      if (!refusal && next === g) refusal = me.slots.action.isRevealed ? 'Действие уже использовано' : 'Действие не сработало';
+      } else refusal = t('Сейчас действие применить нельзя');
+      if (!refusal && next === g) refusal = me.slots.action.isRevealed ? t('Действие уже использовано') : t('Действие не сработало');
     } else if (msg.t === 'volunteer') {
       next = volunteer(g, id);
     } else if (msg.t === 'done') {
@@ -324,7 +325,7 @@ export class OnlineHost {
   }
 
   rename(name: string) {
-    this.members[0].name = cleanName(name) || 'Хост';
+    this.members[0].name = cleanName(name) || t('Хост');
     this.changed();
   }
 
@@ -497,7 +498,7 @@ export class OnlineClient {
   private onRaw(raw: unknown) {
     if (!raw || typeof raw !== 'object') return;
     const m = raw as Partial<H2C> & Record<string, unknown>;
-    if (m.t === 'reject') this.set({ status: 'rejected', reason: typeof m.reason === 'string' ? m.reason.slice(0, 100) : 'Отказано' });
+    if (m.t === 'reject') this.set({ status: 'rejected', reason: typeof m.reason === 'string' ? m.reason.slice(0, 100) : t('Отказано') });
     else if (m.t === 'lobby' && Array.isArray(m.members))
       this.set({
         status: 'lobby',

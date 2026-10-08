@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import type { SkillInfo } from '../lib/vocab';
 import { LIMITS } from '../lib/limits';
+import { t } from '../lib/i18n';
 
 /**
  * Выбор навыков «чипами»: выбранные сверху (можно убрать), ниже — всё, что есть в колоде, с числом карт.
@@ -12,7 +13,7 @@ export function ChipPicker({
   value,
   onChange,
   max,
-  placeholder = 'свой навык',
+  placeholder = t('свой навык'),
 }: {
   options: SkillInfo[];
   value: string[];
@@ -25,46 +26,46 @@ export function ChipPicker({
   const count = (s: string) => options.find((o) => o.skill.toLowerCase() === s.toLowerCase())?.count ?? 0;
   const full = value.length >= max;
   const add = (s: string) => {
-    const t = s.trim().slice(0, LIMITS.tagLen);
-    if (!t || has(t) || full) return;
-    onChange([...value, t]);
+    const tag = s.trim().slice(0, LIMITS.tagLen);
+    if (!tag || has(tag) || full) return;
+    onChange([...value, tag]);
   };
   const free = options.filter((o) => !has(o.skill));
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex min-h-9 flex-wrap gap-1.5" aria-label="Выбрано">
-        {value.length === 0 && <span className="text-xs text-dim">ничего не выбрано</span>}
+      <div className="flex min-h-9 flex-wrap gap-1.5" aria-label={t('Выбрано')}>
+        {value.length === 0 && <span className="text-xs text-dim">{t('ничего не выбрано')}</span>}
         {value.map((s) => (
           <button
             key={s}
             type="button"
             onClick={() => onChange(value.filter((v) => v !== s))}
             className="inline-flex items-center gap-1 rounded-full border border-amber bg-amber/15 py-1 pl-3 pr-2 text-xs text-amber active:scale-95"
-            aria-label={`Убрать «${s}»`}
+            aria-label={t('Убрать «{s}»', { s: t(s) })}
           >
-            {s}
+            {t(s)}
             <span className={`rounded-full px-1.5 text-[10px] ${count(s) ? 'bg-bg text-ok' : 'bg-danger/20 text-danger'}`}>{count(s)}</span>
             <X size={12} />
           </button>
         ))}
       </div>
       {!full && (
-        <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto rounded-md border border-edge bg-bg p-2" aria-label="Доступные навыки">
+        <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto rounded-md border border-edge bg-bg p-2" aria-label={t('Доступные навыки')}>
           {free.map((o) => (
             <button key={o.skill} type="button" onClick={() => add(o.skill)} className="inline-flex items-center gap-1 rounded-full border border-edge px-3 py-1 text-xs text-ink hover:border-amber active:scale-95">
-              {o.skill}
+              {t(o.skill)}
               <span className={`text-[10px] ${o.count ? 'text-dim' : 'text-danger'}`}>{o.count}</span>
             </button>
           ))}
-          {free.length === 0 && <span className="text-xs text-dim">все навыки из колоды уже выбраны</span>}
+          {free.length === 0 && <span className="text-xs text-dim">{t('все навыки из колоды уже выбраны')}</span>}
         </div>
       )}
       <div className="flex gap-2">
         <input
           className="input"
           maxLength={LIMITS.tagLen}
-          placeholder={full ? `не больше ${max}` : placeholder}
+          placeholder={full ? t('не больше {max}', { max }) : placeholder}
           disabled={full}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -76,7 +77,7 @@ export function ChipPicker({
             }
           }}
         />
-        <button type="button" className="btn btn-sm" disabled={full || !draft.trim()} onClick={() => { add(draft); setDraft(''); }} aria-label="Добавить навык">
+        <button type="button" className="btn btn-sm" disabled={full || !draft.trim()} onClick={() => { add(draft); setDraft(''); }} aria-label={t('Добавить навык')}>
           <Plus size={16} />
         </button>
       </div>
