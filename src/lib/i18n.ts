@@ -8,7 +8,10 @@ import { DICTS } from '../i18n';
  */
 export function t(text: string, vars?: Record<string, string | number>): string {
   const lang = getSettings().lang;
-  const out = lang === 'ru' ? text : (DICTS[lang]?.[text] ?? text);
+  const dict = lang === 'ru' ? undefined : DICTS[lang];
+  let out = dict?.[text] ?? text;
+  // Составной текст «багаж + предмет» (бонус профессии): переводим части по отдельности.
+  if (dict && !(text in dict) && text.includes(' + ')) out = text.split(' + ').map((part) => dict[part] ?? part).join(' + ');
   return vars ? out.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m)) : out;
 }
 
