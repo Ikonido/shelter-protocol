@@ -144,3 +144,20 @@ describe('isolation duration in both languages', () => {
     expect(isolationDays('3 года')).toBe(isolationDays('3 роки'));
   });
 });
+
+describe('chronicle in Ukrainian', () => {
+  it('builds without leftover placeholders and keeps the player names', async () => {
+    const { updateSettings } = await import('./settings');
+    updateSettings({ lang: 'uk' });
+    try {
+      const g = endedGame(3, [['дератизация'], [], []], [rats, pirates]);
+      const c = buildChronicle(g);
+      const text = c.entries.map((e) => `${e.stamp} ${e.text}`).join('\n');
+      expect(text).not.toMatch(/\{\w+\}/);
+      expect(text).toMatch(/[іїєґ]/);
+      expect(c.entries.find((e) => e.id === `hz-${rats.id}`)!.text).toContain('П1');
+    } finally {
+      updateSettings({ lang: 'ru' });
+    }
+  });
+});
