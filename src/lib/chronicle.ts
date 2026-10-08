@@ -32,11 +32,15 @@ const DAYS_PER_MONTH = 30.4375;
 
 /** «5 лет» → 1826 дней, «2 недели» → 14, «10 дней» → 10, «18 месяцев» → 548; непонятное → 3 года. */
 export function isolationDays(duration: string): number {
-  const m = /(\d+)\s*(лет|год|мес|недел|дн|сут)/i.exec(duration);
+  // Русские и украинские единицы: «5 лет», «3 роки», «2 місяці», «10 днів».
+  const m = /(\d+)\s*(лет|год|мес|недел|дн|сут|років|рок|місяц|тижн|днів|дні|доб)/i.exec(duration);
   if (!m) return Math.round(36 * DAYS_PER_MONTH);
   const n = Number(m[1]);
   const unit = m[2].toLowerCase();
-  const days = unit === 'мес' ? n * DAYS_PER_MONTH : unit === 'лет' || unit === 'год' ? n * 12 * DAYS_PER_MONTH : unit === 'недел' ? n * 7 : n;
+  const years = ['лет', 'год', 'років', 'рок'];
+  const months = ['мес', 'місяц'];
+  const weeks = ['недел', 'тижн'];
+  const days = months.some((u) => unit.startsWith(u)) ? n * DAYS_PER_MONTH : years.includes(unit) ? n * 12 * DAYS_PER_MONTH : weeks.some((u) => unit.startsWith(u)) ? n * 7 : n;
   return Math.max(1, Math.round(days));
 }
 

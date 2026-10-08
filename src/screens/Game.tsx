@@ -276,7 +276,7 @@ function ActionsPanel({ game, update }: { game: GameState; update: Update }) {
   const peekP = living.find((p) => p.id === peek);
   // Автоисполнение: у карты есть эффект, и партия создана с этой опцией.
   const autoEffect = game.config.autoActions ? actorP?.slots.action.card.effect : undefined;
-  const lastAction = [...game.log].reverse().find((l) => l.round === game.round && l.text.includes(' применяет '));
+  const lastAction = [...game.log].reverse().find((l) => l.round === game.round && l.kind === 'action');
   return (
     <>
       {lastAction && <p className="panel border-[#e879f9]/60 text-sm" role="status"><Zap size={14} className="mr-1 inline text-[#e879f9]" />{lastAction.text}</p>}

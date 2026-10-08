@@ -60,7 +60,7 @@ const used = (g: GameState, id: string): GameState => ({
   players: g.players.map((p) => (p.id === id ? { ...p, slots: { ...p.slots, action: { ...p.slots.action, isRevealed: true } } } : p)),
 });
 
-const say = (g: GameState, text: string): GameState => ({ ...g, log: [...g.log, { round: g.round, text }] });
+const say = (g: GameState, text: string): GameState => ({ ...g, log: [...g.log, { round: g.round, text, kind: 'action' }] });
 
 const emptyFx = (): ActionFx => ({ double: [], veto: [], immune: [], allies: [] });
 

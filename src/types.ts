@@ -220,6 +220,8 @@ export interface ActiveEvent {
 export interface LogEntry {
   round: number;
   text: string;
+  /** Запись о применённом действии: подсветка берётся по этому признаку, а не по тексту (он переводится). */
+  kind?: 'action';
 }
 
 export interface RoundResult {

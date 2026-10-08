@@ -134,7 +134,7 @@ export function playAction(g: GameState, playerId: string, params?: ActionParams
     ),
     log: [
       ...g.log,
-      { round: g.round, text: `${p.name} применяет карту действия «${card.title ?? 'Действие'}»: ${card.description}` },
+      { round: g.round, kind: 'action', text: `${p.name} применяет карту действия «${card.title ?? 'Действие'}»: ${card.description}` },
     ],
   };
 }

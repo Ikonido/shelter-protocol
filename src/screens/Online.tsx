@@ -319,7 +319,7 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
   const myTurn = speaker?.id === me;
   const options = view.phase === 'reveal' && myTurn && !player.isEliminated ? revealOptions(view, player) : [];
   const canAction = (view.phase === 'reveal' || view.phase === 'speech' || view.phase === 'vote') && !player.isEliminated && !player.slots.action.isRevealed;
-  const lastAction = [...view.log].reverse().find((l) => l.round === view.round && l.text.includes(' применяет '));
+  const lastAction = [...view.log].reverse().find((l) => l.round === view.round && l.kind === 'action');
   // «Ваш ход»: сигнал и заметная плашка, чтобы не пропустить очередь, пока телефон лежит на столе.
   const myRevealTurn = myTurn && view.phase === 'reveal' && !player.isEliminated;
   useEffect(() => {
