@@ -22,6 +22,23 @@ describe('saved game validation', () => {
     expect(validateSavedGame(g)).not.toBeNull();
   });
 
+  it('accepts saves with the newer bonus fields and with none of them (old saves)', () => {
+    const g = fresh();
+    expect(validateSavedGame({ ...g, perks: [{ playerId: 'p1', kind: 'reveal' }] })).not.toBeNull(); // старое сохранение: без level, charges, bonds
+    const newer = { ...g, perks: [{ playerId: 'p1', kind: 'bond', level: 'expert', charges: 2 }], bonds: [{ a: 'p2', b: 'p3', votes: 2 }] };
+    newer.players[0].slots.profession.card.bonus = 'lawyer';
+    expect(validateSavedGame(newer)).not.toBeNull();
+  });
+
+  it('rejects a perk with a nonsense level or charges instead of failing later', () => {
+    const withPerk = (extra: object) => { const g = fresh(); g.perks = [{ playerId: 'p1', kind: 'heal', ...extra }]; return validateSavedGame(g); };
+    expect(withPerk({ charges: 'много' })).toBeNull();
+    expect(withPerk({ charges: 0 })).toBeNull();
+    expect(withPerk({ charges: 99 })).toBeNull();
+    expect(withPerk({ level: 'god' })).toBeNull();
+    expect(withPerk({ level: 'novice', charges: 1 })).not.toBeNull();
+  });
+
   it('rejects broken or foreign data instead of crashing later', () => {
     const broken = (mutate: (g: any) => void) => { const g = fresh(); mutate(g); return validateSavedGame(g); };
     expect(validateSavedGame(null)).toBeNull();

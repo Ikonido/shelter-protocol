@@ -82,7 +82,7 @@ describe('audit round 4: regressions', () => {
     p.scenarios = Array.from({ length: LIMITS.scenarios }, (_, i) => ({ id: `sc-${i}`, title: 'я'.repeat(LIMITS.scenarioTitle), description: 'я'.repeat(LIMITS.scenarioDescription), isolationDuration: '1 год', shelterSlots: 2, requiredSkills: Array(LIMITS.skills).fill('я'.repeat(LIMITS.skillLen)), threats: Array(LIMITS.threats).fill('я'.repeat(LIMITS.threatLen)), hazards: Array.from({ length: LIMITS.hazards }, (_, j) => ({ id: `h-${i}-${j}`, title: 'я'.repeat(LIMITS.hazardTitle), description: 'я'.repeat(LIMITS.hazardDescription), counters: Array(LIMITS.hazardCounters).fill('я'.repeat(LIMITS.tagLen)), severity: 'critical' as const, onSuccess: 'я'.repeat(LIMITS.hazardStory), onFail: 'я'.repeat(LIMITS.hazardStory) })) }));
     p.tagOverrides = Object.fromEntries(Array.from({ length: LIMITS.tagOverrides }, (_, i) => [`override-${'я'.repeat(40)}-${i}`, tags]));
     const valid = sanitizePack(JSON.parse(JSON.stringify(p)))!;
-    expect(valid.cards.profession).toHaveLength(60);
+    expect(valid.cards.profession).toHaveLength(LIMITS.cardsPerCategory);
     expect(Object.keys(valid.tagOverrides!)).toHaveLength(LIMITS.tagOverrides);
     let fileText = '';
     vi.stubGlobal('window', { showSaveFilePicker: async () => ({ createWritable: async () => ({ write: async (text: string) => { fileText = text; }, close: async () => undefined }) }) });
@@ -98,10 +98,10 @@ describe('audit round 4: regressions', () => {
   });
 
   it('N5: a bulk add takes only as many lines as there is room for and leaves the others', () => {
-    const r = takeBulk('Новая 1\nНовая 2\nНовая 3\nНовая 4\nНовая 5', 'profession', 59);
+    const r = takeBulk('Новая 1\nНовая 2\nНовая 3\nНовая 4\nНовая 5', 'profession', LIMITS.cardsPerCategory - 1);
     expect(r.accepted.map((c) => c.description)).toEqual(['Новая 1']);
     expect(r.rest).toEqual(['Новая 2', 'Новая 3', 'Новая 4', 'Новая 5']);
-    const full = takeBulk('A\nB', 'profession', 60);
+    const full = takeBulk('A\nB', 'profession', LIMITS.cardsPerCategory);
     expect(full.accepted).toHaveLength(0);
     expect(full.rest).toEqual(['A', 'B']);
     const ok = takeBulk('A | + | медицина\n\nB | - ', 'profession', 0);

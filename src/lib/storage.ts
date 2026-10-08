@@ -85,7 +85,16 @@ const EVENT_KINDS = ['shrink', 'plague', 'volunteer', 'leak', 'silence', 'newHaz
 const validEvent = (e: unknown) =>
   isObj(e) && isStr(e.title) && isStr(e.text) && Array.isArray(e.outcome) && e.outcome.every(isStr) && EVENT_TONES.includes(e.tone as string) && EVENT_KINDS.includes(e.kind as string);
 const PERK_KIND_LIST = ['steal', 'heal', 'reveal', 'steal_junk', 'immunity', 'reroll_health', 'reroll_character', 'swap_bag', 'double', 'bond'];
-const validPerks = (p: unknown) => p === undefined || (Array.isArray(p) && p.every((x) => isObj(x) && isStr(x.playerId) && PERK_KIND_LIST.includes(x.kind as string)));
+const PERK_LEVELS = ['novice', 'experienced', 'expert'];
+const validPerks = (p: unknown) =>
+  p === undefined ||
+  (Array.isArray(p) &&
+    p.every(
+      (x) =>
+        isObj(x) && isStr(x.playerId) && PERK_KIND_LIST.includes(x.kind as string) &&
+        (x.level === undefined || PERK_LEVELS.includes(x.level as string)) &&
+        (x.charges === undefined || (isNum(x.charges) && x.charges >= 1 && x.charges <= 3)),
+    ));
 const validResult = (r: unknown) => r === undefined || (isObj(r) && Array.isArray(r.eliminated) && r.eliminated.every(isStr) && isObj(r.tally) && Object.values(r.tally).every(isNum));
 const validFx = (fx: unknown) =>
   isObj(fx) &&

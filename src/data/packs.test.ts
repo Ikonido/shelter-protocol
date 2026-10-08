@@ -5,7 +5,9 @@ import { generateCharacters, mergePools } from '../lib/generator';
 import { BASE_CHARACTER, BASE_PHYSIQUE } from './baseCards';
 import { mulberry32 } from '../lib/rng';
 import { CATEGORIES, type CardPack, type SessionConfig } from '../types';
-import { sanitizePack } from '../lib/packs';
+import { sanitizePack, encodePack, decodePack } from '../lib/packs';
+import { takeBulk } from '../lib/bulk';
+import { LIMITS } from '../lib/limits';
 import { skillCards, validateScenario, cardsWithSkill } from '../lib/vocab';
 import { createGame } from '../lib/game';
 import { buildChronicle } from '../lib/chronicle';
@@ -198,5 +200,34 @@ describe('expanded luggage collection', () => {
     const weird = ADULT_PACK.cards.luggage.find((c) => c.description === 'Пустой гроб');
     expect(weird?.modifier).toBe('neutral');
     expect(weird?.tags ?? []).toEqual([]);
+  });
+});
+
+describe('лимит карт в категории', () => {
+  const big = (n: number): CardPack => {
+    const p = JSON.parse(JSON.stringify(CLASSIC_PACK)) as CardPack;
+    p.cards.luggage = Array.from({ length: n }, (_, i) => ({ id: `b-${i}`, category: 'luggage' as const, description: `Вещь ${i}`, ...(i === 0 ? { bonus: 'lawyer' } : {}) }));
+    return p;
+  };
+  it('импорт обрезает категорию ровно до лимита, лишнее отбрасывается без ошибки', () => {
+    expect(sanitizePack(JSON.parse(JSON.stringify(big(LIMITS.cardsPerCategory + 10))))!.cards.luggage).toHaveLength(LIMITS.cardsPerCategory);
+    expect(sanitizePack(JSON.parse(JSON.stringify(big(LIMITS.cardsPerCategory))))!.cards.luggage).toHaveLength(LIMITS.cardsPerCategory);
+  });
+  it('ключ бонуса переживает экспорт в JSON и импорт, а ссылка на пак тоже его несёт', () => {
+    const back = sanitizePack(JSON.parse(JSON.stringify(big(5))))!;
+    expect(back.cards.luggage[0].bonus).toBe('lawyer');
+    const link = encodePack(back);
+    expect(decodePack(link)!.cards.luggage[0].bonus).toBe('lawyer');
+  });
+  it('массовое добавление не выходит за лимит ни на одной границе', () => {
+    const lines = Array.from({ length: LIMITS.cardsPerCategory + 5 }, (_, i) => `Карта ${i}`).join('\n');
+    expect(takeBulk(lines, 'hobby', 0).accepted).toHaveLength(LIMITS.cardsPerCategory);
+    expect(takeBulk(lines, 'hobby', 0).rest).toHaveLength(5);
+    expect(takeBulk('A', 'hobby', LIMITS.cardsPerCategory - 1).accepted).toHaveLength(1);
+    expect(takeBulk('A', 'hobby', LIMITS.cardsPerCategory).accepted).toHaveLength(0);
+    expect(takeBulk('A', 'hobby', LIMITS.cardsPerCategory + 50).accepted).toHaveLength(0); // переполненная категория из старого пака
+  });
+  it('встроенные наборы укладываются в лимит (и поэтому не обрезаются при копировании и импорте)', () => {
+    for (const pack of BUILTIN_PACKS) for (const c of CATEGORIES) expect(pack.cards[c].length, `${pack.id}/${c}`).toBeLessThanOrEqual(LIMITS.cardsPerCategory);
   });
 });

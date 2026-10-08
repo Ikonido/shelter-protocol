@@ -167,6 +167,57 @@ describe('online', () => {
     expect(host.game!.perks).toBeUndefined();
   });
 
+  it('a guest uses a two-charge perk twice and sees the charge drop; a lawyer bond needs two other living players', async () => {
+    const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[0], packs: [CLASSIC_PACK], slots: 1, voting: 'open', revealsPerVote: 1, speechSec: 0, roundEvents: false, professionPerks: true }, 'Хост');
+    const pairs = [pair(), pair()];
+    const guests = pairs.map((p, i) => ({ p, c: new OnlineClient(p.clientSide, `Гость${i + 1}`, `ch${i}`) }));
+    pairs.forEach((p) => host.addConn(p.hostSide));
+    await tick();
+    host.start();
+    await tick();
+    // зелье: два применения подряд, клиент видит оставшийся заряд
+    const mine = () => (host.game!.perks ?? []).filter((x) => x.playerId === 'p2');
+    host.game = { ...host.game!, perks: [{ playerId: 'p2', kind: 'reveal', level: 'expert', charges: 2 }] };
+    guests[0].c.send({ t: 'perk', target: 'p3', category: 'health' });
+    await tick();
+    expect(mine()).toEqual([expect.objectContaining({ playerId: 'p2', charges: 1 })]);
+    const seen = guests[0].c.state;
+    expect(seen.status === 'game' && seen.view.perks?.find((x) => x.playerId === 'p2')?.charges).toBe(1);
+    // эксперт мог открыть ещё карты случайно: берём любую, что осталась скрытой
+    const hiddenNow = CATEGORIES.find((c) => c !== 'action' && !host.game!.players[2].slots[c].isRevealed)!;
+    guests[0].c.send({ t: 'perk', target: 'p3', category: hiddenNow });
+    await tick();
+    expect(mine()).toEqual([]); // а бонус, заработанный p3 за открытую карту, остаётся у p3
+    // связь адвоката: сам себя, одинаковые цели и мёртвые цели отклоняются; верная пара принимается
+    host.game = { ...host.game!, perks: [{ playerId: 'p2', kind: 'bond' }] };
+    guests[0].c.send({ t: 'perk', target: 'p2', target2: 'p3' });
+    guests[0].c.send({ t: 'perk', target: 'p3', target2: 'p3' });
+    await tick();
+    expect(host.game!.bonds).toBeUndefined();
+    expect(mine()).toHaveLength(1);
+    guests[0].c.send({ t: 'perk', target: 'p1', target2: 'p3' });
+    await tick();
+    expect(host.game!.bonds).toEqual([{ a: 'p1', b: 'p3', votes: 2 }]);
+    expect(mine()).toEqual([]);
+  });
+
+  it('a client keeps the charges of a perk (a potion seller has two uses), clamped to a sane range', async () => {
+    const p = pair();
+    const c = new OnlineClient(p.clientSide, 'a', 't');
+    const { host } = await setup();
+    host.start();
+    const good = JSON.parse(JSON.stringify(host.viewFor(0)));
+    good.perks = [{ playerId: 'p1', kind: 'reveal', level: 'expert', charges: 2 }, { playerId: 'p2', kind: 'heal', charges: 999 }, { playerId: 'p3', kind: 'steal', charges: 'many' }];
+    (p.hostSide as unknown as { send(m: unknown): void }).send({ t: 'view', me: 'p1', view: good });
+    await tick();
+    if (c.state.status !== 'game') throw new Error('should accept');
+    expect(c.state.view.perks).toEqual([
+      { playerId: 'p1', kind: 'reveal', level: 'expert', charges: 2 },
+      { playerId: 'p2', kind: 'heal', charges: 3 },
+      { playerId: 'p3', kind: 'steal' },
+    ]);
+  });
+
   it('a client keeps up to six active threats and the full extended schedule', async () => {
     const p = pair();
     const c = new OnlineClient(p.clientSide, 'a', 't');

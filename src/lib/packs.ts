@@ -184,13 +184,16 @@ export function encodePack(pack: CardPack): string {
 
 /** Предел длины ссылки: lz-string не умеет ограничивать размер распаковки, а «бомба» из коротких данных раздувается квадратично. */
 export const MAX_SHARE_CHARS = 20000;
-export const MAX_FILE_BYTES = 1_000_000;
+/** Файл пака: самый большой допустимый по лимитам пак (120 карт в категории, 1000 переопределений) весит около 1,5 МБ. */
+export const MAX_FILE_BYTES = 2_000_000;
+/** Предел распакованной ссылки (в символах); не зависит от размера файла, чтобы «бомба» из коротких данных не раздула память. */
+const MAX_DECODED_CHARS = 2_000_000;
 
 export function decodePack(encoded: string): CardPack | null {
   if (encoded.length > MAX_SHARE_CHARS) return null;
   try {
     const json = LZString.decompressFromEncodedURIComponent(encoded);
-    return json && json.length <= MAX_FILE_BYTES * 2 ? sanitizePack(JSON.parse(json)) : null;
+    return json && json.length <= MAX_DECODED_CHARS ? sanitizePack(JSON.parse(json)) : null;
   } catch {
     return null;
   }
@@ -214,7 +217,7 @@ export function packFromHash(hash: string): CardPack | null {
 export async function exportPackFile(pack: CardPack): Promise<void> {
   const text = JSON.stringify({ ...pack, isCustom: undefined });
   // Файл, который собственный импорт не примет, не выдаём как успешный экспорт.
-  if (new TextEncoder().encode(text).length > MAX_FILE_BYTES) throw new Error(t('Пак слишком большой для экспорта в файл (>1 МБ). Удалите часть карт или сценариев.'));
+  if (new TextEncoder().encode(text).length > MAX_FILE_BYTES) throw new Error(t('Пак слишком большой для экспорта в файл (>2 МБ). Удалите часть карт или сценариев.'));
   const fileName = `${pack.name.replace(/[^\p{L}\p{N}_-]+/gu, '_') || 'pack'}.shelter.json`;
   const w = window as unknown as {
     showSaveFilePicker?: (o: unknown) => Promise<{ createWritable: () => Promise<{ write: (t: string) => Promise<void>; close: () => Promise<void> }> }>;
@@ -262,7 +265,7 @@ export async function importPackFile(): Promise<CardPack | null> {
     });
   }
   if (!file) return null;
-  if (file.size > MAX_FILE_BYTES) throw new Error(t('Файл слишком большой (>1 МБ)'));
+  if (file.size > MAX_FILE_BYTES) throw new Error(t('Файл слишком большой (>2 МБ)'));
   try {
     const pack = sanitizePack(JSON.parse(await file.text()));
     if (!pack) throw new Error();

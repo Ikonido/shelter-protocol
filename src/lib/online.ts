@@ -666,7 +666,9 @@ function cleanPerks(raw: unknown): Perk[] {
     const r = rec(x);
     const kind = PERK_KINDS.find((k) => k === r.kind);
     const level = (['novice', 'experienced', 'expert'] as const).find((l) => l === r.level);
-    return kind && typeof r.playerId === 'string' ? [{ playerId: text(r.playerId, 12), kind, ...(level ? { level } : {}) }] : [];
+    // Заряды (второе применение у продавца зелий): без них клиент видел бы бонус на одно применение.
+    const charges = typeof r.charges === 'number' && Number.isFinite(r.charges) ? Math.min(3, Math.max(1, Math.round(r.charges))) : undefined;
+    return kind && typeof r.playerId === 'string' ? [{ playerId: text(r.playerId, 12), kind, ...(level ? { level } : {}), ...(charges ? { charges } : {}) }] : [];
   });
 }
 
