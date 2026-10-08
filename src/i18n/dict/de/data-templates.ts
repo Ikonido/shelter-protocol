@@ -56,7 +56,7 @@ export default {
   'Мертвецы заполонили города. Убежище — единственное безопасное место, но внутри уже может быть заражённый.':
     'Die Toten haben die Städte überrannt. Der Schutzraum ist der einzige sichere Ort, doch drinnen könnte sich schon ein Infizierter befinden.',
   '2 года': '2 Jahre',
-  'Орда у ворот': 'Horde vor dem Tor',
+  'Орда у ворот': 'Horde vor den Toren',
   'Заражённый внутри': 'Infizierter im Inneren',
   'Сотни мертвецов давят на внешний шлюз.': 'Hunderte Tote drücken gegen die äußere Schleuse.',
   '{who} укрепляет шлюз и отбивает орду.': '{who} verstärkt die Schleuse und schlägt die Horde zurück.',

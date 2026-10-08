@@ -130,15 +130,15 @@ export function evaluate(scenario: Scenario, survivors: PlayerCharacter[], slots
   for (const r of open) {
     const lack = r.by.length ? ` ${t('(нужно {need}, есть {have})', { need: r.need, have: r.by.length })}` : '';
     const doom = r.hazard.severity === 'critical' && fatal ? ` — ${t('это гибель убежища')}` : '';
-    notes.push(t('Угроза «{title}» не нейтрализована{lack}{doom}.', { title: r.hazard.title, lack, doom }));
+    notes.push(t('Угроза «{title}» не нейтрализована{lack}{doom}.', { title: t(r.hazard.title), lack, doom }));
   }
   if (overcrowd) {
     notes.push(
       t('Бункер переполнен: {n} {people} на {slots} {places}.', {
         n: survivors.length,
-        people: plural(survivors.length, { ru: ['человек', 'человека', 'человек'], uk: ['людина', 'людини', 'людей'] }),
+        people: plural(survivors.length, { ru: ['человек', 'человека', 'человек'], uk: ['людина', 'людини', 'людей'], en: ['person', 'people'], de: ['Person', 'Personen'] }),
         slots: slots ?? 0,
-        places: plural(slots ?? 0, { ru: ['место', 'места', 'мест'], uk: ['місце', 'місця', 'місць'] }),
+        places: plural(slots ?? 0, { ru: ['место', 'места', 'мест'], uk: ['місце', 'місця', 'місць'], en: ['place', 'places'], de: ['Platz', 'Plätze'] }),
       }),
     );
   }
@@ -150,7 +150,7 @@ export function evaluate(scenario: Scenario, survivors: PlayerCharacter[], slots
       : verdict === 'fragile'
         ? t('Колония на грани')
         : fatal
-          ? t('Убежище погубила угроза: {title}', { title: criticalOpen[0].hazard.title })
+          ? t('Убежище погубила угроза: {title}', { title: t(criticalOpen[0].hazard.title) })
           : t('Убежище не пережило катастрофу');
   return { hazards: hazardResults, fatal, coverage, coveredCount, health, resources, stability, score, verdict, headline, notes };
 }

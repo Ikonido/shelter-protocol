@@ -161,3 +161,17 @@ describe('chronicle in Ukrainian', () => {
     }
   });
 });
+
+describe('isolation duration units', () => {
+  it('understands English and German units too', async () => {
+    const { isolationDays } = await import('./chronicle');
+    expect(isolationDays('3 years')).toBe(isolationDays('3 года'));
+    expect(isolationDays('6 months')).toBe(isolationDays('6 месяцев'));
+    expect(isolationDays('2 weeks')).toBe(isolationDays('2 недели'));
+    expect(isolationDays('10 days')).toBe(isolationDays('10 дней'));
+    expect(isolationDays('2 Jahre')).toBe(isolationDays('2 года'));
+    expect(isolationDays('6 Monate')).toBe(isolationDays('6 месяцев'));
+    expect(isolationDays('3 Tage')).toBe(3);
+    expect(isolationDays('nobody knows')).toBe(isolationDays('неизвестно'));
+  });
+});

@@ -56,7 +56,7 @@ export default {
   'Мертвецы заполонили города. Убежище — единственное безопасное место, но внутри уже может быть заражённый.':
     'The dead have overrun the cities. The shelter is the only safe place, but there may already be an infected person inside.',
   '2 года': '2 years',
-  'Орда у ворот': 'Horde at the gates',
+  'Орда у ворот': 'Horde at the Gates',
   'Заражённый внутри': 'Infected within',
   'Сотни мертвецов давят на внешний шлюз.': 'Hundreds of the dead press against the outer airlock.',
   '{who} укрепляет шлюз и отбивает орду.': '{who} reinforces the airlock and beats back the horde.',
