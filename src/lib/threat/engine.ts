@@ -15,7 +15,7 @@ export function parseSecretCommand(raw: unknown): SecretCommand | null {
   if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
   let operation: SecretOperation;
   if (o.kind === 'skip' && Object.keys(o).length === 1) operation = { kind: 'skip' };
-  else if (o.kind === 'investigate' && Object.keys(o).length === 3 && typeof o.target === 'string' && o.target.length <= 12 && ['connections', 'dossier', 'actions'].includes(String(o.direction))) operation = { kind: 'investigate', target: o.target, direction: o.direction as 'connections' | 'dossier' | 'actions' };
+  else if (o.kind === 'investigate' && Object.keys(o).length === 3 && typeof o.target === 'string' && o.target.length <= 12 && typeof o.direction === 'string' && ['connections', 'dossier', 'actions'].includes(o.direction)) operation = { kind: 'investigate', target: o.target, direction: o.direction as 'connections' | 'dossier' | 'actions' };
   else if ((o.kind === 'plant' || o.kind === 'forge') && Object.keys(o).length === 3 && typeof o.target === 'string' && o.target.length <= 12 && EVIDENCE_KINDS.includes(o.evidence as typeof EVIDENCE_KINDS[number])) operation = { kind: o.kind, target: o.target, evidence: o.evidence as typeof EVIDENCE_KINDS[number] };
   else if (o.kind === 'analyze' && Object.keys(o).length === 2 && typeof o.findingId === 'string' && o.findingId.length <= 80) operation = { kind: 'analyze', findingId: o.findingId };
   else return null;
@@ -60,7 +60,7 @@ export function resolveSecret(g: GameState): GameState {
       const found = p.results.find(r => r.id === o.findingId);
       const analysis = found && analyze(cur, found);
       if (!analysis || p.points < 2) continue;
-      cur = { ...cur, hiddenThreat: { ...s, players: { ...s.players, [actor]: { ...p, points: p.points - 2, results: p.results.map(r => r.id === o.findingId ? { ...r, analyzed: true, analysis } : r) } }, audit: [...s.audit, { round: g.round, actor, target: found!.target, kind: 'analysis', text: analysis }] } };
+      cur = { ...cur, hiddenThreat: { ...s, players: { ...s.players, [actor]: { ...p, points: p.points - 2, results: p.results.map(r => r.evidenceId === found!.evidenceId ? { ...r, analyzed: true, analysis } : r) } }, audit: [...s.audit, { round: g.round, actor, target: found!.target, kind: 'analysis', text: analysis }] } };
     }
   }
   // Passive award after results; never reflected in the saboteur's own response.

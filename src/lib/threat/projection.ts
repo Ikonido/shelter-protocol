@@ -2,18 +2,31 @@ import type { GameState } from '../../types';
 import { isCriminal, socialOutcome } from './roles';
 import type { ActivityReport, Finding, Publication, SecretPlayer, SecretRole, ThreatAudit, ThreatView } from './types';
 
+/** Host-side allowlists must run before serialization, not only after a client receives data. */
+function projectFinding(r: Finding): Finding {
+  return { id: r.id, target: r.target, round: r.round, direction: r.direction, text: r.text, analyzed: r.analyzed,
+    ...(r.evidenceId !== undefined ? { evidenceId: r.evidenceId } : {}),
+    ...(r.analysis !== undefined ? { analysis: r.analysis } : {}) };
+}
+function projectAudit(a: ThreatAudit): ThreatAudit {
+  return { round: a.round, actor: a.actor, kind: a.kind, text: a.text,
+    ...(a.target !== undefined ? { target: a.target } : {}),
+    ...(a.points !== undefined ? { points: a.points } : {}) };
+}
+
 export function threatViewFor(g: GameState, id: string): ThreatView | undefined {
   const s = g.hiddenThreat;
   if (!s) return undefined;
   const p = s.players[id];
+  const own = p ? { role: p.role, points: p.points, checks: p.checks, lastCheckRound: p.lastCheckRound, notices: [...p.notices], results: p.results.map(projectFinding) } : undefined;
   return {
     version: 1,
-    publications: s.publications.map((p, i) => ({ ...p, id: `public-${i + 1}` })),
-    reports: s.reports.map(p => ({ ...p })),
+    publications: s.publications.map((p, i) => ({ id: `public-${i + 1}`, round: p.round, target: p.target, direction: p.direction, text: p.text, ...(p.analysis !== undefined ? { analysis: p.analysis } : {}) })),
+    reports: s.reports.map(r => ({ round: r.round, active: r.active, ...(g.config.hiddenThreat?.report === 'detailed' && r.checks !== undefined ? { checks: r.checks, sabotages: r.sabotages ?? 0 } : {}) })),
     // Uniform acknowledgements include civilian skips, never operation kinds or targets.
     ready: s.pending.map(p => p.actor),
-    ...(p ? { me: { ...p, notices: [...p.notices], results: p.results.map(r => ({ ...r })), playerId: id, allies: p.role === 'mafia' ? Object.keys(s.players).filter(other => other !== id && s.players[other].role === 'mafia') : [], ...(isCriminal(p.role) ? { sabotageUses: s.sabotageUses, sabotageRound: s.sabotageRound } : {}), auxiliaryUsed: s.auxiliary.includes(`${id}:${g.round}`) || s.auxiliary.filter(k => k.startsWith(`${id}:`)).length >= 3, submitted: s.pending.some(c => c.actor === id) } } : {}),
-    ...(g.phase === 'final' ? { final: { roles: Object.fromEntries(Object.entries(s.players).map(([id, p]) => [id, p.role])), audit: s.audit.map(a => ({ ...a })), outcome: socialOutcome(g)! } } : {}),
+    ...(p && own ? { me: { ...own, playerId: id, allies: p.role === 'mafia' ? Object.keys(s.players).filter(other => other !== id && s.players[other].role === 'mafia') : [], ...(isCriminal(p.role) ? { sabotageUses: s.sabotageUses, sabotageRound: s.sabotageRound } : {}), auxiliaryUsed: s.auxiliary.includes(`${id}:${g.round}`) || s.auxiliary.filter(k => k.startsWith(`${id}:`)).length >= 3, submitted: s.pending.some(c => c.actor === id) } } : {}),
+    ...(g.phase === 'final' ? { final: { roles: Object.fromEntries(Object.entries(s.players).map(([id, p]) => [id, p.role])), audit: s.audit.map(projectAudit), outcome: socialOutcome(g)! } } : {}),
   };
 }
 
@@ -46,7 +59,7 @@ export function sanitizeThreatView(x: unknown, final: boolean): ThreatView | und
     const f = finding(x);
     return { id: f.id, round: f.round, target: f.target, direction: f.direction, text: f.text, ...(f.analysis ? { analysis: f.analysis } : {}) };
   });
-  const reports: ActivityReport[] = list(r.reports, 50).map(x => {
+  const reports: ActivityReport[] = (Array.isArray(r.reports) ? r.reports.slice(-50) : []).map(x => {
     const a = obj(x);
     return { round: num(a.round), active: a.active === true, ...(a.checks !== undefined ? { checks: num(a.checks, 2), sabotages: num(a.sabotages, 1) } : {}) };
   });

@@ -18,7 +18,7 @@ export function dealRoles(players: PlayerCharacter[], config: ThreatConfig, seed
   order.forEach((id, i) => {
     roles[id] = { role: i < criminalsFor(n) ? criminal : i === criminalsFor(n) ? 'officer' : 'civilian', points: 0, checks: 0, lastCheckRound: 0, notices: [], results: [] };
   });
-  return { version: 1, players: roles, evidence: [], pending: [], processed: [], rewarded: [], auxiliary: [], sabotageUses: 0, sabotageRound: 0, resolvedRound: 0, audit: [], publications: [], reports: [] };
+  return { version: 1, resourceLedgerVersion: 2, players: roles, evidence: [], pending: [], processed: [], rewarded: [], auxiliary: [], sabotageUses: 0, sabotageRound: 0, resolvedRound: 0, audit: [], publications: [], reports: [] };
 }
 export const isCriminal = (role?: string) => role === 'maniac' || role === 'mafia';
 export function socialOutcome(g: GameState): SocialOutcome | undefined {

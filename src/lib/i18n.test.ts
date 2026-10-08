@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest';
-import { t, plural } from './i18n';
+import { t, plural, packT, tPacked } from './i18n';
 import { updateSettings, type Lang } from './settings';
 import { DICTS, DICT_PARTS } from '../i18n';
 
@@ -28,6 +28,17 @@ describe('t()', () => {
   it('fills {name} placeholders and leaves unknown ones as they are', () => {
     expect(t('Раунд {n} из {total}', { n: 2, total: 5 })).toBe('Раунд 2 из 5');
     expect(t('Привет, {name}', {})).toBe('Привет, {name}');
+  });
+  it('does not treat inherited Object keys in custom cards as translations', () => {
+    try {
+      for (const lang of ['uk', 'en', 'de'] as const) {
+        setLang(lang);
+        for (const key of ['constructor', '__proto__', 'toString', 'valueOf']) expect(t(key)).toBe(key);
+        expect(t('constructor + toString')).toBe('constructor + toString');
+      }
+      setLang('en');
+      expect(tPacked(packT('{desc} (поддержка)', { desc: 'constructor' }))).toBe('constructor (supported)');
+    } finally { setLang('ru'); }
   });
 });
 

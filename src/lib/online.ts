@@ -338,7 +338,7 @@ export class OnlineHost {
       const command = Object.keys(msg).every(k => ['t', 'command'].includes(k)) && parseSecretCommand(msg.command);
       if (command) this.act(member, { t: 'secret', command });
     }
-    else if (msg.t === 'auxiliary' && Object.keys(msg).every(k => ['t', 'round', 'kind', 'target', 'itemId'].includes(k)) && ['assist', 'obstruct', 'transfer'].includes(String(msg.kind)) && typeof msg.target === 'string' && Number.isInteger(msg.round)) this.act(member, { t: 'auxiliary', round: msg.round as number, kind: msg.kind as Auxiliary, target: msg.target.slice(0, 12), ...(typeof msg.itemId === 'string' ? { itemId: msg.itemId.slice(0, 60) } : {}) });
+    else if (msg.t === 'auxiliary' && Object.keys(msg).every(k => ['t', 'round', 'kind', 'target', 'itemId'].includes(k)) && typeof msg.kind === 'string' && ['assist', 'obstruct', 'transfer'].includes(msg.kind) && typeof msg.target === 'string' && Number.isInteger(msg.round)) refusal = this.act(member, { t: 'auxiliary', round: msg.round as number, kind: msg.kind as Auxiliary, target: msg.target.slice(0, 12), ...(typeof msg.itemId === 'string' ? { itemId: msg.itemId.slice(0, 60) } : {}) });
     else if (msg.t === 'reveal' && CATEGORIES.includes(msg.category as Category)) this.act(member, { t: 'reveal', category: msg.category as Category });
     else if (msg.t === 'action') refusal = this.act(member, { t: 'action', ...(typeof msg.target === 'string' ? { target: msg.target.slice(0, 12) } : {}), ...(CATEGORIES.includes(msg.category as Category) ? { category: msg.category as Category } : {}) });
     else if (msg.t === 'perk') refusal = this.act(member, { t: 'perk', ...(msg.skip === true ? { skip: true } : {}), ...(typeof msg.target === 'string' ? { target: msg.target.slice(0, 12) } : {}), ...(CATEGORIES.includes(msg.category as Category) ? { category: msg.category as Category } : {}) });
@@ -753,7 +753,7 @@ export function sanitizeView(raw: unknown): GameState | null {
     votes,
     log: Array.isArray(r.log)
       ? r.log.slice(-200).map((l) => ({
-          round: int(rec(l).round, 1, 50),
+          round: int(rec(l).round, 1, cfg.variant === 'hidden-threat' ? 10000 : 50),
           text: text(rec(l).text, 400),
           // Признаки записи нужны интерфейсу и хронике: баннер последнего действия и добровольцы в эпилоге.
           ...(rec(l).kind === 'action' ? { kind: 'action' as const } : {}),

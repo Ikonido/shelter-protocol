@@ -1,5 +1,7 @@
 /** Shared rows keep every Hidden Threat message aligned across the four supported languages. */
 const rows: [string, string, string, string][] = [
+  ['Старое сохранение восстановлено: роли и очки сохранены, новые начисления за прежние ресурсы отключены.', 'Старе збереження відновлено: ролі та очки збережено, нові нарахування за попередні ресурси вимкнено.', 'Legacy save restored: roles and points retained; further awards for legacy resources are disabled.', 'Alter Spielstand wiederhergestellt: Rollen und Punkte bleiben erhalten; weitere Punkte für bisherige Ressourcen sind deaktiviert.'],
+  ['Сохранённая комната отсутствует или повреждена. Восстановление отменено.', 'Збережена кімната відсутня або пошкоджена. Відновлення скасовано.', 'The saved room is missing or damaged. Restoration was cancelled.', 'Der gespeicherte Raum fehlt oder ist beschädigt. Die Wiederherstellung wurde abgebrochen.'],
   ['Подброшена улика', 'Підкинуто доказ', 'Evidence planted', 'Beweis untergeschoben'],
   ['Повторная экспертиза', 'Повторна експертиза', 'Re-analysis', 'Erneute Analyse'],
   ['Публикация улики', 'Публікація доказу', 'Evidence publication', 'Beweisveröffentlichung'],

@@ -31,6 +31,10 @@ export interface Publication { id: string; round: number; target: string; direct
 export interface ActivityReport { round: number; checks?: number; sabotages?: number; active: boolean }
 export interface ThreatState {
   version: 1;
+  /** v2 consumes reward resources independently of the actor's secret role. */
+  resourceLedgerVersion?: 2;
+  /** Conservative recovery of progressed v1 saves whose neutral transitions were not recorded. */
+  legacyResourceCutoff?: number;
   players: Record<string, SecretPlayer>;
   evidence: Evidence[];
   pending: Submitted[];

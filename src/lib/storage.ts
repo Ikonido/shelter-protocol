@@ -1,8 +1,9 @@
-import { CATEGORIES, type CardPack, type Category, type GameState } from '../types';
+import { ACTION_EFFECTS, CATEGORIES, type CardPack, type Category, type GameState } from '../types';
 import { emptyCard } from './generator';
 import { sanitizePack } from './packs';
 import { MAX_ITEMS } from './inventory';
 import { validThreatSave } from './threat/storage';
+import { migrateThreatLedger } from './threat/economy';
 
 const K_PACKS = 'shelter:customPacks';
 const K_GAME = 'shelter:game';
@@ -66,6 +67,7 @@ const VOTINGS = ['secret', 'open'];
 const MODIFIERS = ['positive', 'neutral', 'negative'];
 const validCard = (c: unknown, nested = false): boolean =>
   isObj(c) && isStr(c.description) && (c.tags === undefined || strList(c.tags)) && (c.modifier === undefined || MODIFIERS.includes(c.modifier as string)) && (c.title === undefined || isStr(c.title)) &&
+  (c.effect === undefined || isStr(c.effect) && Object.hasOwn(ACTION_EFFECTS, c.effect)) &&
   (c.strictTags === undefined || typeof c.strictTags === 'boolean') &&
   // Составной багаж: предметы — тоже карты (один уровень вложенности, не больше MAX_ITEMS).
   (c.items === undefined || (!nested && Array.isArray(c.items) && c.items.length <= MAX_ITEMS && c.items.every((i) => validCard(i, true))));
@@ -123,7 +125,7 @@ export function validateSavedGame(raw: unknown): GameState | null {
     }
   }
   const game = raw as unknown as GameState;
-  return validThreatSave(game) ? game : null;
+  return validThreatSave(game) ? migrateThreatLedger(game) : null;
 }
 
 export const loadGame = (): GameState | null => {

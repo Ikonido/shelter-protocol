@@ -18,7 +18,7 @@ import { dealStartingItems } from './inventory';
 import { EVENTS, drawEvent, hiddenForLeak, unusedHazards } from './events';
 import { mulberry32, shuffle } from './rng';
 import { packT, t, tPacked } from './i18n';
-import { applyPerk, grantPerksForNewReveals, onProfessionRevealed } from './perks';
+import { applyPerk, grantPerksForNewReveals, onProfessionRevealed, PERK_EFFECT } from './perks';
 import { dealRoles, validateThreatConfig } from './threat/roles';
 import { rewardTransition, withThreatReserves } from './threat/economy';
 
@@ -150,7 +150,8 @@ export function settleReveal(g: GameState): GameState {
 export function playPerk(g: GameState, playerId: string, params?: ActionParams): GameState {
   if (g.hiddenThreat && !['reveal', 'speech', 'vote'].includes(g.phase)) return g;
   const next = applyPerk(g, playerId, params);
-  return next === g ? g : settleReveal(rewardTransition(g, next, playerId, `perk:${playerId}:${g.round}`));
+  const perk = g.perks?.find(p => p.playerId === playerId);
+  return next === g ? g : settleReveal(rewardTransition(g, next, playerId, `perk:${playerId}:${g.round}`, perk ? PERK_EFFECT[perk.kind] : undefined));
 }
 
 export function playAction(g: GameState, playerId: string, params?: ActionParams): GameState {
@@ -159,7 +160,7 @@ export function playAction(g: GameState, playerId: string, params?: ActionParams
   if (!p || p.isEliminated || p.slots.action.isRevealed) return g;
   const card = p.slots.action.card;
   // Автоисполнение (по желанию игроков): эффект карты выполняется в игре. Невозможное действие ничего не меняет.
-  if (g.config.autoActions && card.effect) return settleReveal(rewardTransition(g, grantPerksForNewReveals(g, runEffect(g, playerId, card.effect, params)), playerId, `action:${playerId}`));
+  if (g.config.autoActions && card.effect) return settleReveal(rewardTransition(g, grantPerksForNewReveals(g, runEffect(g, playerId, card.effect, params)), playerId, `action:${playerId}`, card.effect));
   return {
     ...g,
     players: g.players.map((x) =>

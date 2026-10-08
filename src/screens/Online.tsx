@@ -29,7 +29,7 @@ import { ThreatPrivate, ThreatPublic } from '../ui/HiddenThreat';
 import { Gate } from '../ui/Gate';
 import { Modal } from '../ui/bits';
 import { validateThreatConfig } from '../lib/threat/roles';
-import { clearHostedRoom, loadHostedRoom, saveHostedRoom } from '../lib/threat/hostStorage';
+import { clearHostedRoom, openLobbySession, saveHostedRoom } from '../lib/threat/hostStorage';
 
 type Send = (m: Exclude<C2H, { t: 'hello' }>) => void;
 
@@ -82,15 +82,18 @@ export function Lobby({ draft, resume = false }: { draft: OnlineDraft; resume?: 
   useEffect(() => {
     let room: { destroy(): void } | null = null;
     let cancelled = false;
-    const saved = resume ? loadHostedRoom() : null;
-    const h = saved ? OnlineHost.restore(saved.checkpoint, saved.setup)! : new OnlineHost(draft, readLS('shelter:name') ?? t('Хост'));
     setError(null);
+    setCode(null);
+    let session: ReturnType<typeof openLobbySession>;
+    try { session = openLobbySession(draft, readLS('shelter:name') ?? t('Хост'), resume); }
+    catch (e) { setHost(null); setError((e as Error).message); return; }
+    const h = session.host;
     setHost(h);
     (async () => {
       const mode: NetMode = (await probeLan()) ? 'lan' : 'internet';
       if (cancelled) return;
       setNet(mode);
-      const r = await createRoom((c) => h.addConn(c as Conn<H2C>), mode, saved?.code);
+      const r = await createRoom((c) => h.addConn(c as Conn<H2C>), mode, session.code);
       if (cancelled) r.destroy();
       else {
         room = r;
@@ -110,7 +113,7 @@ export function Lobby({ draft, resume = false }: { draft: OnlineDraft; resume?: 
     return host.subscribe(save);
   }, [host, code]);
 
-  if (!host) return null;
+  if (!host) return error ? <section className="panel flex flex-col gap-3"><p role="alert">{error}</p><button className="btn" onClick={() => go({ name: 'home' })}>{t('В меню')}</button></section> : null;
   // currentTicket() сам выпускает новый билет по истечении срока — QR «живой», старый перестаёт работать.
   const ticket = code ? host.currentTicket() : null;
   const left = ticket ? Math.max(0, Math.ceil((ticket.expiresAt - now) / 1000)) : 0;
@@ -121,7 +124,7 @@ export function Lobby({ draft, resume = false }: { draft: OnlineDraft; resume?: 
   if (host.game) {
     if (!code || error) return <section className="panel flex flex-col gap-3"><p>{error ?? t('Создаём комнату…')}</p>{error && <button className="btn" onClick={() => setAttempt(n => n + 1)}>{t('Повторить восстановление комнаты')}</button>}<button className="btn" onClick={() => go({ name: 'home' })}>{t('В меню')}</button></section>;
     // Хосту часы нужны по его же времени (клиенты получают «осталось» и пересчитывают у себя).
-    const view = { ...host.viewFor(0)!, deadline: host.game.deadline };
+    const view = { ...host.viewFor(0)!, deadline: host.game.deadline, speechEndsAt: host.game.speechEndsAt };
     return (
       <OnlineGame
         view={view}
