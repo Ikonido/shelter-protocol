@@ -78,7 +78,9 @@ export function canApply(g: GameState, actorId: string, effect: ActionEffect, pa
   const fail = (reason: string) => ({ ok: false as const, reason });
   const target = find(g, params.target);
   if (needsTarget(effect)) {
-    if (!target || target.isEliminated || target.id === actorId) return fail(t('Выберите другого живого игрока'));
+    // Врач может лечить и себя; остальным действиям нужна другая цель.
+    const self = effect === 'healOther' && target?.id === actorId;
+    if (!target || target.isEliminated || (target.id === actorId && !self)) return fail(t('Выберите другого живого игрока'));
   }
   // В «виде» онлайн-клиента нет ни колоды, ни чужих карт: такие проверки пропускаем, их повторяет хост.
   const full = g.deck !== undefined;

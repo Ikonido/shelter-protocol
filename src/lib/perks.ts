@@ -1,4 +1,5 @@
-import { CATEGORIES, type ActionEffect, type Card, type GameState, type Perk, type PerkKind, type PerkLevel } from '../types';
+import { CATEGORIES, type ActionEffect, type Card, type Category, type GameState, type Perk, type PerkKind, type PerkLevel } from '../types';
+import { SKILL_CATEGORIES } from './evaluate';
 import { canApply, runEffect, toDiscard, type ActionParams } from './actions';
 import { addToBag, composeItems, itemsOf } from './inventory';
 import { mulberry32, shuffle } from './rng';
@@ -107,21 +108,43 @@ function addItems(g: GameState, playerId: string, perk: ItemPerk, level: PerkLev
   return next;
 }
 
-/** Вызывается, когда игрок открыл профессию. Если бонусы выключены или подходящего нет — состояние не меняется. */
-export function onProfessionRevealed(g: GameState, playerId: string): GameState {
-  if (!g.config.professionPerks) return g;
+/**
+ * Открыта карта с навыком (профессия, хобби, факт, багаж, характер, телосложение, биология): по её навыкам игрок получает бонус.
+ * Предметы выдаются сразу; действие с выбором игрока остаётся до голосования. Одновременно действует один бонус:
+ * пока он не потрачен, следующий навык бонуса не заменяет.
+ */
+export function onSkillRevealed(g: GameState, playerId: string, category: Category): GameState {
+  if (!g.config.professionPerks || !SKILL_CATEGORIES.includes(category as (typeof SKILL_CATEGORIES)[number])) return g;
   const p = g.players.find((x) => x.id === playerId);
   if (!p || p.isEliminated) return g;
-  const perk = perkFor(p.slots.profession.card);
+  const perk = perkFor(p.slots[category].card);
   if (!perk) return g;
   const level = rollLevel(g, playerId);
   if (perk.kind === 'item') return addItems(g, playerId, perk, level);
   if (g.players.filter((x) => !x.isEliminated).length < 2) return g;
+  if (perkOf(g, playerId)) return g;
   return {
     ...g,
-    perks: [...(g.perks ?? []).filter((x) => x.playerId !== playerId), { playerId, kind: perk.kind, level }],
-    log: [...g.log, { round: g.round, text: t('{who} получает бонус профессии: «{label}»', { who: p.name, label: perkLabel(perk.kind, level) }) }],
+    perks: [...(g.perks ?? []), { playerId, kind: perk.kind, level }],
+    log: [...g.log, { round: g.round, text: t('{who} получает бонус навыка: «{label}»', { who: p.name, label: perkLabel(perk.kind, level) }) }],
   };
+}
+
+/**
+ * Карту могли открыть не по ходу, а принудительно (допрос, утечка, карта «Заставить открыть»): владельцу всё равно
+ * положен бонус. Сравнивает состояния до и после и выдаёт бонусы за каждую только что открытую карту навыка.
+ */
+export function grantPerksForNewReveals(prev: GameState, next: GameState): GameState {
+  if (next === prev || !next.config.professionPerks) return next;
+  let cur = next;
+  for (const p of next.players) {
+    const was = prev.players.find((x) => x.id === p.id);
+    if (!was) continue;
+    for (const c of SKILL_CATEGORIES) {
+      if (p.slots[c].isRevealed && !was.slots[c].isRevealed) cur = onSkillRevealed(cur, p.id, c);
+    }
+  }
+  return cur;
 }
 
 export const perkOf = (g: GameState, playerId: string): Perk | undefined => g.perks?.find((x) => x.playerId === playerId);
@@ -166,20 +189,6 @@ export function applyPerk(g: GameState, playerId: string, params: ActionParams =
     }
   }
   return grantPerksForNewReveals(g, withoutPerk(cur, playerId));
-}
-
-/**
- * Профессию могли открыть не по ходу, а принудительно (допрос, утечка, карта «Заставить открыть»): владельцу всё равно
- * положен бонус. Сравнивает состояния до и после и выдаёт бонусы тем, чья профессия только что открылась.
- */
-export function grantPerksForNewReveals(prev: GameState, next: GameState): GameState {
-  if (next === prev || !next.config.professionPerks) return next;
-  let cur = next;
-  for (const p of next.players) {
-    const was = prev.players.find((x) => x.id === p.id);
-    if (was && p.slots.profession.isRevealed && !was.slots.profession.isRevealed) cur = onProfessionRevealed(cur, p.id);
-  }
-  return cur;
 }
 
 /** Отказаться от бонуса. */

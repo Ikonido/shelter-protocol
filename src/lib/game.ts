@@ -18,7 +18,7 @@ import { dealStartingItems } from './inventory';
 import { EVENTS, drawEvent, hiddenForLeak, unusedHazards } from './events';
 import { mulberry32, shuffle } from './rng';
 import { packT, t, tPacked } from './i18n';
-import { applyPerk, grantPerksForNewReveals, onProfessionRevealed, PERK_EFFECT } from './perks';
+import { applyPerk, grantPerksForNewReveals, onSkillRevealed, PERK_EFFECT } from './perks';
 import { dealRoles, validateThreatConfig } from './threat/roles';
 import { rewardTransition, withThreatReserves } from './threat/economy';
 
@@ -132,7 +132,7 @@ export function revealCard(g: GameState, playerId: string, category: Category): 
       { round: g.round, text: t('{who} открывает «{cat}»: {desc}', { who: p.name, cat: categoryLabel(category), desc: p.slots[category].card.description }) },
     ],
   };
-  const withPerk = category === 'profession' ? onProfessionRevealed(next, playerId) : next;
+  const withPerk = onSkillRevealed(next, playerId, category);
   const sec = g.config.speechSec ?? 0;
   if (sec > 0) return { ...withPerk, phase: 'speech', speechEndsAt: Date.now() + sec * 1000 * (g.speechFactor ?? 1) };
   return afterTurn(withPerk);
