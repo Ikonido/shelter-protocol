@@ -48,7 +48,7 @@ export default function Packs() {
             <div>
               <h2 className="font-bold text-amber">{t(p.name)} {!p.isCustom && <span className="text-xs font-normal text-dim">{t('[встроенный]')}</span>}</h2>
               <p className="text-xs text-dim">{p.description ? t(p.description) : t('Без описания')}</p>
-              <p className="mt-1 text-xs">{s.scenarios} {plural(s.scenarios, { ru: ['сценарий', 'сценария', 'сценариев'], uk: ['сценарій', 'сценарії', 'сценаріїв'] })} · {s.cards} {plural(s.cards, { ru: ['карта', 'карты', 'карт'], uk: ['картка', 'картки', 'карток'] })}</p>
+              <p className="mt-1 text-xs">{s.scenarios} {plural(s.scenarios, { ru: ['сценарий', 'сценария', 'сценариев'], uk: ['сценарій', 'сценарії', 'сценаріїв'], en: ['scenario', 'scenarios'], de: ['Szenario', 'Szenarios'] })} · {s.cards} {plural(s.cards, { ru: ['карта', 'карты', 'карт'], uk: ['картка', 'картки', 'карток'], en: ['card', 'cards'], de: ['Karte', 'Karten'] })}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {p.isCustom && <button className="btn btn-sm" onClick={() => go({ name: 'editor', packId: p.id })}><Pencil size={14} /> {t('Править')}</button>}
