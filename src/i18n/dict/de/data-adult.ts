@@ -93,7 +93,6 @@ export default {
   'Скука превращается в нервный срыв.': 'Die Langeweile wird zum Nervenzusammenbruch.',
 
   // Профессии
-  'Сантехник с похмелья': 'Klempner mit Kater',
   'Проститутка с большим опытом общения с людьми': 'Prostituierte mit großer Erfahrung im Umgang mit Menschen',
   'Сутенёр, умеет договариваться с кем угодно': 'Zuhälter, kann mit jedem verhandeln',
   'Стриптизёр из ночного клуба': 'Stripper aus dem Nachtclub',
@@ -113,17 +112,12 @@ export default {
   'Главбух Людмила, знает всё про всех': 'Chefbuchhalterin Ljudmila, weiß alles über alle',
   'Повар-бунтарь': 'Rebellischer Koch',
   'Бармен, видел всякое': 'Barkeeper, hat alles schon gesehen',
-  'Айтишник в заношенной футболке': 'IT-Nerd im ausgeleierten T-Shirt',
   'Тамада со свадеб': 'Hochzeitsmoderator',
   'Таксист-философ': 'Taxifahrer-Philosoph',
   'Бывший зэк с добрым сердцем': 'Ex-Knacki mit gutem Herzen',
   'Дед-слесарь на пенсии': 'Opa-Schlosser im Ruhestand',
-  'Психолог, которому самому нужен психолог': 'Psychologe, der selbst einen Psychologen braucht',
   'Фитнес-тренер, зожник': 'Fitnesstrainer, Gesundheitsfanatiker',
   'Мастер маникюра': 'Nageldesignerin',
-  'Менеджер среднего звена: «ну я же сказал»': 'Mittlerer Manager: «Hab ich doch gesagt»',
-  'Блогер-«эксперт по жизни»': 'Blogger-«Lebensexperte»',
-  'Коуч по «поиску себя»': 'Coach für «Selbstfindung»',
 
   // Биология (возраст)
   'Мужик, 2689 лет': 'Typ, 2689 Jahre',
@@ -330,4 +324,22 @@ export default {
   'Похер': 'Scheißegal',
   'Карта багажа выбранного игрока считается потерянной.': 'Die Gepäckkarte des gewählten Spielers gilt als verloren.',
   'Подстава': 'Hereinlegen',
+  // Переработка профессий, предметов и бонусов (ключи — русский исходный текст)
+  'Сантехник': 'Klempner',
+  'Системный администратор': 'Systemadministrator',
+  'Психолог': 'Psychologe',
+  'Менеджер среднего звена': 'Mittleres Management',
+  'Блогер': 'Blogger',
+  'Коуч': 'Coach',
+  'Контейнер с человеческими останками': 'Behälter mit menschlichen Überresten',
+  'Банка мочи для анализов': 'Becher mit Urin für Analysen',
+  'Чемодан интимных игрушек': 'Koffer mit Intimspielzeug',
+  'Окровавленный халат': 'Blutverschmierter Kittel',
+  'Похоронный венок с чужим именем': 'Trauerkranz mit fremdem Namen',
+  'Поддельные документы': 'Gefälschte Dokumente',
+  'Сорок литров самогона': 'Vierzig Liter Selbstgebrannter',
+  'Коллекция рентгеновских снимков неизвестных людей': 'Sammlung von Röntgenbildern Unbekannter',
+  'Мешок человеческих зубов': 'Sack mit Menschenzähnen',
+  'Морозильный контейнер с неизвестным содержимым': 'Gefrierbehälter mit unbekanntem Inhalt',
+  'Банка с анализами': 'Probenglas',
 };

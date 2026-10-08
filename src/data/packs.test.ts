@@ -9,6 +9,7 @@ import { skillCards, validateScenario, cardsWithSkill } from '../lib/vocab';
 import { createGame } from '../lib/game';
 import { buildChronicle } from '../lib/chronicle';
 import { EVENTS } from '../lib/events';
+import { isKnownBonus } from '../lib/perks';
 
 const PROFANITY = /(^|[^а-яё])(хуй|хуе|хуя|хуё|пизд|ебан|ебат|ебал|ебну|блят|бляд|сука|нахрен|похуй|похер|жоп)/i;
 const textOf = (p: CardPack): string[] => [
@@ -166,4 +167,21 @@ describe('health cards', () => {
       for (const c of pack.cards.health) expect(c.description, c.description).not.toMatch(/[,:;(—«]/);
     });
   }
+});
+
+describe('особые бонусы профессий', () => {
+  it('каждый ключ бонуса в паке известен таблице BONUSES, а бонус стоит только у профессии', () => {
+    for (const pack of BUILTIN_PACKS) {
+      for (const c of CATEGORIES.flatMap((cat) => pack.cards[cat])) {
+        if (!c.bonus) continue;
+        expect(c.category, c.id).toBe('profession');
+        expect(isKnownBonus(c.bonus), `${c.id}: ${c.bonus}`).toBe(true);
+      }
+    }
+  });
+  it('у встроенных профессий с ключом уникальные id и не пустые описания', () => {
+    const cards = BUILTIN_PACKS.flatMap((p) => p.cards.profession).filter((c) => c.bonus);
+    expect(new Set(cards.map((c) => c.id)).size).toBe(cards.length);
+    for (const c of cards) expect(c.description.trim(), c.id).not.toBe('');
+  });
 });

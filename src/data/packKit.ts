@@ -1,11 +1,11 @@
 import type { ActionEffect, Card, Category, Hazard, Modifier, ScenarioEvent, Severity } from '../types';
 import { CATEGORIES } from '../types';
 
-/** [описание, полезность, навыки, название (для действий)] */
-export type Row = [description: string, modifier?: Modifier, tags?: string[], title?: string, effect?: ActionEffect];
+/** [описание, полезность, навыки, название (для действий), эффект, ключ особого бонуса профессии] */
+export type Row = [description: string, modifier?: Modifier, tags?: string[], title?: string, effect?: ActionEffect, bonus?: string];
 
 export const cards = (prefix: string, category: Category, rows: Row[]): Card[] =>
-  rows.map(([description, modifier = 'neutral', tags, title, effect], i) => ({
+  rows.map(([description, modifier = 'neutral', tags, title, effect, bonus], i) => ({
     id: `${prefix}-${category}-${i + 1}`,
     category,
     description,
@@ -13,6 +13,7 @@ export const cards = (prefix: string, category: Category, rows: Row[]): Card[] =
     ...(tags ? { tags } : {}),
     ...(title ? { title } : {}),
     ...(effect ? { effect } : {}),
+    ...(bonus ? { bonus } : {}),
   }));
 
 export const emptyDeck = (): Record<Category, Card[]> => Object.fromEntries(CATEGORIES.map((c) => [c, []])) as unknown as Record<Category, Card[]>;

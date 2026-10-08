@@ -3,10 +3,10 @@ import { MEDIEVAL_PACK } from './packMedieval';
 import { FANTASY_PACK } from './packFantasy';
 import { ADULT_PACK } from './packAdult';
 
-type Row = [description: string, modifier?: Modifier, tags?: string[], title?: string, effect?: ActionEffect];
+type Row = [description: string, modifier?: Modifier, tags?: string[], title?: string, effect?: ActionEffect, bonus?: string];
 
 const make = (category: Category, rows: Row[]): Card[] =>
-  rows.map(([description, modifier = 'neutral', tags, title, effect], i) => ({
+  rows.map(([description, modifier = 'neutral', tags, title, effect, bonus], i) => ({
     id: `classic-${category}-${i + 1}`,
     category,
     description,
@@ -14,6 +14,7 @@ const make = (category: Category, rows: Row[]): Card[] =>
     ...(tags ? { tags } : {}),
     ...(title ? { title } : {}),
     ...(effect ? { effect } : {}),
+    ...(bonus ? { bonus } : {}),
   }));
 
 /** Сцены для хроники: [угроза снята, угроза не остановлена]. {who} — тот, кто справился. */
@@ -139,15 +140,16 @@ export const CLASSIC_PACK: CardPack = {
       ['Радист-связист', 'positive', ['связь']],
       ['Штурман дальнего плавания', 'positive', ['навигация']],
       ['Повар', 'neutral', ['кулинария']],
-      ['Видеоблогер-инфлюенсер', 'negative'],
-      ['Адвокат по разводам', 'negative'],
-      ['Сомелье', 'negative'],
-      ['Менеджер по продажам', 'neutral'],
+      ['Видеоблогер', 'negative', undefined, undefined, undefined, 'video-blogger'],
+      ['Адвокат по разводам', 'negative', undefined, undefined, undefined, 'lawyer'],
+      ['Сомелье', 'negative', undefined, undefined, undefined, 'sommelier'],
+      ['Менеджер по продажам', 'neutral', undefined, undefined, undefined, 'sales-manager'],
       ['Санитарный врач-эпидемиолог', 'positive', ['санитария', 'медицина']],
       ['Дезинфектор: 15 лет выводил крыс и тараканов', 'positive', ['дератизация', 'санитария']],
       ['Лаборант-микробиолог', 'positive', ['вирусология', 'медицина']],
       ['Капитан речного буксира', 'positive', ['навигация']],
       ['Детектив', 'positive', ['расследование', 'безопасность']],
+      ['Патологоанатом', 'positive', ['медицина'], undefined, undefined, 'pathologist'],
     ]),
     biology: make('biology', [
       ['Мужчина, 2689 лет по паспорту', 'neutral'],
@@ -218,6 +220,16 @@ export const CLASSIC_PACK: CardPack = {
       ['Держит трёх кошек и умеет с ними ладить', 'positive', ['дератизация']],
     ]),
     luggage: make('luggage', [
+      ['Рация', 'positive', ['связь']],
+      ['Канистра топлива', 'positive', ['энергетика']],
+      ['Огнетушитель', 'positive', ['безопасность']],
+      ['Фильтр для воды', 'positive', ['санитария']],
+      ['Пять левых ботинок', 'negative'],
+      ['Дверь без коробки', 'neutral'],
+      ['Три манекена', 'neutral'],
+      ['Кресло стоматолога', 'neutral'],
+      ['Тазик', 'neutral'],
+      ['Огромный дорожный знак', 'neutral'],
       ['ОГРОМНОЕ: Грузовой прицеп, полный коробок с носками', 'neutral', ['ремесло']],
       ['ОГРОМНОЕ: Пианино (никто не знает, зачем оно с вами)', 'negative'],
       ['ОГРОМНОЕ: Разборный сарай и инструменты к нему', 'positive', ['строительство']],

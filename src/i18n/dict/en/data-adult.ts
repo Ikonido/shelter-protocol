@@ -93,7 +93,6 @@ export default {
   'Скука превращается в нервный срыв.': 'Boredom turns into a nervous breakdown.',
 
   // Профессии
-  'Сантехник с похмелья': 'Hungover Plumber',
   'Проститутка с большим опытом общения с людьми': 'Prostitute with lots of experience dealing with people',
   'Сутенёр, умеет договариваться с кем угодно': 'Pimp, can reach a deal with anyone',
   'Стриптизёр из ночного клуба': 'Stripper from a night club',
@@ -113,17 +112,12 @@ export default {
   'Главбух Людмила, знает всё про всех': 'Chief accountant Lyudmila, knows everything about everyone',
   'Повар-бунтарь': 'Rebel cook',
   'Бармен, видел всякое': 'Bartender, has seen it all',
-  'Айтишник в заношенной футболке': 'IT guy in a worn-out T-shirt',
   'Тамада со свадеб': 'Wedding toastmaster',
   'Таксист-философ': 'Philosopher cab driver',
   'Бывший зэк с добрым сердцем': 'Ex-con with a kind heart',
   'Дед-слесарь на пенсии': 'Retired old-school fitter',
-  'Психолог, которому самому нужен психолог': 'Psychologist who needs a psychologist himself',
   'Фитнес-тренер, зожник': 'Fitness trainer, health nut',
   'Мастер маникюра': 'Nail technician',
-  'Менеджер среднего звена: «ну я же сказал»': 'Middle manager: «I already said so»',
-  'Блогер-«эксперт по жизни»': 'Blogger-«life expert»',
-  'Коуч по «поиску себя»': 'Coach in «finding yourself»',
 
   // Биология (возраст)
   'Мужик, 2689 лет': 'Dude, 2689 years old',
@@ -330,4 +324,22 @@ export default {
   'Похер': 'Fuck It',
   'Карта багажа выбранного игрока считается потерянной.': 'The chosen player’s luggage card counts as lost.',
   'Подстава': 'Frame-Up',
+  // Переработка профессий, предметов и бонусов (ключи — русский исходный текст)
+  'Сантехник': 'Plumber',
+  'Системный администратор': 'System administrator',
+  'Психолог': 'Psychologist',
+  'Менеджер среднего звена': 'Middle manager',
+  'Блогер': 'Blogger',
+  'Коуч': 'Coach',
+  'Контейнер с человеческими останками': 'Container with human remains',
+  'Банка мочи для анализов': 'Jar of urine for testing',
+  'Чемодан интимных игрушек': 'Suitcase of intimate toys',
+  'Окровавленный халат': 'Bloodstained gown',
+  'Похоронный венок с чужим именем': 'Funeral wreath with someone else’s name',
+  'Поддельные документы': 'Forged documents',
+  'Сорок литров самогона': 'Forty litres of moonshine',
+  'Коллекция рентгеновских снимков неизвестных людей': 'Collection of X-rays of strangers',
+  'Мешок человеческих зубов': 'Sack of human teeth',
+  'Морозильный контейнер с неизвестным содержимым': 'Freezer container with unknown contents',
+  'Банка с анализами': 'Jar of lab samples',
 };

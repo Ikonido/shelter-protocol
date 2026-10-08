@@ -69,6 +69,7 @@ const validCard = (c: unknown, nested = false): boolean =>
   isObj(c) && isStr(c.description) && (c.tags === undefined || strList(c.tags)) && (c.modifier === undefined || MODIFIERS.includes(c.modifier as string)) && (c.title === undefined || isStr(c.title)) &&
   (c.effect === undefined || isStr(c.effect) && Object.hasOwn(ACTION_EFFECTS, c.effect)) &&
   (c.strictTags === undefined || typeof c.strictTags === 'boolean') &&
+  (c.bonus === undefined || isStr(c.bonus)) &&
   // Составной багаж: предметы — тоже карты (один уровень вложенности, не больше MAX_ITEMS).
   (c.items === undefined || (!nested && Array.isArray(c.items) && c.items.length <= MAX_ITEMS && c.items.every((i) => validCard(i, true))));
 const validHazard = (h: unknown) => isObj(h) && isStr(h.id) && isStr(h.title) && (h.counters === undefined || strList(h.counters));
