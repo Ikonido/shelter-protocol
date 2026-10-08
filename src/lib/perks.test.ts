@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CLASSIC_PACK } from '../data/classicPack';
 import type { GameState, SessionConfig } from '../types';
-import { createGame, nextRound, resolveVote, revealCard, startVote } from './game';
+import { createGame, nextRound, playAction, resolveVote, revealCard, startVote } from './game';
 import { composeItems, itemsOf } from './inventory';
 import { t } from './i18n';
 import { applyPerk, canApplyPerk, perkFor, skipPerk } from './perks';
@@ -165,6 +165,30 @@ describe('profession perks', () => {
     expect(new Set(Array.from({ length: 60 }, (_, i) => run('novice', i + 1, 4)))).toEqual(new Set([1]));
     expect([...new Set(Array.from({ length: 60 }, (_, i) => run('expert', i + 1, 4)))].sort()).toEqual([2, 3]);
     expect(run('expert', 5, 1)).toBe(1); // у жертвы всего один предмет
+  });
+
+  it('a forced reveal of a profession still gives its owner the bonus', () => {
+    const cfg2 = { ...cfg(true), autoActions: true };
+    let g = createGame(cfg2, CLASSIC_PACK.scenarios[0], [CLASSIC_PACK]);
+    g = withProfession(g, 'p2', ['инженерия']);
+    g = { ...g, players: g.players.map((p) => (p.id === 'p1' ? { ...p, slots: { ...p.slots, action: { card: { ...p.slots.action.card, title: 'Допрос', effect: 'forceReveal' as const }, isRevealed: false } } } : p)) };
+    const before = itemsOf(g.players[1].slots.luggage.card).length;
+    const done = playAction(g, 'p1', { target: 'p2', category: 'profession' });
+    expect(done.players[1].slots.profession.isRevealed).toBe(true);
+    expect(itemsOf(done.players[1].slots.luggage.card).length).toBeGreaterThan(before);
+    // карты, которые не профессия, бонуса не дают
+    const other = playAction(g, 'p1', { target: 'p2', category: 'fact' });
+    expect(itemsOf(other.players[1].slots.luggage.card).length).toBe(before);
+  });
+
+  it('a detective opening a profession gives that player a bonus too', () => {
+    let g = withProfession(fresh(), 'p1', ['расследование']);
+    g = withProfession(g, 'p2', ['медицина']);
+    g = { ...g, round: 2 };
+    g = { ...revealCard(g, 'p1', 'profession'), perks: [{ playerId: 'p1', kind: 'reveal' as const, level: 'novice' as const }] };
+    const done = applyPerk(g, 'p1', { target: 'p2', category: 'profession' });
+    expect(done.perks?.map((x) => x.playerId)).toEqual(['p2']); // бонус детектива потрачен, у врача p2 появился свой
+    expect(done.perks![0].kind).toBe('heal');
   });
 
   it('the classic pack has the detective profession with the investigation skill', () => {

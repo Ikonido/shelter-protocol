@@ -18,7 +18,7 @@ import { dealStartingItems } from './inventory';
 import { EVENTS, drawEvent, hiddenForLeak, unusedHazards } from './events';
 import { mulberry32, shuffle } from './rng';
 import { packT, t, tPacked } from './i18n';
-import { onProfessionRevealed } from './perks';
+import { grantPerksForNewReveals, onProfessionRevealed } from './perks';
 
 export const MAX_ROUNDS = 6;
 /** Потолок раундов, включая добавленные из-за воздержавшихся. */
@@ -135,7 +135,7 @@ export function playAction(g: GameState, playerId: string, params?: ActionParams
   if (!p || p.isEliminated || p.slots.action.isRevealed) return g;
   const card = p.slots.action.card;
   // Автоисполнение (по желанию игроков): эффект карты выполняется в игре. Невозможное действие ничего не меняет.
-  if (g.config.autoActions && card.effect) return runEffect(g, playerId, card.effect, params);
+  if (g.config.autoActions && card.effect) return grantPerksForNewReveals(g, runEffect(g, playerId, card.effect, params));
   return {
     ...g,
     players: g.players.map((x) =>
@@ -328,7 +328,9 @@ export function applyEvent(g: GameState, def: (typeof EVENTS)[number]): GameStat
       break;
   }
   const event: ActiveEvent = { id: def.id, kind: def.kind, title: def.title, text: def.text, tone: def.tone, outcome };
-  return { ...cur, event, log: [...cur.log, { round: cur.round, text: outcome.length ? t('Событие «{title}»: {outcome}', { title: t(event.title), outcome: outcome.map(tPacked).join(' ') }) : t('Событие «{title}»', { title: t(event.title) }) }] };
+  const next: GameState = { ...cur, event, log: [...cur.log, { round: cur.round, text: outcome.length ? t('Событие «{title}»: {outcome}', { title: t(event.title), outcome: outcome.map(tPacked).join(' ') }) : t('Событие «{title}»', { title: t(event.title) }) }] };
+  // Утечка может открыть профессию: бонус выдаётся и в этом случае.
+  return grantPerksForNewReveals(g, next);
 }
 
 /** Игроки прочитали событие — начинаются вскрытия. */

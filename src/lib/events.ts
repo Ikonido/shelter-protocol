@@ -40,7 +40,7 @@ export function isEligible(def: EventDef, g: GameState): boolean {
     case 'silence':
       return (g.config.speechSec ?? 0) > 0;
     case 'newHazard':
-      return unusedHazards(g).length > 0 && (g.hazards?.length ?? 0) < LIMITS.maxHazardsPerGame + 2;
+      return unusedHazards(g).length > 0 && (g.hazards?.length ?? 0) < LIMITS.maxHazardsActive;
     case 'relief':
       return (g.hazards ?? []).some((h) => h.severity !== 'critical');
     default:

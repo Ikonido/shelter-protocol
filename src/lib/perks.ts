@@ -165,7 +165,21 @@ export function applyPerk(g: GameState, playerId: string, params: ActionParams =
       cur = runEffect(cur, playerId, effect, { ...base, category: hidden[Math.floor(rng() * hidden.length)] });
     }
   }
-  return withoutPerk(cur, playerId);
+  return grantPerksForNewReveals(g, withoutPerk(cur, playerId));
+}
+
+/**
+ * Профессию могли открыть не по ходу, а принудительно (допрос, утечка, карта «Заставить открыть»): владельцу всё равно
+ * положен бонус. Сравнивает состояния до и после и выдаёт бонусы тем, чья профессия только что открылась.
+ */
+export function grantPerksForNewReveals(prev: GameState, next: GameState): GameState {
+  if (next === prev || !next.config.professionPerks) return next;
+  let cur = next;
+  for (const p of next.players) {
+    const was = prev.players.find((x) => x.id === p.id);
+    if (was && p.slots.profession.isRevealed && !was.slots.profession.isRevealed) cur = onProfessionRevealed(cur, p.id);
+  }
+  return cur;
 }
 
 /** Отказаться от бонуса. */

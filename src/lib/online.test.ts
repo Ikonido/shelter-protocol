@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CLASSIC_PACK } from '../data/classicPack';
 import { EVENTS } from './events';
-import { applyEvent } from './game';
+import { applyEvent, startVote } from './game';
 import { CATEGORIES } from '../types';
 import { itemsOf } from './inventory';
 import { OnlineClient, OnlineHost, type C2H, type Conn, type H2C } from './online';
@@ -165,6 +165,45 @@ describe('online', () => {
     guests[0].c.send({ t: 'perk', skip: true });
     await tick();
     expect(host.game!.perks).toBeUndefined();
+  });
+
+  it('a client keeps up to six active threats and the full extended schedule', async () => {
+    const p = pair();
+    const c = new OnlineClient(p.clientSide, 'a', 't');
+    const { host } = await setup();
+    host.start();
+    const good = JSON.parse(JSON.stringify(host.viewFor(0)));
+    const hz = (i: number) => ({ id: `h${i}`, title: `Угроза ${i}`, description: 'd', counters: ['c'], severity: i === 5 ? 'critical' : 'minor' });
+    good.hazards = Array.from({ length: 6 }, (_, i) => hz(i));
+    good.schedule = [1, 1, 1, 1, 1, 1, 1, 1];
+    good.round = 7;
+    (p.hostSide as unknown as { send(m: unknown): void }).send({ t: 'view', me: 'p1', view: good });
+    await tick();
+    if (c.state.status !== 'game') throw new Error('should accept');
+    expect(c.state.view.hazards).toHaveLength(6);
+    expect(c.state.view.hazards![5].severity).toBe('critical'); // смертельная угроза не потеряна
+    expect(c.state.view.schedule).toHaveLength(8);
+  });
+
+  it('immunity of the last voter closes the vote at once', async () => {
+    const host = new OnlineHost({ scenario: CLASSIC_PACK.scenarios[0], packs: [CLASSIC_PACK], slots: 1, voting: 'open', revealsPerVote: 1, speechSec: 0, roundEvents: false, autoActions: true }, 'Хост');
+    const pairs = [pair(), pair()];
+    const guests = pairs.map((p, i) => ({ p, c: new OnlineClient(p.clientSide, `Гость${i + 1}`, `im${i}`) }));
+    pairs.forEach((p) => host.addConn(p.hostSide));
+    await tick();
+    host.start();
+    await tick();
+    const g = startVote(host.game!);
+    host.game = {
+      ...g,
+      votes: { p1: 'p3', p3: 'p1' },
+      players: g.players.map((pl) => (pl.id === 'p2' ? { ...pl, slots: { ...pl.slots, action: { card: { ...pl.slots.action.card, title: 'Иммунитет', effect: 'immunity' as const }, isRevealed: false } } } : pl)),
+    };
+    expect(host.game.phase).toBe('vote');
+    guests[0].c.send({ t: 'action' });
+    await tick();
+    expect(host.game!.phase).toBe('result');
+    expect(host.game!.lastResult!.eliminated).not.toContain('p2'); // неприкосновенный остался
   });
 
   it('plays a round: reveal → debate → secret vote → result; rejects bad input', async () => {
@@ -420,7 +459,7 @@ describe('threat factors online', () => {
     await tick();
     if (c.state.status !== 'game') throw new Error('should accept sanitized');
     const hs = c.state.view.hazards!;
-    expect(hs.length).toBeLessThanOrEqual(4);
+    expect(hs.length).toBeLessThanOrEqual(6);
     expect(hs[0].title.length).toBe(40);
     expect(hs[0].counters.length).toBeLessThanOrEqual(4);
     expect(hs[0].severity).toBe('major');
