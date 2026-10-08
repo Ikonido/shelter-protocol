@@ -101,3 +101,32 @@ describe('default player names', () => {
     expect(initialOf('Анна')).toBe('А');
   });
 });
+
+describe('stored texts follow the language', () => {
+  it('packT strings are translated at display time, not at creation', async () => {
+    const { packT, tPacked } = await import('./i18n');
+    const key = 'Угроза снята: «{title}».';
+    const stored = packT(key, { title: 'Заражённая вода' });
+    setLang('ru');
+    expect(tPacked(stored)).toBe('Угроза снята: «Заражённая вода».');
+    setLang('en');
+    expect(tPacked(stored)).toBe(t(key, { title: t('Заражённая вода') }));
+    expect(tPacked(stored)).not.toContain('Угроза');
+    expect(tPacked('Обычная строка')).toBe(t('Обычная строка'));
+    setLang('ru');
+  });
+
+  it('a round event keeps Russian keys in the game state', async () => {
+    const { applyEvent } = await import('./game');
+    const { EVENTS } = await import('./events');
+    const { createGame } = await import('./game');
+    const { CLASSIC_PACK } = await import('../data/classicPack');
+    const config = { scenarioId: CLASSIC_PACK.scenarios[0].id, packIds: [CLASSIC_PACK.id], playerCount: 4, shelterSlots: 2, mode: 'pass-and-play' as const, voting: 'open' as const, revealsPerVote: 1, timeLimitMin: 0, speechSec: 0, hazardCount: 1, difficulty: 'normal' as const, roundEvents: true, names: ['А', 'Б', 'В', 'Г'], seed: 3 };
+    const g = createGame(config, CLASSIC_PACK.scenarios[0], [CLASSIC_PACK]);
+    setLang('en');
+    const withEvent = applyEvent(g, EVENTS.find((e) => e.kind === 'shrink')!);
+    setLang('ru');
+    expect(withEvent.event!.title).toBe(EVENTS.find((e) => e.kind === 'shrink')!.title);
+    expect(withEvent.event!.outcome[0]).toContain('Мест в бункере');
+  });
+});
