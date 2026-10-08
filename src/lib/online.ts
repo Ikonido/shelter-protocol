@@ -11,6 +11,7 @@ import {
   type Hazard,
   type PlayerCharacter,
   type Perk,
+  type PerkResult,
   type Scenario,
   type VotingMode,
 } from '../types';
@@ -99,13 +100,15 @@ export function viewFor(g: GameState, me: string, voting: VotingMode = g.config.
         : {};
   // Часы хоста клиентам не нужны (у телефонов они расходятся): передаём «сколько осталось» на момент отправки.
   // Колода, сброс и накопленные действия (тайные союзы) остаются у хоста.
-  const { deadline, speechEndsAt, deck: _deck, discard: _discard, fx: _fx, ...rest } = g;
+  const { deadline, speechEndsAt, deck: _deck, discard: _discard, fx: _fx, perkResult, ...rest } = g;
   return {
     ...rest,
     players,
     votes,
     seed: 0,
     config: { ...g.config, seed: 0 },
+    // Итог бонуса (например лечения) видит только владелец.
+    ...(perkResult && perkResult.playerId === me ? { perkResult } : {}),
     ...(deadline ? { timeLeftMs: Math.max(0, deadline - Date.now()) } : {}),
     ...(speechEndsAt ? { speechLeftMs: Math.max(0, speechEndsAt - Date.now()) } : {}),
   };
@@ -562,12 +565,18 @@ function cleanCard(raw: unknown, category: Category): Card | null {
 
 const PERK_KINDS = ['steal', 'heal', 'reveal'] as const;
 
+function cleanPerkResult(raw: unknown): PerkResult | null {
+  const r = rec(raw);
+  return typeof r.playerId === 'string' && typeof r.text === 'string' ? { id: Math.min(100000, Math.max(0, Math.round(Number(r.id)) || 0)), playerId: text(r.playerId, 12), text: text(r.text, 300) } : null;
+}
+
 function cleanPerks(raw: unknown): Perk[] {
   if (!Array.isArray(raw)) return [];
   return raw.slice(0, MAX_ONLINE_PLAYERS).flatMap((x) => {
     const r = rec(x);
     const kind = PERK_KINDS.find((k) => k === r.kind);
-    return kind && typeof r.playerId === 'string' ? [{ playerId: text(r.playerId, 12), kind }] : [];
+    const level = (['novice', 'experienced', 'expert'] as const).find((l) => l === r.level);
+    return kind && typeof r.playerId === 'string' ? [{ playerId: text(r.playerId, 12), kind, ...(kind === 'heal' && level ? { level } : {}) }] : [];
   });
 }
 
@@ -639,6 +648,7 @@ export function sanitizeView(raw: unknown): GameState | null {
     revealStep: int(r.revealStep, 1, 3),
     ...(cleanEvent(r.event) ? { event: cleanEvent(r.event)! } : {}),
     ...(cleanPerks(r.perks).length ? { perks: cleanPerks(r.perks) } : {}),
+    ...(cleanPerkResult(r.perkResult) ? { perkResult: cleanPerkResult(r.perkResult)! } : {}),
     hazards: (Array.isArray(r.hazards) ? r.hazards.slice(0, L.maxHazardsPerGame) : [])
       .map((h, i) => sanitizeHazard(h, i))
       .filter((h): h is Hazard => !!h),

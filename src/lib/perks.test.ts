@@ -55,18 +55,52 @@ describe('profession perks', () => {
     expect(g.players[0].slots.luggage.card.description).toBe('Набор инструментов');
   });
 
-  it('gives a doctor a pending heal that cures another player, keeps the action card and then disappears', () => {
-    let g = withProfession(fresh(), 'p1', ['медицина']);
+  const doctorGame = (level: 'novice' | 'experienced' | 'expert', seed = 7) => {
+    let g = withProfession({ ...fresh(), seed }, 'p1', ['медицина']);
     g = { ...g, round: 2, players: g.players.map((p) => (p.id === 'p2' ? { ...p, slots: { ...p.slots, health: { ...p.slots.health, card: { ...p.slots.health.card, modifier: 'negative' as const, description: 'Простуда' } } } } : p.id === 'p3' ? { ...p, slots: { ...p.slots, health: { ...p.slots.health, card: { ...p.slots.health.card, modifier: 'neutral' as const } } } } : p)) };
     g = revealCard(g, 'p1', 'profession');
-    expect(g.perks).toEqual([{ playerId: 'p1', kind: 'heal' }]);
-    expect(canApplyPerk(g, 'p1', { target: 'p3' }).ok).toBe(false); // у p3 здоровье в порядке
+    return { ...g, perks: [{ playerId: 'p1', kind: 'heal' as const, level }] };
+  };
+
+  it('gives a doctor a random experience level with a pending heal that keeps the action card', () => {
+    const levels = new Set<string>();
+    for (let seed = 1; seed < 60; seed++) {
+      let g = withProfession({ ...fresh(), seed }, 'p1', ['медицина']);
+      g = revealCard({ ...g, round: 2 }, 'p1', 'profession');
+      expect(g.perks).toHaveLength(1);
+      expect(g.perks![0].kind).toBe('heal');
+      levels.add(g.perks![0].level!);
+    }
+    expect([...levels].sort()).toEqual(['experienced', 'expert', 'novice']);
+  });
+
+  it('an expert always cures a sick player; the result is private and the public log does not reveal it', () => {
+    const g = doctorGame('expert');
+    expect(canApplyPerk(g, 'p1', { target: 'p3' }).ok).toBe(true); // здоровых тоже можно выбрать: меню не выдаёт больных
     expect(canApplyPerk(g, 'p1', { target: 'p1' }).ok).toBe(false); // себя нельзя
     const cured = applyPerk(g, 'p1', { target: 'p2' });
     expect(cured.players[1].slots.health.card.modifier).toBe('neutral');
     expect(cured.players[0].slots.action.isRevealed).toBe(false); // карта действия цела
     expect(cured.perks).toBeUndefined();
+    expect(cured.perkResult).toMatchObject({ playerId: 'p1' });
+    expect(cured.perkResult!.text).toContain('Лечение удалось');
+    expect(cured.log.at(-1)!.text).not.toMatch(/вылечен|удалось|здоров/);
+    const healthy = applyPerk(g, 'p1', { target: 'p3' });
+    expect(healthy.perkResult!.text).toContain('Лечить было нечего');
     expect(applyPerk(cured, 'p1', { target: 'p2' })).toBe(cured); // второй раз нельзя
+  });
+
+  it('a novice sometimes fails and an expert never does', () => {
+    let novice = 0, experts = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const r = applyPerk(doctorGame('novice', seed), 'p1', { target: 'p2' });
+      if (r.perkResult!.text.includes('удалось')) novice++;
+      const e = applyPerk(doctorGame('expert', seed), 'p1', { target: 'p2' });
+      if (e.perkResult!.text.includes('удалось')) experts++;
+    }
+    expect(experts).toBe(40);
+    expect(novice).toBeGreaterThan(5);
+    expect(novice).toBeLessThan(35);
   });
 
   it('lets a spy steal luggage, and a skipped perk is simply dropped', () => {

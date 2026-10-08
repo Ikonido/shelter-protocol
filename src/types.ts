@@ -246,9 +246,20 @@ export interface RoundResult {
 
 /** Бонус открытой профессии: что владелец может сделать, пока не началось голосование. */
 export type PerkKind = 'steal' | 'heal' | 'reveal';
+/** Опытность врача: от неё зависит шанс вылечить. */
+export type PerkLevel = 'novice' | 'experienced' | 'expert';
 export interface Perk {
   playerId: string;
   kind: PerkKind;
+  /** Только для врача. */
+  level?: PerkLevel;
+}
+
+/** Итог бонуса, который видит только его владелец (в «виде» чужого игрока вырезается). */
+export interface PerkResult {
+  id: number;
+  playerId: string;
+  text: string;
 }
 
 export interface GameState {
@@ -288,6 +299,7 @@ export interface GameState {
   fx?: ActionFx;
   /** Неиспользованные бонусы профессий (открыты всем). Сбрасываются с началом голосования. */
   perks?: Perk[];
+  perkResult?: PerkResult;
   lastResult?: RoundResult;
   log: LogEntry[];
   /** Tabletop-режим: выжившие отмечаются вручную перед финалом. */

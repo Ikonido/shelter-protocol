@@ -38,8 +38,6 @@ export function ActionTargetPicker({
           <button
             key={p.id}
             className={`btn btn-sm justify-start gap-2 normal-case ${target === p.id ? 'btn-primary' : ''}`}
-            // Лечить можно только больного: остальных не предлагаем (в онлайне чужое здоровье скрыто, там проверяет хост).
-            disabled={effect === 'healOther' && !canApply(game, actorId, effect, { target: p.id, ...(perk ? { perk: true } : {}) }).ok}
             aria-pressed={target === p.id}
             onClick={() => {
               setTarget(p.id);

@@ -1,6 +1,7 @@
-import type { ActionEffect, Card, GameState, Perk, PerkKind } from '../types';
+import type { ActionEffect, Card, GameState, Perk, PerkKind, PerkLevel } from '../types';
 import { canApply, runEffect, toDiscard, type ActionParams } from './actions';
 import { addToBag, composeItems, itemsOf } from './inventory';
+import { mulberry32 } from './rng';
 import { t } from './i18n';
 
 /**
@@ -37,8 +38,27 @@ const PERKS: (ItemPerk | TargetPerk)[] = [
 /** Какой эффект выполняет бонус с выбором игрока. */
 export const PERK_EFFECT: Record<PerkKind, ActionEffect> = { heal: 'healOther', steal: 'stealLuggage', reveal: 'forceReveal' };
 
-/** Подписи бонусов для кнопок. */
-export const perkLabel = (kind: PerkKind) => t(kind === 'heal' ? 'Вылечить игрока' : kind === 'steal' ? 'Украсть багаж' : 'Допросить игрока');
+/** Опытность врача: шанс вылечить больного. */
+export const LEVELS: Record<PerkLevel, { chance: number; label: string }> = {
+  novice: { chance: 0.4, label: 'новичок' },
+  experienced: { chance: 0.75, label: 'опытный' },
+  expert: { chance: 1, label: 'эксперт' },
+};
+
+/** Уровень врача выпадает по жребию от seed: новичок 30%, опытный 45%, эксперт 25%. */
+function rollLevel(g: GameState, playerId: string): PerkLevel {
+  const salt = [...playerId].reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 7);
+  const r = mulberry32(g.seed ^ Math.imul(g.round, 2654435761) ^ salt)();
+  return r < 0.3 ? 'novice' : r < 0.75 ? 'experienced' : 'expert';
+}
+
+/** Подписи бонусов для кнопок. У врача — опытность и шанс. */
+export const perkLabel = (kind: PerkKind, level?: PerkLevel) =>
+  kind === 'heal'
+    ? level
+      ? t('Вылечить игрока ({level}, шанс {n}%)', { level: t(LEVELS[level].label), n: Math.round(LEVELS[level].chance * 100) })
+      : t('Вылечить игрока')
+    : t(kind === 'steal' ? 'Украсть багаж' : 'Допросить игрока');
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/ё/g, 'е');
 
@@ -73,10 +93,11 @@ export function onProfessionRevealed(g: GameState, playerId: string): GameState 
   if (!perk) return g;
   if (perk.kind === 'item') return addItem(g, playerId, perk);
   if (g.players.filter((x) => !x.isEliminated).length < 2) return g;
+  const level = perk.kind === 'heal' ? rollLevel(g, playerId) : undefined;
   return {
     ...g,
-    perks: [...(g.perks ?? []).filter((x) => x.playerId !== playerId), { playerId, kind: perk.kind }],
-    log: [...g.log, { round: g.round, text: t('{who} получает бонус профессии: «{label}»', { who: p.name, label: perkLabel(perk.kind) }) }],
+    perks: [...(g.perks ?? []).filter((x) => x.playerId !== playerId), { playerId, kind: perk.kind, ...(level ? { level } : {}) }],
+    log: [...g.log, { round: g.round, text: t('{who} получает бонус профессии: «{label}»', { who: p.name, label: perkLabel(perk.kind, level) }) }],
   };
 }
 
@@ -98,7 +119,8 @@ const withoutPerk = (g: GameState, playerId: string): GameState => {
 export function applyPerk(g: GameState, playerId: string, params: ActionParams = {}): GameState {
   const perk = perkOf(g, playerId);
   if (!perk) return g;
-  const next = runEffect(g, playerId, PERK_EFFECT[perk.kind], { ...params, perk: true });
+  const chance = perk.kind === 'heal' ? LEVELS[perk.level ?? 'experienced'].chance : undefined;
+  const next = runEffect(g, playerId, PERK_EFFECT[perk.kind], { ...params, perk: true, ...(chance !== undefined ? { chance } : {}) });
   return next === g ? g : withoutPerk(next, playerId);
 }
 

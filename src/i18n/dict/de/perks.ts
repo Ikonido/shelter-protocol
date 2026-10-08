@@ -23,4 +23,13 @@ export default {
   '{who} применяет «{title}»: берёт ещё один предмет в багаж': '{who} setzt „{title}“ ein: nimmt einen weiteren Gegenstand ins Gepäck',
   '{who} применяет «{title}»: крадёт предмет у {victim}': '{who} setzt „{title}“ ein: stiehlt {victim} einen Gegenstand',
   'У игрока нет предметов': 'Der Spieler hat keine Gegenstände',
+  'Вылечить игрока ({level}, шанс {n}%)': 'Spieler heilen ({level}, {n} % Chance)',
+  'новичок': 'Anfänger',
+  'опытный': 'erfahren',
+  'эксперт': 'Experte',
+  '{who} применяет «{title}»: пытается вылечить {victim}': '{who} setzt „{title}“ ein: versucht, {victim} zu heilen',
+  'Лечение удалось: {victim} больше не болен.': 'Die Behandlung hat geklappt: {victim} ist nicht mehr krank.',
+  'Лечение не помогло: {victim} остаётся больным.': 'Die Behandlung hat nicht geholfen: {victim} bleibt krank.',
+  'Лечить было нечего: {victim} здоров.': 'Es gab nichts zu behandeln: {victim} ist gesund.',
+  'Понятно': 'Verstanden',
 };

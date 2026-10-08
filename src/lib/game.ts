@@ -180,7 +180,7 @@ export function allVoted(g: GameState): boolean {
  */
 export function resolveVote(g: GameState): GameState {
   const next = resolveVoteCore(g);
-  return next.perks ? { ...next, perks: undefined } : next;
+  return next.perks || next.perkResult ? { ...next, perks: undefined, perkResult: undefined } : next;
 }
 
 function resolveVoteCore(g: GameState): GameState {
@@ -355,7 +355,7 @@ export function volunteer(g: GameState, playerId: string): GameState {
 export function nextRound(g: GameState): GameState {
   const done = alive(g).length <= g.config.shelterSlots || g.round >= g.schedule.length;
   if (done) return { ...g, phase: 'final', perks: undefined };
-  return openRound({ ...g, round: g.round + 1, revealStep: 1, votes: {}, perks: undefined });
+  return openRound({ ...g, round: g.round + 1, revealStep: 1, votes: {}, perks: undefined, perkResult: undefined });
 }
 
 /* ---------- Время партии ---------- */

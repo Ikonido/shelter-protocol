@@ -2,7 +2,7 @@ import { CATEGORIES, categoryLabel, type ActionEffect, type ActionFx, type Card,
 import { cardMatchesSkill } from './evaluate';
 import { mergePools } from './generator';
 import { mulberry32, shuffle } from './rng';
-import { t } from './i18n';
+import { packT, t } from './i18n';
 import { addToBag, composeItems, itemsOf } from './inventory';
 
 /**
@@ -15,6 +15,8 @@ export interface ActionParams {
   category?: Category;
   /** Бонус профессии, а не карта действия: карта не расходуется. */
   perk?: boolean;
+  /** Шанс успеха лечения (по умолчанию 1). */
+  chance?: number;
 }
 
 const NEEDS_TARGET: ActionEffect[] = ['stealLuggage', 'giveLuggage', 'swapLuggage', 'sabotage', 'forceReveal', 'ally', 'healOther'];
@@ -112,8 +114,8 @@ export function canApply(g: GameState, actorId: string, effect: ActionEffect, pa
       // В «виде» онлайн-клиента чужой багаж скрыт: проверку повторяет хост.
       return full && target && itemsOf(target.slots.luggage.card).length === 0 ? fail(t('У игрока нет предметов')) : { ok: true };
     case 'healOther':
-      // В «виде» онлайн-клиента чужое здоровье скрыто: проверку повторяет хост.
-      return full && target && target.slots.health.card.modifier !== 'negative' ? fail(t('У этого игрока нет проблем со здоровьем')) : { ok: true };
+      // Лечить можно любого: меню не должно выдавать, кто болен. Что получилось, знает только врач.
+      return { ok: true };
     case 'ally':
       return g.fx?.allies.some(([a]) => a === actorId) ? fail(t('Союзник уже выбран')) : { ok: true };
     default:
@@ -229,8 +231,14 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
     case 'healOther': {
       const tg = target!;
       const h = tg.slots.health;
-      const next = withSlot(n, tg.id, 'health', { card: { ...h.card, modifier: 'neutral', description: `${h.card.description} (вылечен)` }, isRevealed: h.isRevealed });
-      return say(next, t('{who} применяет «{title}»: {victim} вылечен', { ...vars, victim: tg.name }));
+      const sick = h.card.modifier === 'negative';
+      const lucky = mulberry32(g.seed ^ Math.imul(g.round, 2654435761) ^ Math.imul(g.log.length + 1, 40503))() < (params.chance ?? 1);
+      const cured = sick && lucky;
+      const next = cured ? withSlot(n, tg.id, 'health', { card: { ...h.card, modifier: 'neutral', description: `${h.card.description} (вылечен)` }, isRevealed: h.isRevealed }) : n;
+      // В общий журнал исход не попадает: иначе он выдал бы здоровье. Результат видит только врач.
+      const said = say(next, t('{who} применяет «{title}»: пытается вылечить {victim}', { ...vars, victim: tg.name }));
+      const text = packT(cured ? 'Лечение удалось: {victim} больше не болен.' : sick ? 'Лечение не помогло: {victim} остаётся больным.' : 'Лечить было нечего: {victim} здоров.', { victim: tg.name });
+      return { ...said, perkResult: { id: said.log.length, playerId: actorId, text } };
     }
     case 'veto':
       return say({ ...n, fx: { ...(n.fx ?? emptyFx()), veto: [...(n.fx?.veto ?? []), actorId] } }, t('{who} применяет «{title}»: один голос против него будет отменён', vars));
