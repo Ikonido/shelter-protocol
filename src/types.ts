@@ -1,3 +1,4 @@
+import { t } from './lib/i18n';
 export type Category =
   | 'profession'
   | 'biology'
@@ -21,6 +22,7 @@ export const CATEGORIES: Category[] = [
   'action',
 ];
 
+/** Исходные (русские) подписи категорий: переводятся в categoryLabel. */
 export const CATEGORY_LABEL: Record<Category, string> = {
   profession: 'Профессия',
   biology: 'Биология',
@@ -32,6 +34,9 @@ export const CATEGORY_LABEL: Record<Category, string> = {
   fact: 'Факт',
   action: 'Действие',
 };
+
+/** Подпись категории на языке интерфейса (вызывать при рендере, не в константах). */
+export const categoryLabel = (c: Category): string => t(CATEGORY_LABEL[c]);
 
 export type Modifier = 'positive' | 'neutral' | 'negative';
 

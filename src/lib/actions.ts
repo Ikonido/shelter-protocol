@@ -1,4 +1,4 @@
-import { CATEGORIES, CATEGORY_LABEL, type ActionEffect, type ActionFx, type Card, type CardPack, type Category, type DeckCategory, type GameState, type PlayerCharacter } from '../types';
+import { CATEGORIES, categoryLabel, type ActionEffect, type ActionFx, type Card, type CardPack, type Category, type DeckCategory, type GameState, type PlayerCharacter } from '../types';
 import { cardMatchesSkill } from './evaluate';
 import { mergePools } from './generator';
 import { mulberry32, shuffle } from './rng';
@@ -126,7 +126,7 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
     const old = victim.slots[cat];
     let next = withSlot(d.g, victim.id, cat, { card: d.card, isRevealed: old.isRevealed });
     next = toDiscard(next, cat, old.card);
-    return say(next, `${head}: у ${victim.name} новая карта «${CATEGORY_LABEL[cat]}»${old.isRevealed ? `: ${d.card.description}` : ''}`);
+    return say(next, `${head}: у ${victim.name} новая карта «${categoryLabel(cat)}»${old.isRevealed ? `: ${d.card.description}` : ''}`);
   };
 
   switch (effect) {
@@ -174,7 +174,7 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
       const t = target!;
       const cat = params.category!;
       const next = withSlot(n, t.id, cat, { card: t.slots[cat].card, isRevealed: true });
-      return say(next, `${head}: ${t.name} вынужден открыть «${CATEGORY_LABEL[cat]}»: ${t.slots[cat].card.description}`);
+      return say(next, `${head}: ${t.name} вынужден открыть «${categoryLabel(cat)}»: ${t.slots[cat].card.description}`);
     }
     case 'rerollPrevPhysique':
       return reroll(neighbor(g, actorId, -1)!, 'physique');
@@ -189,7 +189,7 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
       const b = neighbor(g, actorId, 1)!;
       let next = withSlot(n, a.id, cat, b.slots[cat]);
       next = withSlot(next, b.id, cat, a.slots[cat]);
-      return say(next, `${head}: ${a.name} и ${b.name} меняются картами «${CATEGORY_LABEL[cat]}»`);
+      return say(next, `${head}: ${a.name} и ${b.name} меняются картами «${categoryLabel(cat)}»`);
     }
     case 'rerollHobby': {
       const d = draw(n, 'hobby');

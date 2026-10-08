@@ -1,3 +1,4 @@
+import { plural } from './i18n';
 import type { GameState, PlayerCharacter } from '../types';
 import { evaluate, type Evaluation } from './evaluate';
 import { mulberry32, shuffle } from './rng';
@@ -25,14 +26,7 @@ export interface Chronicle {
   fatal: boolean;
 }
 
-/** Склонение: plural(3, ['месяц','месяца','месяцев']) → «месяца». */
-export function plural(n: number, forms: [string, string, string]): string {
-  const a = Math.abs(n) % 100;
-  const b = a % 10;
-  if (a > 10 && a < 20) return forms[2];
-  if (b > 1 && b < 5) return forms[1];
-  return b === 1 ? forms[0] : forms[2];
-}
+export { plural } from './i18n';
 
 const DAYS_PER_MONTH = 30.4375;
 

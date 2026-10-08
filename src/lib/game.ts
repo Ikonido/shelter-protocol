@@ -1,6 +1,6 @@
 import {
   CATEGORIES,
-  CATEGORY_LABEL,
+  categoryLabel,
   type Category,
   type ActiveEvent,
   type GameState,
@@ -113,7 +113,7 @@ export function revealCard(g: GameState, playerId: string, category: Category): 
     lastReveal: { playerId, category },
     log: [
       ...g.log,
-      { round: g.round, text: `${p.name} открывает «${CATEGORY_LABEL[category]}»: ${p.slots[category].card.description}` },
+      { round: g.round, text: `${p.name} открывает «${categoryLabel(category)}»: ${p.slots[category].card.description}` },
     ],
   };
   const sec = g.config.speechSec ?? 0;
@@ -286,7 +286,7 @@ export function applyEvent(g: GameState, def: (typeof EVENTS)[number]): GameStat
           const hidden = hiddenForLeak(p, cur);
           if (!hidden.length) return p;
           const cat = hidden[Math.floor(rng() * hidden.length)];
-          outcome.push(`${p.name} раскрывает «${CATEGORY_LABEL[cat]}»: ${p.slots[cat].card.description}`);
+          outcome.push(`${p.name} раскрывает «${categoryLabel(cat)}»: ${p.slots[cat].card.description}`);
           return { ...p, slots: { ...p.slots, [cat]: { ...p.slots[cat], isRevealed: true } } };
         }),
       };

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Dices, Eye, EyeOff, Printer, UserX, UserCheck } from 'lucide-react';
-import { CATEGORIES, CATEGORY_LABEL, type GameState } from '../types';
+import { CATEGORIES, categoryLabel, type GameState } from '../types';
 import { CardFace } from '../ui/bits';
 import { useStore } from '../store';
 import { rerollCard } from '../lib/generator';
@@ -19,7 +19,7 @@ export default function Tabletop({ game }: { game: GameState }) {
 
   const copyCard = (id: string) => {
     const p = game.players.find((x) => x.id === id)!;
-    const text = `${p.name}\n` + CATEGORIES.map((c) => `${CATEGORY_LABEL[c]}: ${p.slots[c].card.title ? p.slots[c].card.title + '. ' : ''}${p.slots[c].card.description}`).join('\n');
+    const text = `${p.name}\n` + CATEGORIES.map((c) => `${categoryLabel(c)}: ${p.slots[c].card.title ? p.slots[c].card.title + '. ' : ''}${p.slots[c].card.description}`).join('\n');
     copyText(text).then((ok) => notify(ok ? 'Карточка скопирована' : 'Не удалось скопировать'));
   };
 

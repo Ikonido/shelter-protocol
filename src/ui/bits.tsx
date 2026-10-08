@@ -12,7 +12,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { CATEGORY_LABEL, type Card, type Category } from '../types';
+import { categoryLabel, type Card, type Category } from '../types';
 
 export const CATEGORY_ICON: Record<Category, LucideIcon> = {
   profession: Briefcase,
@@ -71,7 +71,7 @@ export function CardFace({
     >
       <span aria-hidden className="absolute inset-y-0 left-0 w-1.5 bg-[var(--c)]" style={{ opacity: hidden ? 0.35 : 1 }} />
       <span className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-[var(--c)]">
-        <Icon size={14} /> {CATEGORY_LABEL[card.category]}
+        <Icon size={14} /> {categoryLabel(card.category)}
         {showMod && !hidden && <span className="ml-auto"><ModBadge mod={card.modifier} /></span>}
       </span>
       {hidden ? (

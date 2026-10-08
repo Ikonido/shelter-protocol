@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronDown, Play, Plus, Save, Trash2, Wand2 } from 'lucide-react';
 import { useStore } from '../store';
-import { CATEGORY_LABEL, type Card, type CardPack, type Category, type Hazard, type Modifier, type Scenario, type Severity } from '../types';
+import { categoryLabel, type Card, type CardPack, type Category, type Hazard, type Modifier, type Scenario, type Severity } from '../types';
 import { HAZARD_TEMPLATES, SCENARIO_TEMPLATES } from '../data/templates';
 import { LIMITS as L } from '../lib/limits';
 import { uid } from '../lib/rng';
@@ -219,7 +219,7 @@ function StepAbilities({
 
       <div className="flex gap-1 overflow-x-auto" role="tablist">
         {ABILITY_CATS.map((c) => (
-          <button key={c} role="tab" aria-selected={cat === c} className={`btn btn-sm shrink-0 ${cat === c ? 'btn-primary' : ''}`} onClick={() => { setCat(c); setOpenId(null); }}>{CATEGORY_LABEL[c]}</button>
+          <button key={c} role="tab" aria-selected={cat === c} className={`btn btn-sm shrink-0 ${cat === c ? 'btn-primary' : ''}`} onClick={() => { setCat(c); setOpenId(null); }}>{categoryLabel(c)}</button>
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -264,7 +264,7 @@ function StepAbilities({
       </ul>
 
       <details className="panel p-3">
-        <summary className="cursor-pointer text-xs uppercase tracking-widest text-amber">Создать свою карту ({CATEGORY_LABEL[cat].toLowerCase()})</summary>
+        <summary className="cursor-pointer text-xs uppercase tracking-widest text-amber">Создать свою карту ({categoryLabel(cat).toLowerCase()})</summary>
         <div className="mt-3 flex flex-col gap-3">
           <input className="input" maxLength={L.cardDescription} placeholder={cat === 'profession' ? 'Например: Экзорцист' : cat === 'luggage' ? 'Например: Мешок соли' : 'Описание карты'} aria-label="Текст карты" value={form.text} onChange={(e) => setForm({ ...form, text: e.target.value })} />
           <select className="input" aria-label="Полезность карты" value={form.modifier} onChange={(e) => setForm({ ...form, modifier: e.target.value as Modifier })}>

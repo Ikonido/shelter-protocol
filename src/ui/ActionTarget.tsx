@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CATEGORIES, CATEGORY_LABEL, type ActionEffect, type Category, type GameState } from '../types';
+import { CATEGORIES, categoryLabel, type ActionEffect, type Category, type GameState } from '../types';
 import { canApply, needsCategory, type ActionParams } from '../lib/actions';
 import { Avatar } from './Avatar';
 
@@ -53,7 +53,7 @@ export function ActionTargetPicker({
             <div className="grid grid-cols-2 gap-2">
               {hidden.map((c) => (
                 <button key={c} className={`btn btn-sm ${category === c ? 'btn-primary' : ''}`} aria-pressed={category === c} onClick={() => setCategory(c)}>
-                  {CATEGORY_LABEL[c]}
+                  {categoryLabel(c)}
                 </button>
               ))}
             </div>

@@ -1,8 +1,9 @@
+import { t } from '../lib/i18n';
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Download, Link2, Plus, Trash2 } from 'lucide-react';
 import { useStore } from '../store';
 import { filterCards } from '../lib/cardFilter';
-import { ACTION_EFFECTS, CATEGORIES, CATEGORY_LABEL, type Card, type CardPack, type Category, type Hazard, type Modifier, type Scenario, type Severity } from '../types';
+import { ACTION_EFFECTS, CATEGORIES, categoryLabel, type Card, type CardPack, type Category, type Hazard, type Modifier, type Scenario, type Severity } from '../types';
 import { exportPackFile, shareUrl } from '../lib/packs';
 import { uid } from '../lib/rng';
 import { copyText } from '../ui/clipboard';
@@ -65,7 +66,7 @@ export default function Editor({ packId }: { packId: string }) {
     notify(`Добавлено карт: ${added.length}`);
   };
 
-  const tabs: ['info' | 'scenarios' | Category, string][] = [['info', 'Инфо'], ['scenarios', `Сценарии (${pack.scenarios.length})`], ...CATEGORIES.map((c): [Category, string] => [c, `${CATEGORY_LABEL[c]} (${pack.cards[c].length})`])];
+  const tabs: ['info' | 'scenarios' | Category, string][] = [['info', 'Инфо'], ['scenarios', `Сценарии (${pack.scenarios.length})`], ...CATEGORIES.map((c): [Category, string] => [c, `${categoryLabel(c)} (${pack.cards[c].length})`])];
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 py-4">
@@ -139,7 +140,7 @@ export default function Editor({ packId }: { packId: string }) {
         const Icon = CATEGORY_ICON[cat];
         return (
           <div className="flex flex-col gap-3">
-            <h2 className="h-hud flex items-center gap-2"><Icon size={16} /> {CATEGORY_LABEL[cat]} <span className="text-dim">({pack.cards[cat].length})</span></h2>
+            <h2 className="h-hud flex items-center gap-2"><Icon size={16} /> {categoryLabel(cat)} <span className="text-dim">({pack.cards[cat].length})</span></h2>
             {pack.cards[cat].length > 6 && (
               <div>
                 <input className="input" type="search" placeholder="Поиск по тексту, названию и тегам" aria-label="Поиск карт" value={query} onChange={(e) => setQuery(e.target.value)} />
@@ -154,7 +155,7 @@ export default function Editor({ packId }: { packId: string }) {
                   {cat === 'action' && (
                     <select className="input" aria-label="Эффект карты при автоисполнении" value={c.effect ?? ''} onChange={(e) => patch({ effect: (e.target.value || undefined) as Card['effect'] })}>
                       <option value="">Без эффекта: действие только объявляется</option>
-                      {Object.entries(ACTION_EFFECTS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+                      {Object.entries(ACTION_EFFECTS).map(([id, label]) => <option key={id} value={id}>{t(label)}</option>)}
                     </select>
                   )}
                   <div><textarea rows={2} maxLength={L.cardDescription} className="input" placeholder="Описание карты" value={c.description} onChange={(e) => patch({ description: e.target.value })} /><Counter v={c.description} max={L.cardDescription} /></div>

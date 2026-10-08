@@ -1,6 +1,6 @@
 import { ArrowLeft, Moon, Sun, Vibrate, Volume2 } from 'lucide-react';
 import { useStore } from '../store';
-import { DEFAULT_SETTINGS, updateSettings, useSettings } from '../lib/settings';
+import { DEFAULT_SETTINGS, updateSettings, useSettings, type Lang } from '../lib/settings';
 import { signal } from '../lib/feedback';
 
 function Toggle({ checked, onChange, title, hint }: { checked: boolean; onChange: (v: boolean) => void; title: string; hint: string }) {
@@ -32,6 +32,15 @@ export default function Settings() {
       </section>
 
       <section className="panel flex flex-col gap-3">
+        <h2 className="step-title">Язык</h2>
+        <div className="grid grid-cols-2 gap-2">
+          {([['ru', 'Русский'], ['uk', 'Українська']] as [Lang, string][]).map(([v, label]) => (
+            <button key={v} className={`btn ${s.lang === v ? 'btn-primary' : ''}`} aria-pressed={s.lang === v} lang={v} onClick={() => updateSettings({ lang: v })}>{label}</button>
+          ))}
+        </div>
+      </section>
+
+      <section className="panel flex flex-col gap-3">
         <h2 className="step-title">Вид</h2>
         <div>
           <span className="label">Тема</span>
@@ -50,7 +59,7 @@ export default function Settings() {
         </div>
       </section>
 
-      <button className="btn btn-sm self-start" onClick={() => updateSettings(DEFAULT_SETTINGS)}>Сбросить настройки</button>
+      <button className="btn btn-sm self-start" onClick={() => updateSettings({ ...DEFAULT_SETTINGS, lang: s.lang })}>Сбросить настройки</button>
     </div>
   );
 }

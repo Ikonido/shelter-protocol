@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Eye, Play, Undo2, UserRound, Zap } from 'lucide-react';
-import { CATEGORIES, CATEGORY_LABEL, type Category, type GameState, type PlayerCharacter } from '../types';
+import { CATEGORIES, categoryLabel, type Category, type GameState, type PlayerCharacter } from '../types';
 import { useStore } from '../store';
 import {
   alive,
@@ -177,7 +177,7 @@ export function Dossier({
             disabled={mode === 'reveal' ? !pick : !player.slots.action || player.slots.action.isRevealed}
             onClick={() => onDone?.(mode === 'action' ? 'action' : pick ?? undefined)}
           >
-            {mode === 'reveal' ? `Открыть: ${pick ? CATEGORY_LABEL[pick] : '…'}` : 'Применить'}
+            {mode === 'reveal' ? `Открыть: ${pick ? categoryLabel(pick) : '…'}` : 'Применить'}
           </button>
         )}
       </div>

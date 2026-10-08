@@ -13,9 +13,12 @@ import Settings from './screens/Settings';
 import { Modal } from './ui/bits';
 import { useWakeLock } from './lib/wakelock';
 import { packStats } from './lib/packs';
+import { useSettings } from './lib/settings';
 
 export default function App() {
   const { screen, toast, incoming, acceptIncoming, dismissIncoming } = useStore();
+  // Смена языка перерисовывает всё приложение: переводы берутся при рендере.
+  useSettings();
   // Новый экран всегда открывается сверху, а не на прежней прокрутке.
   // Фигурные скобки важны: эффект не должен возвращать результат scrollTo — некоторые браузеры возвращают не undefined,
   // и React пытается вызвать это значение как функцию очистки.

@@ -8,7 +8,7 @@ import { randomToken } from '../lib/rng';
 import { copyText } from '../ui/clipboard';
 import { QR } from '../ui/QR';
 import { ABSTAIN, alive, currentSpeaker, perVote, quotaThisRound, revealOptions, stepOf } from '../lib/game';
-import { CATEGORIES, CATEGORY_LABEL, type Category, type GameState } from '../types';
+import { CATEGORIES, categoryLabel, type Category, type GameState } from '../types';
 import { CardFace, Stepper } from '../ui/bits';
 import { Board } from '../ui/Board';
 import { GameHud } from '../ui/GameHud';
@@ -472,7 +472,7 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
                       setPick(null);
                     }}
                   >
-                    {chosen === 'action' ? <><Zap size={16} /> Применить действие</> : `Открыть всем: ${CATEGORY_LABEL[chosen]}`}
+                    {chosen === 'action' ? <><Zap size={16} /> Применить действие</> : `Открыть всем: ${categoryLabel(chosen)}`}
                   </button>
                 )
               )}
