@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BUILTIN_PACKS } from '../data/classicPack';
-import { buildQuickGame, parseLastSetup, replayGame } from './quick';
+import { buildQuickGame, defaultAutoActions, parseLastSetup, replayGame } from './quick';
 import { DEFAULT_SETTINGS, parseSettings } from './settings';
 import { revealCard, currentSpeaker } from './game';
 
@@ -22,6 +22,30 @@ describe('quick game and replay', () => {
     expect(g.players).toHaveLength(6);
     expect(g.config.mode).toBe('pass-and-play');
     expect(g.players[0].name).toBe('Игрок 1');
+  });
+
+  it('enables action effects by default in pass-and-play, including quick games', () => {
+    expect(defaultAutoActions('pass-and-play', null)).toBe(true);
+    expect(defaultAutoActions('online', null)).toBe(false);
+    expect(defaultAutoActions('tabletop', null)).toBe(false);
+    expect(buildQuickGame(BUILTIN_PACKS, null)!.config.autoActions).toBe(true);
+  });
+
+  it('migrates legacy false defaults but remembers explicit choices', () => {
+    const legacy = parseLastSetup({ packIds: ['classic'], autoActions: false })!;
+    expect(legacy.autoActionsExplicit).toBe(false);
+    expect(defaultAutoActions('pass-and-play', legacy)).toBe(true);
+    expect(defaultAutoActions('online', legacy)).toBe(false);
+    expect(buildQuickGame(BUILTIN_PACKS, legacy)!.config.autoActions).toBe(true);
+
+    const disabled = parseLastSetup({ packIds: ['classic'], autoActions: false, autoActionsExplicit: true })!;
+    expect(defaultAutoActions('pass-and-play', disabled)).toBe(false);
+    expect(buildQuickGame(BUILTIN_PACKS, disabled)!.config.autoActions).toBe(false);
+
+    const enabled = parseLastSetup({ packIds: ['classic'], autoActions: true, autoActionsExplicit: true })!;
+    expect(defaultAutoActions('online', enabled)).toBe(true);
+    expect(defaultAutoActions('tabletop', enabled)).toBe(true);
+    expect(buildQuickGame(BUILTIN_PACKS, enabled)!.config.autoActions).toBe(true);
   });
 
   it('quick game reuses last names and settings, and never pulls in an adult pack without confirmation', () => {
