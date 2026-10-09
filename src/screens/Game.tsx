@@ -304,10 +304,14 @@ function PlayerControls({
   onClose: () => void;
 }) {
   const { notify } = useStore();
-  const [actionStep, setActionStep] = useState<'cards' | 'target' | 'confirm'>('cards');
+  // Порядок как в онлайне: выделить карту действия → «Применить действие» → цель (если нужна). Окно остаётся открытым, чтобы владелец видел итог.
+  const [selected, setSelected] = useState(false);
+  const [picking, setPicking] = useState(false);
   const [confirmSkip, setConfirmSkip] = useState(false);
   const autoEffect = game.config.autoActions ? player.slots.action.card.effect : undefined;
   const actionAvailable = !player.slots.action.isRevealed && !player.isEliminated && ['reveal', 'speech', 'vote'].includes(game.phase);
+  const chosen = selected && actionAvailable;
+  const lastAction = [...game.log].reverse().find((l) => l.round === game.round && l.kind === 'action');
 
   const useAction = (params?: Parameters<typeof applyAction>[2]) => {
     if (autoEffect) {
@@ -315,56 +319,70 @@ function PlayerControls({
       if (!check.ok) { notify(check.reason); return; }
     }
     update((g) => applyAction(g, player.id, params));
-    onClose();
+    setPicking(false);
+    setSelected(false);
   };
 
   return (
     <Modal>
       <Gate key={player.id} name={player.name}>
-        {actionStep === 'target' && autoEffect ? (
-          <ActionTargetPicker
+        <div className="flex flex-col gap-3">
+          <PerkPanel
             game={game}
-            actorId={player.id}
-            effect={autoEffect}
-            title={t(player.slots.action.card.title ?? 'Действие')}
-            onCancel={() => setActionStep('cards')}
-            onConfirm={useAction}
+            me={player.id}
+            onApply={(id, params) => update((g) => playPerk(g, id, params))}
+            onSkip={() => setConfirmSkip(true)}
           />
-        ) : actionStep === 'confirm' ? (
-          <div className="flex flex-col gap-3">
-            <h3 className="h-hud">{t('Применить действие')}</h3>
-            <CardFace card={player.slots.action.card} compact />
-            <div className="grid grid-cols-2 gap-2">
-              <button className="btn" onClick={() => setActionStep('cards')}>{t('Отмена')}</button>
-              <button className="btn btn-primary" onClick={() => useAction()}>{t('Применить')}</button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            <PerkPanel
-              game={game}
-              me={player.id}
-              onApply={(id, params) => update((g) => playPerk(g, id, params))}
-              onSkip={() => setConfirmSkip(true)}
-            />
-            <Dossier
-              game={game}
-              player={player}
-              mode="view"
-              onAction={actionAvailable ? () => setActionStep(autoEffect && needsTarget(autoEffect) ? 'target' : 'confirm') : undefined}
-              onCancel={onClose}
-            />
-            {confirmSkip && (
-              <div className="panel flex flex-col gap-3 border-amber/60 p-3">
-                <p className="text-sm">{t('Отказаться от бонуса?')}</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button className="btn" onClick={() => setConfirmSkip(false)}>{t('Отмена')}</button>
-                  <button className="btn btn-primary" onClick={() => { update((g) => skipPerk(g, player.id)); setConfirmSkip(false); }}>{t('Пропустить')}</button>
-                </div>
-              </div>
+          {lastAction && <p className="panel border-[#e879f9]/60 text-sm" role="status"><Zap size={14} className="mr-1 inline text-[#e879f9]" />{t(lastAction.text)}</p>}
+          <section className="flex flex-col gap-2">
+            <h3 className="h-hud">{t('Досье: {name}', { name: player.name })}</h3>
+            {CATEGORIES.map((c) => {
+              const slot = player.slots[c];
+              const selectable = c === 'action' && actionAvailable;
+              return (
+                <CardFace
+                  key={c}
+                  card={slot.card}
+                  showMod
+                  compact
+                  selected={c === 'action' && chosen}
+                  onClick={selectable ? () => { setSelected((v) => !v); setPicking(false); } : undefined}
+                  extra={slot.isRevealed && <span className="text-[10px] uppercase text-dim">{c === 'action' ? t('использована') : t('открыта всем')}</span>}
+                />
+              );
+            })}
+            {actionAvailable && !chosen && <p className="text-xs text-dim">{t('Карту действия можно применить в любой момент вскрытия, речи или голосования: коснитесь её и нажмите «Применить». Все увидят объявление.')}</p>}
+            {chosen && picking && autoEffect ? (
+              <ActionTargetPicker
+                game={game}
+                actorId={player.id}
+                effect={autoEffect}
+                title={t(player.slots.action.card.title ?? 'Действие')}
+                onCancel={() => setPicking(false)}
+                onConfirm={useAction}
+              />
+            ) : (
+              chosen && (
+                <button
+                  className="btn btn-primary"
+                  onClick={() => (autoEffect && needsTarget(autoEffect) ? setPicking(true) : useAction())}
+                >
+                  <Zap size={16} /> {t('Применить действие')}
+                </button>
+              )
             )}
-          </div>
-        )}
+          </section>
+          {confirmSkip && (
+            <div className="panel flex flex-col gap-3 border-amber/60 p-3">
+              <p className="text-sm">{t('Отказаться от бонуса?')}</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button className="btn" onClick={() => setConfirmSkip(false)}>{t('Отмена')}</button>
+                <button className="btn btn-primary" onClick={() => { update((g) => skipPerk(g, player.id)); setConfirmSkip(false); }}>{t('Пропустить')}</button>
+              </div>
+            </div>
+          )}
+          <button className="btn" onClick={onClose}>{t('Скрыть')}</button>
+        </div>
       </Gate>
     </Modal>
   );
