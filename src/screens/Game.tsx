@@ -227,7 +227,7 @@ function RevealPhase({ game, update, undo, onPrivate }: { game: GameState; updat
           game={game}
           player={speaker}
           mode="reveal"
-          onAction={() => { setOpen(false); onPrivate(speaker.id); }}
+          onAction={game.config.mode === 'pass-and-play' ? () => { setOpen(false); onPrivate(speaker.id); } : undefined}
           onCancel={() => setOpen(false)}
           onDone={(c) => {
             if (c) update((g) => revealCard(g, speaker.id, c));
@@ -269,7 +269,7 @@ function SpeechPhase({ game, update, undo, onPrivate }: { game: GameState; updat
         <p className="text-center text-xs text-dim">
           {t('Почему именно вас нужно взять в убежище?')} {upNext ? t('Затем ходит: {name}.', { name: upNext.name }) : t('Это последняя речь вскрытия.')}
         </p>
-        <button className="btn btn-sm" onClick={() => onPrivate(speaker.id)}><Zap size={16} /> {t('Навыки')}</button>
+        {game.config.mode === 'pass-and-play' && <button className="btn btn-sm" onClick={() => onPrivate(speaker.id)}><Zap size={16} /> {t('Навыки')}</button>}
         <button className="btn btn-primary" onClick={() => update(endSpeech)}><Play size={18} /> {upNext ? t('Следующий игрок') : t('Дальше')}</button>
         <UndoButton undo={undo} />
       </section>
