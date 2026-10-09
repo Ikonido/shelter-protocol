@@ -407,6 +407,22 @@ export function nextRound(g: GameState): GameState {
 
 export const timeLeftMs = (g: GameState, now = Date.now()) => (g.deadline ? Math.max(0, g.deadline - now) : null);
 
+/**
+ * Часы партии стояли (вкладку закрыли, телефон уснул): сдвигаем срок партии и конец речи на время простоя, иначе первый же тик
+ * увидит «вышедшее» время и сам откроет карты игроков. Простой не короче порога считается остановкой часов.
+ */
+export function shiftClock(g: GameState, ms: number): GameState {
+  if (!(ms > 0) || (g.deadline === undefined && g.speechEndsAt === undefined)) return g;
+  return {
+    ...g,
+    ...(g.deadline !== undefined ? { deadline: g.deadline + ms } : {}),
+    ...(g.speechEndsAt !== undefined ? { speechEndsAt: g.speechEndsAt + ms } : {}),
+  };
+}
+
+/** Разрыв между тиками дольше этого — часы стояли, а не просто задержались. */
+export const CLOCK_GAP_MS = 5000;
+
 export function extendDeadline(g: GameState, ms: number, now = Date.now()): GameState {
   return g.deadline ? { ...g, deadline: Math.max(g.deadline, now) + ms } : g;
 }

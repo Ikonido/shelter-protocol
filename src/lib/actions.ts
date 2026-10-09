@@ -3,7 +3,7 @@ import { cardMatchesSkill, SKILL_CATEGORIES } from './evaluate';
 import { mergePools } from './generator';
 import { mulberry32, shuffle } from './rng';
 import { packT, t } from './i18n';
-import { addToBag, composeItems, itemsOf } from './inventory';
+import { addToBag, composeItems, isPlaceholder, itemsOf } from './inventory';
 
 /**
  * Автоисполнение карт действий. Модуль не зависит от game.ts (там он подключается), чтобы не было циклов.
@@ -47,7 +47,10 @@ function draw(g: GameState, cat: DeckCategory): { card: Card; g: GameState } | n
   let deck = [...(g.deck?.[cat] ?? [])];
   let discard = [...(g.discard?.[cat] ?? [])];
   if (deck.length === 0 && discard.length > 0) {
-    deck = discard;
+    // Сброс перемешивается: иначе первая сброшенная карта (а сброшенное обычно видел весь стол) первой же и вернётся.
+    // Жребий детерминирован (seed, раунд, длина журнала, категория): хост и повторное применение дают тот же результат.
+    const salt = [...cat].reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 7);
+    deck = shuffle(discard, mulberry32(g.seed ^ Math.imul(g.round, 2654435761) ^ Math.imul(g.log.length + 1, 40503) ^ salt));
     discard = [];
   }
   const card = deck.shift();
@@ -56,7 +59,7 @@ function draw(g: GameState, cat: DeckCategory): { card: Card; g: GameState } | n
 }
 
 export const toDiscard = (g: GameState, cat: DeckCategory, card: Card): GameState =>
-  card.id.startsWith('lost-') || card.id.startsWith('stolen-') ? g : { ...g, discard: { ...g.discard, [cat]: [...(g.discard?.[cat] ?? []), card] } };
+  isPlaceholder(card) ? g : { ...g, discard: { ...g.discard, [cat]: [...(g.discard?.[cat] ?? []), card] } };
 
 const withSlot = (g: GameState, id: string, cat: Category, slot: { card: Card; isRevealed: boolean }): GameState => ({
   ...g,

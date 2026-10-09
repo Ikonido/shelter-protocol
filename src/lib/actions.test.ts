@@ -307,3 +307,19 @@ describe('modes and data', () => {
     expect(pack.cards.fact[0].effect).toBeUndefined();
   });
 });
+
+describe('a refilled deck is shuffled', () => {
+  it('the first card drawn from the discard pile is not always the first one discarded, and is reproducible per seed', () => {
+    const cards = Array.from({ length: 12 }, (_, i) => ({ id: `d${i}`, category: 'hobby' as const, description: `Хобби ${i}` }));
+    const firstDrawn = (seed: number) => {
+      let g = createGame({ ...cfg(4), seed }, CLASSIC_PACK.scenarios[0], [CLASSIC_PACK]);
+      g = { ...g, deck: { ...g.deck!, hobby: [] }, discard: { ...g.discard!, hobby: cards } };
+      return runEffect(g, 'p1', 'rerollHobby').players[0].slots.hobby.card.id;
+    };
+    const seeds = [1, 2, 3, 4, 5, 6, 7, 8];
+    const got = seeds.map(firstDrawn);
+    expect(got).toEqual(seeds.map(firstDrawn)); // воспроизводимо
+    expect(new Set(got).size, 'всегда одна и та же карта — сброс не перемешан').toBeGreaterThan(1);
+    expect(got.every((id) => id.startsWith('d'))).toBe(true);
+  });
+});

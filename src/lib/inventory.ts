@@ -1,4 +1,4 @@
-import type { Card, GameState, PlayerCharacter } from '../types';
+import { CATEGORIES, type Card, type GameState, type PlayerCharacter } from '../types';
 import { LIMITS as L } from './limits';
 import { mulberry32 } from './rng';
 
@@ -10,8 +10,13 @@ import { mulberry32 } from './rng';
 
 export const MAX_ITEMS = 4;
 
-/** Заглушки «потерян» и «украден» — это пустой багаж, а не предмет. */
-export const isPlaceholder = (c: Card) => c.id.startsWith('lost-') || c.id.startsWith('stolen-');
+/**
+ * Заглушки «потерян», «украден» и «нет карт в паке» — это пустое место, а не предмет. Только точные id: карта пользовательского
+ * пака с id вроде `lost-keys` обычная и не должна пропадать из багажа.
+ */
+const PLACEHOLDER_IDS = new Set(['lost-luggage', 'stolen-luggage', 'lost-transfer', 'lost-conflict', ...CATEGORIES.map((c) => `empty-${c}`)]);
+export const PLACEHOLDER_ID_LIST = [...PLACEHOLDER_IDS];
+export const isPlaceholder = (c: Card) => typeof c.id === 'string' && PLACEHOLDER_IDS.has(c.id);
 
 /** Предметы в карточке багажа (пустой багаж — пустой список). */
 export const itemsOf = (card: Card): Card[] => (isPlaceholder(card) ? [] : (card.items ?? [card]));

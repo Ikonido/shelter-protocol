@@ -21,10 +21,13 @@ import {
   quotaThisRound,
   stepOf,
   tickGame,
+  shiftClock,
+  CLOCK_GAP_MS,
   volunteer,
   playAction as applyAction,
   playPerk,
 } from '../lib/game';
+import { markSeen } from '../lib/storage';
 import { CardFace, Modal } from '../ui/bits';
 import { MatchClock } from '../ui/MatchClock';
 import { SpeechTimer } from '../ui/SpeechTimer';
@@ -76,7 +79,16 @@ export default function Game() {
   const ticking = game?.config.mode === 'pass-and-play' && (timed || game.phase === 'speech');
   useEffect(() => {
     if (!ticking) return;
-    const t = setInterval(() => setGame((g) => (g ? tickGame(g) : g)), 500);
+    let last = Date.now();
+    markSeen(last);
+    const t = setInterval(() => {
+      const now = Date.now();
+      // Большой разрыв между тиками: телефон уснул или вкладка была заморожена. Время партии это время не считает.
+      const gap = now - last;
+      last = now;
+      markSeen(now);
+      setGame((g) => (g ? tickGame(gap > CLOCK_GAP_MS ? shiftClock(g, gap) : g, now) : g));
+    }, 500);
     return () => clearInterval(t);
   }, [ticking, setGame]);
   if (!game) {
