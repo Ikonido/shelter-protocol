@@ -1,5 +1,5 @@
 import { getSettings } from './settings';
-import { DICTS } from '../i18n';
+import { DICTS } from '../i18n/registry';
 
 /**
  * Перевод интерфейса. Ключ — русский исходный текст, так что непереведённая строка просто остаётся русской.

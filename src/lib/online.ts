@@ -93,6 +93,25 @@ const TICKET_GRACE_MS = 20_000;
 const hiddenCard = (category: Category): Card => ({ id: `hidden-${category}`, category, description: '???' });
 
 /** Что игрок `me` вправе знать: чужие закрытые карты вырезаются на хосте, до клиента они не доходят. */
+/**
+ * Что из состояния партии уходит клиентам. Таблица обязана описать каждое поле GameState (иначе проект не соберётся), поэтому
+ * новое поле нельзя отправить по сети случайно: сначала нужно решить, публичное оно или остаётся у хоста.
+ *  - public: уходит как есть;
+ *  - derived: собирается в viewFor отдельно (скрытие карт, тайные голоса, часы, личный итог бонуса);
+ *  - host: остаётся у хоста (колода, сброс, накопленные действия, связи, секреты режима «Скрытая угроза»).
+ */
+export const WIRE_FIELDS: Record<keyof GameState, 'public' | 'derived' | 'host'> = {
+  hiddenThreat: 'host', threatView: 'derived',
+  config: 'derived', scenario: 'public', players: 'derived',
+  round: 'public', schedule: 'public', phase: 'public', revealedThisRound: 'public', event: 'public', usedEvents: 'public',
+  speechFactor: 'public', hazards: 'public', lastReveal: 'public', revealStep: 'public',
+  speechEndsAt: 'derived', speechLeftMs: 'derived', deadline: 'derived', timeLeftMs: 'derived',
+  votes: 'derived', deck: 'host', discard: 'host', fx: 'host',
+  perks: 'public', perkResult: 'derived', bonds: 'host',
+  lastResult: 'public', log: 'public', seed: 'derived',
+};
+const PUBLIC_KEYS = (Object.keys(WIRE_FIELDS) as (keyof GameState)[]).filter((k) => WIRE_FIELDS[k] === 'public');
+
 export function viewFor(g: GameState, me: string, voting: VotingMode = g.config.voting): GameState {
   const final = g.phase === 'final';
   const players: PlayerCharacter[] = g.players.map((p) => {
@@ -110,9 +129,10 @@ export function viewFor(g: GameState, me: string, voting: VotingMode = g.config.
         ? Object.fromEntries(Object.keys(g.votes).map((v) => [v, v === me ? g.votes[v] : v]))
         : {};
   // Часы хоста клиентам не нужны (у телефонов они расходятся): передаём «сколько осталось» на момент отправки.
-  // Колода, сброс и накопленные действия (тайные союзы) остаются у хоста.
-  const { deadline, speechEndsAt, deck: _deck, discard: _discard, fx: _fx, perkResult, hiddenThreat: _secrets, threatView: _oldView, ...rest } = g;
-  // New mode uses an allowlist: future host-only fields cannot silently become wire fields.
+  // Колода, сброс, накопленные действия (тайные союзы) и связи остаются у хоста: клиенту уходят только поля из WIRE_FIELDS.
+  const { deadline, speechEndsAt, perkResult } = g;
+  const rest = Object.fromEntries(PUBLIC_KEYS.filter((k) => g[k] !== undefined).map((k) => [k, g[k]])) as Partial<GameState>;
+  // Режим «Скрытая угроза» собирает состояние отдельным списком (журнал очищается от лишних полей).
   const publicState = g.hiddenThreat ? {
     config: g.config, scenario: g.scenario, round: g.round, schedule: g.schedule, phase: g.phase,
     revealedThisRound: g.revealedThisRound, event: g.event, usedEvents: g.usedEvents,
@@ -131,7 +151,7 @@ export function viewFor(g: GameState, me: string, voting: VotingMode = g.config.
     ...(perkResult && perkResult.playerId === me ? { perkResult } : {}),
     ...(deadline ? { timeLeftMs: Math.max(0, deadline - Date.now()) } : {}),
     ...(speechEndsAt ? { speechLeftMs: Math.max(0, speechEndsAt - Date.now()) } : {}),
-  };
+  } as GameState;
 }
 
 /* ---------- Хост ---------- */

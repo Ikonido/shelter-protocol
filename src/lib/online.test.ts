@@ -4,7 +4,7 @@ import { EVENTS } from './events';
 import { applyEvent, startVote } from './game';
 import { CATEGORIES } from '../types';
 import { itemsOf } from './inventory';
-import { OnlineClient, OnlineHost, type C2H, type Conn, type H2C } from './online';
+import { OnlineClient, OnlineHost, viewFor, WIRE_FIELDS, type C2H, type Conn, type H2C } from './online';
 
 function pair() {
   let toHost: (m: unknown) => void = () => {};
@@ -199,6 +199,28 @@ describe('online', () => {
     await tick();
     expect(host.game!.bonds).toEqual([{ a: 'p1', b: 'p3', votes: 2 }]);
     expect(mine()).toEqual([]);
+  });
+
+  it('the classic view is an allowlist: host-only fields and any field added later never reach a client', async () => {
+    const { host } = await setup();
+    host.start();
+    const g = host.game!;
+    const loaded = {
+      ...g,
+      bonds: [{ a: 'p1', b: 'p2', votes: 2 }],
+      fx: { double: ['p1'], veto: [], immune: ['p2'], allies: [['p1', 'p2']] as [string, string][] },
+      perks: [{ playerId: 'p2', kind: 'heal' as const, charges: 2 }],
+      newHostOnlyField: 'секрет',
+    };
+    const view = viewFor(loaded as never, 'p2') as unknown as Record<string, unknown>;
+    for (const key of ['deck', 'discard', 'fx', 'bonds', 'hiddenThreat', 'newHostOnlyField']) expect(view, key).not.toHaveProperty(key);
+    expect(view.seed).toBe(0);
+    expect(JSON.stringify(view)).not.toContain('секрет');
+    // клиенту доходят только поля из таблицы (публичные и вычисляемые)
+    const allowed = new Set(Object.entries(WIRE_FIELDS).filter(([, kind]) => kind !== 'host').map(([k]) => k));
+    for (const key of Object.keys(view)) expect(allowed.has(key), `лишнее поле «${key}» в виде клиента`).toBe(true);
+    // публичное по-прежнему на месте
+    for (const key of ['players', 'phase', 'round', 'scenario', 'log', 'perks', 'config', 'votes']) expect(view, key).toHaveProperty(key);
   });
 
   it('a client keeps the charges of a perk (a potion seller has two uses), clamped to a sane range', async () => {

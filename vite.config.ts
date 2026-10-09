@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadEnv, type Plugin } from 'vite';
-import { buildCsp } from './src/lib/csp';
+import { buildCsp } from './src/lib/csp.ts';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -68,5 +68,5 @@ export default defineConfig(({ mode }) => ({
   base: './',
   define: { __APP_VERSION__: JSON.stringify(mode === 'production' ? BUILD : { id: 'dev', builtAt: BUILD.builtAt }) },
   plugins: [react(), tailwindcss(), csp(loadEnv(mode, process.cwd(), 'VITE_')), versionFile(), precacheAssets()],
-  test: { environment: 'node' },
+  test: { environment: 'node', setupFiles: ['./src/test/setup.ts'] },
 }));

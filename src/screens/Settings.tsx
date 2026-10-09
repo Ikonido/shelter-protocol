@@ -3,6 +3,7 @@ import { useStore } from '../store';
 import { DEFAULT_SETTINGS, updateSettings, useSettings, type Lang } from '../lib/settings';
 import { signal } from '../lib/feedback';
 import { t } from '../lib/i18n';
+import { loadLang } from '../i18n/registry';
 
 function Toggle({ checked, onChange, title, hint }: { checked: boolean; onChange: (v: boolean) => void; title: string; hint: string }) {
   return (
@@ -36,7 +37,7 @@ export default function Settings() {
         <h2 className="step-title">{t('Язык')}</h2>
         <div className="grid grid-cols-2 gap-2">
           {([['ru', 'Русский'], ['uk', 'Українська'], ['en', 'English'], ['de', 'Deutsch']] as [Lang, string][]).map(([v, label]) => (
-            <button key={v} className={`btn ${s.lang === v ? 'btn-primary' : ''}`} aria-pressed={s.lang === v} lang={v} onClick={() => updateSettings({ lang: v })}>{label}</button>
+            <button key={v} className={`btn ${s.lang === v ? 'btn-primary' : ''}`} aria-pressed={s.lang === v} lang={v} onClick={() => void loadLang(v).catch(() => undefined).then(() => updateSettings({ lang: v }))}>{label}</button>
           ))}
         </div>
       </section>
