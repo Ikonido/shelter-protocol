@@ -2,13 +2,13 @@
 export default {
   // Причины отказа (canApply) — их видит игрок
   'Игрок выбыл': 'Player is eliminated',
-  'Выберите другого живого игрока': 'Choose another living player',
+  'Выберите другого живого игрока': "Choose another player who is still in the game",
   'В колоде не осталось карт багажа': 'No luggage cards left in the deck',
   'В колоде не осталось карт хобби': 'No hobby cards left in the deck',
   'Нужен хотя бы один сосед': 'At least one neighbor is needed',
   'В колоде не осталось телосложений': 'No build cards left in the deck',
   'В колоде не осталось карт биологии': 'No biology cards left in the deck',
-  'Для обмена нужно хотя бы три живых игрока': 'An exchange needs at least three living players',
+  'Для обмена нужно хотя бы три живых игрока': "An exchange requires at least three players who are still in the game",
   'Выберите игрока': 'Choose a player',
   'Выберите скрытую карту игрока': 'Choose a hidden card of the player',
   'У игрока всё уже открыто': 'The player has everything revealed already',

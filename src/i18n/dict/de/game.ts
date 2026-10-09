@@ -92,10 +92,10 @@ export default {
   'Требования сценария «{title}»': 'Anforderungen des Szenarios „{title}“',
   '{label} сложность · нужно {score}+ для победы': 'Schwierigkeit: {label} · {score}+ für den Sieg nötig',
   '— никто не владеет': '— niemand besitzt sie',
-  'Добровольцы закрыли квоту раунда — голосования не будет.': 'Freiwillige haben die Quote der Runde erfüllt — es gibt keine Abstimmung.',
+  'Добровольцы закрыли квоту раунда — голосования не будет.': "Die erforderliche Anzahl an Kandidaten ist bereits freiwillig ausgeschieden. In dieser Runde ist keine Abstimmung nötig.",
   'Большинство воздержалось ({n} из {total}) — никто не покидает игру. Пропущенное исключение перенесено в дополнительный раунд.': 'Die Mehrheit hat sich enthalten ({n} von {total}) — niemand verlässt das Spiel. Die ausgefallene Ausscheidung wird in eine zusätzliche Runde verschoben.',
   'Воздержались: {n}.': 'Enthalten: {n}.',
-  'Ничья на границе — решено жребием.': 'Gleichstand bei der Ausscheidung – das Los entscheidet.',
+  'Ничья на границе — решено жребием.': "An der Ausscheidungsgrenze herrscht Stimmengleichheit. Das Los hat entschieden.",
   'Итоги раунда {n}': 'Ergebnisse der Runde {n}',
   'К финалу': 'Zum Finale',
   'Следующий раунд': 'Nächste Runde',
@@ -157,7 +157,7 @@ export default {
 
   // Карточки, досье и ход
   'Досье: {name}': 'Dossier: {name}',
-  'В первом раунде открывается пол и возраст (биология), дальше — по желанию.': 'In der ersten Runde werden Geschlecht und Alter (Biologie) aufgedeckt, alles Weitere ist freiwillig.',
+  'В первом раунде открывается пол и возраст (биология), дальше — по желанию.': "Zuerst wird Biologie aufgedeckt. Die weiteren Eigenschaften wählst du selbst.",
   'Выберите карту, которую откроете всем.': 'Wähle eine Karte, die du allen aufdeckst.',
   'использована': 'benutzt',
   'открыта всем': 'allen aufgedeckt',

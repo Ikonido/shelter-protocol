@@ -1,5 +1,6 @@
 import { getSettings } from './settings';
 import { DICTS } from '../i18n/registry';
+import { russianText } from '../i18n/russian';
 
 /**
  * Перевод интерфейса. Ключ — русский исходный текст, так что непереведённая строка просто остаётся русской.
@@ -9,8 +10,10 @@ import { DICTS } from '../i18n/registry';
 export function t(text: string, vars?: Record<string, string | number>): string {
   const lang = getSettings().lang;
   const dict = lang === 'ru' ? undefined : DICTS[lang];
-  const translated = !!dict && Object.hasOwn(dict, text);
-  let out = translated ? dict[text] : text;
+  const reviewed = russianText(text);
+  const key = dict && Object.hasOwn(dict, reviewed) ? reviewed : text;
+  const translated = !!dict && Object.hasOwn(dict, key);
+  let out = translated ? dict[key] : reviewed;
   // Составной текст «багаж + предмет» (бонус профессии): переводим части по отдельности.
   if (dict && !translated && text.includes(' + ')) out = text.split(' + ').map((part) => Object.hasOwn(dict, part) ? dict[part] : part).join(' + ');
   return vars ? out.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m)) : out;

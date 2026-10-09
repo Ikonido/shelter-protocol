@@ -92,10 +92,10 @@ export default {
   'Требования сценария «{title}»': 'Requirements of the scenario “{title}”',
   '{label} сложность · нужно {score}+ для победы': '{label} difficulty · {score}+ needed to win',
   '— никто не владеет': '— nobody owns it',
-  'Добровольцы закрыли квоту раунда — голосования не будет.': 'Volunteers filled the round’s quota — there will be no vote.',
+  'Добровольцы закрыли квоту раунда — голосования не будет.': "The required number of candidates have already left voluntarily. No vote is needed this round.",
   'Большинство воздержалось ({n} из {total}) — никто не покидает игру. Пропущенное исключение перенесено в дополнительный раунд.': 'Most abstained ({n} of {total}) — no one leaves the game. The skipped elimination moves to an extra round.',
   'Воздержались: {n}.': 'Abstained: {n}.',
-  'Ничья на границе — решено жребием.': 'Tie at the elimination cutoff — decided by drawing lots.',
+  'Ничья на границе — решено жребием.': "There is a tie at the elimination cutoff. The result was decided by drawing lots.",
   'Итоги раунда {n}': 'Results of round {n}',
   'К финалу': 'To the finale',
   'Следующий раунд': 'Next round',
@@ -157,7 +157,7 @@ export default {
 
   // Карточки, досье и ход
   'Досье: {name}': 'Dossier: {name}',
-  'В первом раунде открывается пол и возраст (биология), дальше — по желанию.': 'In the first round, sex and age (biology) are revealed; the rest is optional.',
+  'В первом раунде открывается пол и возраст (биология), дальше — по желанию.': "Biology is revealed first. You choose which traits to reveal after that.",
   'Выберите карту, которую откроете всем.': 'Choose a card to reveal to everyone.',
   'использована': 'used',
   'открыта всем': 'revealed to all',

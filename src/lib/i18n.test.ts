@@ -8,7 +8,7 @@ import { CATEGORIES } from '../types';
 
 const setLang = (lang: Lang) => updateSettings({ lang });
 const LANGS = Object.keys(DICTS) as Lang[];
-const RU_DICT = DICTS.uk; // украинский — эталон для «Назад» и т.п.
+const UK_DICT = DICTS.uk;
 
 describe('t()', () => {
   beforeEach(() => setLang('ru'));
@@ -21,7 +21,7 @@ describe('t()', () => {
 
   it('uses the dictionary of the chosen language', () => {
     setLang('uk');
-    expect(t('Назад')).toBe(RU_DICT['Назад']);
+    expect(t('Назад')).toBe(UK_DICT['Назад']);
     for (const lang of ['en', 'de'] as const) {
       setLang(lang);
       expect(t('Назад'), lang).toBe(DICTS[lang]['Назад']);
