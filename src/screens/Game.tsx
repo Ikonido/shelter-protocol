@@ -168,7 +168,7 @@ export function Dossier({
           {game.round === 1 ? t('В первом раунде открывается пол и возраст (биология), дальше — по желанию.') : t('Выберите карту, которую откроете всем.')}
         </p>
       )}
-      {CATEGORIES.map((c) => {
+      {(onAction ? (['action', ...CATEGORIES.filter((c) => c !== 'action')] as Category[]) : CATEGORIES).map((c) => {
         const slot = player.slots[c];
         const selectable = options.includes(c) || (c === 'action' && !slot.isRevealed && (mode === 'action' || !!onAction));
         return (
@@ -325,18 +325,18 @@ function PlayerControls({
           </div>
         ) : (
           <div className="flex flex-col gap-3">
+            <PerkPanel
+              game={game}
+              me={player.id}
+              onApply={(id, params) => update((g) => playPerk(g, id, params))}
+              onSkip={() => setConfirmSkip(true)}
+            />
             <Dossier
               game={game}
               player={player}
               mode="view"
               onAction={actionAvailable ? () => setActionStep(autoEffect && needsTarget(autoEffect) ? 'target' : 'confirm') : undefined}
               onCancel={onClose}
-            />
-            <PerkPanel
-              game={game}
-              me={player.id}
-              onApply={(id, params) => update((g) => playPerk(g, id, params))}
-              onSkip={() => setConfirmSkip(true)}
             />
             {confirmSkip && (
               <div className="panel flex flex-col gap-3 border-amber/60 p-3">
