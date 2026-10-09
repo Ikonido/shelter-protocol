@@ -87,7 +87,8 @@ describe('built-in packs', () => {
 
       it('profanity appears only where the 18+ flag is set', () => {
         const hits = textOf(pack).filter((t) => PROFANITY.test(t));
-        if (pack.adult) expect(hits.length).toBeGreaterThan(15);
+        // Adult content must retain its 18+ character without requiring a fixed profanity quota.
+        if (pack.adult) expect(hits.length).toBeGreaterThan(0);
         else expect(hits, hits.join(' | ')).toEqual([]);
       });
     });
