@@ -27,7 +27,6 @@ export function PerkPanel({
   const [active, setActive] = useState<string | null>(null);
   const [completed, setCompleted] = useState(false);
   const [confirmSkip, setConfirmSkip] = useState(false);
-  const [watch, setWatch] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState<number | null>(null);
   const perks: Perk[] = (game.perks ?? []).filter((x) => (me ? x.playerId === me : true) && game.players.some((p) => p.id === x.playerId && !p.isEliminated));
   const result = game.perkResult;
@@ -36,7 +35,7 @@ export function PerkPanel({
   const resultView = showResult && result && resultOwner && (
     <div className="panel flex flex-col gap-2 border-amber/60 p-3" role="status">
       <p className="text-sm">{tPacked(result.text)}</p>
-      <button className="btn btn-sm self-start" onClick={() => { setDismissed(result.id); setWatch(null); }}>{t('Понятно')}</button>
+      <button className="btn btn-sm self-start" onClick={() => { setDismissed(result.id); }}>{t('Понятно')}</button>
     </div>
   );
   if (perks.length === 0 && !resultView && !active) return null;
@@ -47,7 +46,6 @@ export function PerkPanel({
     setActive(null);
     setCompleted(false);
     setConfirmSkip(false);
-    setWatch(null);
   };
   const open = (id: string) => {
     setCompleted(false);
@@ -56,7 +54,6 @@ export function PerkPanel({
   };
   const apply = (id: string, params: ActionParams) => {
     onApply(id, params);
-    setWatch(id);
     if (me) setActive(null);
     else setCompleted(true);
   };
