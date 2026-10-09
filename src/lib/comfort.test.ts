@@ -44,7 +44,7 @@ describe('quick game and replay', () => {
 
     const enabled = parseLastSetup({ packIds: ['classic'], autoActions: true, autoActionsExplicit: true })!;
     expect(defaultAutoActions('online', enabled)).toBe(true);
-    expect(defaultAutoActions('tabletop', enabled)).toBe(true);
+    expect(defaultAutoActions('tabletop', enabled)).toBe(false);
     expect(buildQuickGame(BUILTIN_PACKS, enabled)!.config.autoActions).toBe(true);
   });
 
