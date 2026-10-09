@@ -48,7 +48,7 @@ export default {
   'Выйти из партии?': 'Leave the game?',
   'Журнал партии': 'Game log',
   '[Р{n}] {text}': '[R{n}] {text}',
-  'В меню': 'Back to menu',
+  'В меню': 'To menu',
   'Начать раунд': 'Start round',
   'Раунд начнёт хост, когда все прочитают.': 'The host will start the round once everyone has read the card.',
   'Вскрытие {step} из {total}.': 'Reveal {step} of {total}.',
