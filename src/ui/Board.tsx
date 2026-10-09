@@ -17,11 +17,12 @@ function Pips({ p }: { p: PlayerCharacter }) {
 }
 
 /** Плитка игрока: жетон, имя, шесть индикаторов (какие карты уже открыты) и статус. */
-function PlayerTile({ p, active, you, onClick }: { p: PlayerCharacter; active: boolean; you: boolean; onClick: () => void }) {
+function PlayerTile({ p, active, you, onClick, onPrivate }: { p: PlayerCharacter; active: boolean; you: boolean; onClick: () => void; onPrivate?: () => void }) {
   return (
+    <div className="flex flex-col gap-1.5">
     <button
       onClick={onClick}
-      className={`relative flex min-h-[4.5rem] flex-col gap-2 overflow-hidden rounded-lg border p-2.5 text-left transition active:scale-[.98] ${
+      className={`relative flex w-full min-h-[4.5rem] flex-col gap-2 overflow-hidden rounded-lg border p-2.5 text-left transition active:scale-[.98] ${
         active ? 'border-amber bg-amber/10 shadow-[0_0_24px_-10px_var(--color-amber)]' : 'border-edge bg-panel hover:border-edge-hi'
       } ${p.isEliminated ? 'opacity-55' : ''}`}
     >
@@ -37,19 +38,25 @@ function PlayerTile({ p, active, you, onClick }: { p: PlayerCharacter; active: b
       </span>
       <Pips p={p} />
     </button>
+    {onPrivate && !p.isEliminated && (
+      <button className="btn btn-sm w-full justify-center gap-2" onClick={onPrivate} aria-label={t('Навыки и карты: {name}', { name: p.name })}>
+        <Zap size={14} /> {t('Навыки')}
+      </button>
+    )}
+    </div>
   );
 }
 
 /** Общая доска: все игроки одним взглядом; по нажатию — их открытые карты. */
 /** side — доска в узкой боковой колонке: всегда два столбца. */
-export function Board({ game, speakerId, meId, side = false }: { game: GameState; speakerId?: string; meId?: string; side?: boolean }) {
+export function Board({ game, speakerId, meId, side = false, onPrivate }: { game: GameState; speakerId?: string; meId?: string; side?: boolean; onPrivate?: (playerId: string) => void }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const sel = game.players.find((p) => p.id === openId);
   return (
     <>
       <div className={`grid grid-cols-2 gap-2 ${side ? 'lg:grid-cols-2' : 'sm:grid-cols-3 lg:grid-cols-4'}`}>
         {game.players.map((p) => (
-          <PlayerTile key={p.id} p={p} active={p.id === speakerId} you={p.id === meId} onClick={() => setOpenId(p.id)} />
+          <PlayerTile key={p.id} p={p} active={p.id === speakerId} you={p.id === meId} onClick={() => setOpenId(p.id)} onPrivate={onPrivate ? () => onPrivate(p.id) : undefined} />
         ))}
       </div>
       {sel && (
