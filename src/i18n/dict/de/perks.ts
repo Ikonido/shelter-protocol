@@ -1,6 +1,7 @@
 /** Бонусы профессий: подписи, журнал, предметы багажа и настройка партии. */
 export default {
   'Бонус профессии': 'Berufsbonus',
+  'Отказаться от бонуса?': 'Diesen Bonus verfallen lassen?',
   'Бонусы профессий': 'Berufsboni',
   'Вылечить другого игрока': 'Anderen Spieler heilen',
   'Вылечить игрока': 'Spieler heilen',

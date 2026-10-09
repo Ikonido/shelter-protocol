@@ -9,9 +9,9 @@ import { Gate } from './Gate';
 import { Modal } from './bits';
 
 /**
- * Бонусы открытых профессий. Выбор цели — меню с игроками.
- * На одном устройстве (me не задан) показываем бонусы всех игроков, и выбирает тот, чей бонус: перед меню экран передачи телефона.
- * В онлайне (me задан) — только свой бонус, без передачи.
+ * Online: show only the local player's bonus and keep the existing direct picker.
+ * Pass-and-play: selecting a bonus opens the SAME target picker behind one privacy
+ * gate. Applying or skipping the bonus stays in that session until it is dismissed.
  */
 export function PerkPanel({
   game,
@@ -25,34 +25,45 @@ export function PerkPanel({
   onSkip: (playerId: string) => void;
 }) {
   const [active, setActive] = useState<string | null>(null);
-  // Итог бонуса (лечение удалось или нет) видит только владелец: на одном устройстве — в окне за экраном передачи, в онлайне — у себя.
-  const [watch, setWatch] = useState<string | null>(null);
+  const [completed, setCompleted] = useState(false);
+  const [confirmSkip, setConfirmSkip] = useState(false);
   const [dismissed, setDismissed] = useState<number | null>(null);
   const perks: Perk[] = (game.perks ?? []).filter((x) => (me ? x.playerId === me : true) && game.players.some((p) => p.id === x.playerId && !p.isEliminated));
   const result = game.perkResult;
-  const showResult = !!result && (me ? result.playerId === me && result.id !== dismissed : result.playerId === watch);
+  const showResult = !!result && (me ? result.playerId === me && result.id !== dismissed : completed && result.playerId === active && result.id !== dismissed);
   const resultOwner = result && game.players.find((p) => p.id === result.playerId);
   const resultView = showResult && result && resultOwner && (
     <div className="panel flex flex-col gap-2 border-amber/60 p-3" role="status">
       <p className="text-sm">{tPacked(result.text)}</p>
-      <button className="btn btn-sm self-start" onClick={() => { setDismissed(result.id); setWatch(null); }}>{t('Понятно')}</button>
+      <button className="btn btn-sm self-start" onClick={() => { setDismissed(result.id); }}>{t('Понятно')}</button>
     </div>
   );
-  if (perks.length === 0 && !resultView) return null;
+  if (perks.length === 0 && !resultView && !active) return null;
+
   const activePerk = perks.find((x) => x.playerId === active);
   const activePlayer = game.players.find((p) => p.id === active);
+  const close = () => {
+    setActive(null);
+    setCompleted(false);
+    setConfirmSkip(false);
+  };
+  const open = (id: string) => {
+    setCompleted(false);
+    setConfirmSkip(false);
+    setActive(id);
+  };
+  const apply = (id: string, params: ActionParams) => {
+    onApply(id, params);
+    if (me) setActive(null);
+    else setCompleted(true);
+  };
 
-  // Связь адвоката: двое других игроков, без одиночного выбора.
   const bondPicker = activePerk && activePlayer && activePerk.kind === 'bond' && (
     <BondPicker
       game={game}
       actorId={activePlayer.id}
-      onCancel={() => setActive(null)}
-      onConfirm={(a, b) => {
-        onApply(activePlayer.id, { target: a, target2: b });
-        setWatch(activePlayer.id);
-        setActive(null);
-      }}
+      onCancel={close}
+      onConfirm={(a, b) => apply(activePlayer.id, { target: a, target2: b })}
     />
   );
   const effect = activePerk ? PERK_EFFECT[activePerk.kind] : undefined;
@@ -63,12 +74,8 @@ export function PerkPanel({
       effect={effect}
       title={perkLabel(activePerk.kind, activePerk.level)}
       perk
-      onCancel={() => setActive(null)}
-      onConfirm={(params) => {
-        onApply(activePlayer.id, params);
-        setWatch(activePlayer.id);
-        setActive(null);
-      }}
+      onCancel={close}
+      onConfirm={(params) => apply(activePlayer.id, params)}
     />
   );
 
@@ -77,7 +84,6 @@ export function PerkPanel({
       <h3 className="h-hud flex items-center gap-2 text-xs"><Sparkles size={14} className="text-amber" /> {t('Бонусы профессий')}</h3>
       {perks.map((perk) => {
         const owner = game.players.find((p) => p.id === perk.playerId)!;
-        // Без выбора цели бонус применяется сразу, если это возможно сейчас; причину показываем рядом.
         const ready = perkNeedsTarget(perk.kind) || canApplyPerk(game, perk.playerId, {}).ok;
         const reason = !ready ? canApplyPerk(game, perk.playerId, {}) : null;
         return (
@@ -86,17 +92,53 @@ export function PerkPanel({
             <button
               className="btn btn-sm btn-primary"
               disabled={!ready}
-              onClick={() => (perkNeedsTarget(perk.kind) ? setActive(perk.playerId) : onApply(perk.playerId, {}))}
+              onClick={() => {
+                if (!me || perkNeedsTarget(perk.kind)) open(perk.playerId);
+                else apply(perk.playerId, {});
+              }}
             >
               {perkLabel(perk.kind, perk.level)}
             </button>
             {reason && !reason.ok && <span className="text-xs text-danger">{reason.reason}</span>}
-            <button className="btn btn-sm" onClick={() => onSkip(perk.playerId)}>{t('Пропустить')}</button>
+            {me && <button className="btn btn-sm" onClick={() => onSkip(perk.playerId)}>{t('Пропустить')}</button>}
           </div>
         );
       })}
-      {(picker || bondPicker) && (me ? picker || bondPicker : <Modal><Gate name={activePlayer!.name}>{picker || bondPicker}</Gate></Modal>)}
-      {resultView && (me ? resultView : <Modal><Gate name={resultOwner!.name}>{resultView}</Gate></Modal>)}
+      {me && (picker || bondPicker)}
+      {me && resultView}
+      {!me && activePlayer && (
+        <Modal>
+          <Gate key={activePlayer.id} name={activePlayer.name}>
+            {completed ? (
+              <div className="flex flex-col gap-3">
+                {showResult && result && <p className="panel border-amber/60 p-3 text-sm" role="status">{tPacked(result.text)}</p>}
+                <button className="btn btn-primary" onClick={() => { if (result) setDismissed(result.id); close(); }}>{t('Понятно')}</button>
+              </div>
+            ) : confirmSkip ? (
+              <div className="flex flex-col gap-3">
+                <h3 className="h-hud">{t('Отказаться от бонуса?')}</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <button className="btn" onClick={() => setConfirmSkip(false)}>{t('Отмена')}</button>
+                  <button className="btn btn-primary" onClick={() => { onSkip(activePlayer.id); close(); }}>{t('Пропустить')}</button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {picker || bondPicker || (activePerk ? (
+                  <div className="flex flex-col gap-2">
+                    <h3 className="h-hud">{perkLabel(activePerk.kind, activePerk.level)}</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button className="btn" onClick={close}>{t('Отмена')}</button>
+                      <button className="btn btn-primary" disabled={!canApplyPerk(game, activePlayer.id, {}).ok} onClick={() => apply(activePlayer.id, {})}>{t('Применить')}</button>
+                    </div>
+                  </div>
+                ) : <button className="btn" onClick={close}>{t('Отмена')}</button>)}
+                {activePerk && <button className="btn btn-sm self-start" onClick={() => setConfirmSkip(true)}>{t('Пропустить')}</button>}
+              </div>
+            )}
+          </Gate>
+        </Modal>
+      )}
     </section>
   );
 }
