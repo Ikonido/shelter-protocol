@@ -57,6 +57,7 @@ function UndoButton({ undo }: { undo?: Undo }) {
 export default function Game() {
   const { game, setGame, go } = useStore();
   const [showBrief, setShowBrief] = useState(false);
+  const [privatePlayerId, setPrivatePlayerId] = useState<string | null>(null);
   // Снимок состояния до последнего вскрытия: нужен для кнопки «отменить».
   const prevRef = useRef<GameState | null>(null);
   const [undoSnap, setUndoSnap] = useState<{ before: GameState; after: GameState } | null>(null);
@@ -90,6 +91,8 @@ export default function Game() {
       : undefined;
 
   const speaker = currentSpeaker(game);
+  const privatePlayer = game.players.find((p) => p.id === privatePlayerId && !p.isEliminated);
+  const canOpenPrivate = game.config.mode === 'pass-and-play' && ['reveal', 'speech', 'vote'].includes(game.phase);
   const live = (game.config.mode !== 'tabletop' || !!game.hiddenThreat) && game.phase !== 'final';
 
   return (
@@ -120,16 +123,19 @@ export default function Game() {
               <MatchClock deadline={game.deadline} totalMin={game.config.timeLimitMin} onExtend={() => update((g) => extendDeadline(g, 5 * 60_000))} />
             )}
             {game.phase === 'event' && <EventPhase game={game} update={update} />}
-            {game.phase === 'reveal' && <RevealPhase game={game} update={update} undo={undo} />}
-            {game.phase === 'speech' && <SpeechPhase game={game} update={update} undo={undo} />}
+            {game.phase === 'reveal' && <RevealPhase game={game} update={update} undo={undo} onPrivate={setPrivatePlayerId} />}
+            {game.phase === 'speech' && <SpeechPhase game={game} update={update} undo={undo} onPrivate={setPrivatePlayerId} />}
             {game.phase === 'vote' && <VotePhase game={game} update={update} />}
             {game.phase === 'result' && <ResultPhase game={game} update={update} />}
           </div>
           <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-24">
             <ThreatsPanel hazards={game.hazards ?? []} />
-            <Board game={game} speakerId={speaker?.id} side />
+            <Board game={game} speakerId={speaker?.id} side onPrivate={canOpenPrivate ? setPrivatePlayerId : undefined} />
           </aside>
         </div>
+      )}
+      {live && canOpenPrivate && privatePlayer && (
+        <PlayerControls key={privatePlayer.id} game={game} player={privatePlayer} update={update} onClose={() => setPrivatePlayerId(null)} />
       )}
     </div>
   );
@@ -143,12 +149,14 @@ export function Dossier({
   mode,
   onDone,
   onCancel,
+  onAction,
 }: {
   game: GameState;
   player: PlayerCharacter;
   mode: 'reveal' | 'action' | 'view';
   onDone?: (category?: Category) => void;
   onCancel: () => void;
+  onAction?: () => void;
 }) {
   const options = mode === 'reveal' ? revealOptions(game, player) : [];
   const [pick, setPick] = useState<Category | null>(options.length === 1 ? options[0] : null);
@@ -162,7 +170,7 @@ export function Dossier({
       )}
       {CATEGORIES.map((c) => {
         const slot = player.slots[c];
-        const selectable = options.includes(c) || (mode === 'action' && c === 'action' && !slot.isRevealed);
+        const selectable = options.includes(c) || (c === 'action' && !slot.isRevealed && (mode === 'action' || !!onAction));
         return (
           <CardFace
             key={c}
@@ -170,8 +178,8 @@ export function Dossier({
             showMod
             compact
             selected={pick === c}
-            onClick={selectable ? () => setPick(c) : undefined}
-            extra={slot.isRevealed && <span className="text-[10px] uppercase text-dim">{c === 'action' ? t('использована') : t('открыта всем')}</span>}
+            onClick={selectable ? () => (c === 'action' && onAction ? onAction() : setPick(c)) : undefined}
+            extra={slot.isRevealed ? <span className="text-[10px] uppercase text-dim">{c === 'action' ? t('использована') : t('открыта всем')}</span> : c === 'action' && onAction ? <span className="text-xs text-amber">{t('Нажмите, чтобы применить')}</span> : undefined}
           />
         );
       })}
@@ -208,7 +216,7 @@ function EventPhase({ game, update }: { game: GameState; update: Update }) {
 
 /* ---------- Фаза 1: ход игрока — открывает карту ---------- */
 
-function RevealPhase({ game, update, undo }: { game: GameState; update: Update; undo?: Undo }) {
+function RevealPhase({ game, update, undo, onPrivate }: { game: GameState; update: Update; undo?: Undo; onPrivate: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   const speaker = currentSpeaker(game);
   if (!speaker) return null;
@@ -219,6 +227,7 @@ function RevealPhase({ game, update, undo }: { game: GameState; update: Update; 
           game={game}
           player={speaker}
           mode="reveal"
+          onAction={() => { setOpen(false); onPrivate(speaker.id); }}
           onCancel={() => setOpen(false)}
           onDone={(c) => {
             if (c) update((g) => revealCard(g, speaker.id, c));
@@ -240,14 +249,13 @@ function RevealPhase({ game, update, undo }: { game: GameState; update: Update; 
         <button className="btn btn-primary w-full" onClick={() => setOpen(true)}><Eye size={18} /> {t('Я — {name}: открыть карту', { name: speaker.name })}</button>
         <UndoButton undo={undo} />
       </section>
-      <ActionsPanel game={game} update={update} />
     </>
   );
 }
 
 /* ---------- Фаза 2: речь — игрок объясняет пользу, затем ходит следующий ---------- */
 
-function SpeechPhase({ game, update, undo }: { game: GameState; update: Update; undo?: Undo }) {
+function SpeechPhase({ game, update, undo, onPrivate }: { game: GameState; update: Update; undo?: Undo; onPrivate: (id: string) => void }) {
   const speaker = currentSpeaker(game);
   const cat = game.lastReveal?.category;
   if (!speaker || !cat) return null;
@@ -261,83 +269,88 @@ function SpeechPhase({ game, update, undo }: { game: GameState; update: Update; 
         <p className="text-center text-xs text-dim">
           {t('Почему именно вас нужно взять в убежище?')} {upNext ? t('Затем ходит: {name}.', { name: upNext.name }) : t('Это последняя речь вскрытия.')}
         </p>
+        <button className="btn btn-sm" onClick={() => onPrivate(speaker.id)}><Zap size={16} /> {t('Навыки')}</button>
         <button className="btn btn-primary" onClick={() => update(endSpeech)}><Play size={18} /> {upNext ? t('Следующий игрок') : t('Дальше')}</button>
         <UndoButton undo={undo} />
       </section>
-      <ActionsPanel game={game} update={update} />
     </>
   );
 }
 
-/* ---------- Карты действий и просмотр своего досье (в любой момент вскрытий) ---------- */
+/* ---------- Навык и личные карты: доступны с плитки игрока ---------- */
 
-function ActionsPanel({ game, update }: { game: GameState; update: Update }) {
+function PlayerControls({
+  game, player, update, onClose,
+}: {
+  game: GameState;
+  player: PlayerCharacter;
+  update: Update;
+  onClose: () => void;
+}) {
   const { notify } = useStore();
-  const [actor, setActor] = useState<string | null>(null);
-  const [picking, setPicking] = useState(false);
-  const [peek, setPeek] = useState<string | null>(null);
-  const living = alive(game);
-  const actorP = living.find((p) => p.id === actor);
-  const peekP = living.find((p) => p.id === peek);
-  // Автоисполнение: у карты есть эффект, и партия создана с этой опцией.
-  const autoEffect = game.config.autoActions ? actorP?.slots.action.card.effect : undefined;
-  const lastAction = [...game.log].reverse().find((l) => l.round === game.round && l.kind === 'action');
+  const [actionStep, setActionStep] = useState<'cards' | 'target' | 'confirm'>('cards');
+  const [confirmSkip, setConfirmSkip] = useState(false);
+  const autoEffect = game.config.autoActions ? player.slots.action.card.effect : undefined;
+  const actionAvailable = !player.slots.action.isRevealed && !player.isEliminated && ['reveal', 'speech', 'vote'].includes(game.phase);
+
+  const useAction = (params?: Parameters<typeof applyAction>[2]) => {
+    if (autoEffect) {
+      const check = canApply(game, player.id, autoEffect, params);
+      if (!check.ok) { notify(check.reason); return; }
+    }
+    update((g) => applyAction(g, player.id, params));
+    onClose();
+  };
+
   return (
-    <>
-      <PerkPanel game={game} onApply={(id, params) => update((g) => playPerk(g, id, params))} onSkip={(id) => update((g) => skipPerk(g, id))} />
-      {lastAction && <p className="panel border-[#e879f9]/60 text-sm" role="status"><Zap size={14} className="mr-1 inline text-[#e879f9]" />{t(lastAction.text)}</p>}
-      <details className="panel p-3" open>
-        <summary className="cursor-pointer text-xs uppercase tracking-widest text-dim">{t('Карты действий и своё досье')}</summary>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {living.map((p) => (
-            <button key={p.id} className="btn btn-sm" disabled={p.slots.action.isRevealed} onClick={() => setActor(p.id)}>
-              <Zap size={14} /> {p.name}
-            </button>
-          ))}
-        </div>
-        <p className="mt-1 text-[10px] uppercase tracking-widest text-dim">{t('↑ применить карту действия (один раз за партию)')}</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {living.map((p) => <button key={p.id} className="btn btn-sm" onClick={() => setPeek(p.id)}>{t('Досье: {name}', { name: p.name })}</button>)}
-        </div>
-      </details>
-      {actorP && (
-        <Modal>
-          <Gate name={actorP.name}>
-            {picking && autoEffect ? (
-              <ActionTargetPicker
-                game={game}
-                actorId={actorP.id}
-                effect={autoEffect}
-                title={t(actorP.slots.action.card.title ?? 'Действие')}
-                onCancel={() => setPicking(false)}
-                onConfirm={(params) => { update((g) => applyAction(g, actorP.id, params)); setPicking(false); setActor(null); }}
-              />
-            ) : (
-              <Dossier
-                game={game}
-                player={actorP}
-                mode="action"
-                onCancel={() => setActor(null)}
-                onDone={() => {
-                  if (autoEffect && needsTarget(autoEffect)) return setPicking(true);
-                  const check = autoEffect ? canApply(game, actorP.id, autoEffect) : null;
-                  if (check && !check.ok) return notify(check.reason);
-                  update((g) => applyAction(g, actorP.id));
-                  setActor(null);
-                }}
-              />
+    <Modal>
+      <Gate key={player.id} name={player.name}>
+        {actionStep === 'target' && autoEffect ? (
+          <ActionTargetPicker
+            game={game}
+            actorId={player.id}
+            effect={autoEffect}
+            title={t(player.slots.action.card.title ?? 'Действие')}
+            onCancel={() => setActionStep('cards')}
+            onConfirm={useAction}
+          />
+        ) : actionStep === 'confirm' ? (
+          <div className="flex flex-col gap-3">
+            <h3 className="h-hud">{t('Применить действие')}</h3>
+            <CardFace card={player.slots.action.card} compact />
+            <div className="grid grid-cols-2 gap-2">
+              <button className="btn" onClick={() => setActionStep('cards')}>{t('Отмена')}</button>
+              <button className="btn btn-primary" onClick={() => useAction()}>{t('Применить')}</button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <Dossier
+              game={game}
+              player={player}
+              mode="view"
+              onAction={actionAvailable ? () => setActionStep(autoEffect && needsTarget(autoEffect) ? 'target' : 'confirm') : undefined}
+              onCancel={onClose}
+            />
+            <PerkPanel
+              game={game}
+              me={player.id}
+              onApply={(id, params) => update((g) => playPerk(g, id, params))}
+              onSkip={() => setConfirmSkip(true)}
+            />
+            {confirmSkip && (
+              <div className="panel flex flex-col gap-3 border-amber/60 p-3">
+                <p className="text-sm">{t('Отказаться от бонуса?')}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button className="btn" onClick={() => setConfirmSkip(false)}>{t('Отмена')}</button>
+                  <button className="btn btn-primary" onClick={() => { update((g) => skipPerk(g, player.id)); setConfirmSkip(false); }}>{t('Пропустить')}</button>
+                </div>
+              </div>
             )}
-          </Gate>
-        </Modal>
-      )}
-      {peekP && (
-        <Modal>
-          <Gate name={peekP.name}>
-            <Dossier game={game} player={peekP} mode="view" onCancel={() => setPeek(null)} />
-          </Gate>
-        </Modal>
-      )}
-    </>
+          </div>
+        )}
+      </Gate>
+    </Modal>
   );
 }
 
@@ -347,7 +360,6 @@ function VotePhase({ game, update }: { game: GameState; update: Update }) {
   return (
     <>
       <VoteBody game={game} update={update} />
-      <ActionsPanel game={game} update={update} />
     </>
   );
 }
