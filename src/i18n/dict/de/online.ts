@@ -68,7 +68,7 @@ export default {
   'Добровольцы закрыли квоту раунда — голосования не будет.': 'Freiwillige haben die Quote der Runde erfüllt — es gibt keine Abstimmung.',
   'Ничья на границе — решено жребием.': 'Gleichstand bei der Ausscheidung – das Los entscheidet.',
   'Большинство воздержалось ({abstained} из {total}) — никто не покидает игру. Пропущенное исключение перенесено в дополнительный раунд.': 'Die Mehrheit hat sich enthalten ({abstained} von {total}) — niemand scheidet aus. Die Ausscheidung wird in einer zusätzlichen Runde nachgeholt.',
-  'Воздержались: {n}.': 'Enthaltungen: {n}.',
+  'Воздержались: {n}.': 'Enthalten: {n}.',
   'Дальше': 'Weiter',
   'Следующий шаг запускает хост.': 'Den nächsten Schritt startet der Host.',
   'Нет связи:': 'Keine Verbindung:',
