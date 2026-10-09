@@ -1,7 +1,7 @@
 name: Deploy to GitHub Pages
 on:
   push:
-    branches: [main]
+    branches: [main, polish/i18n-ux-online-perks-20261009]
   workflow_dispatch:
 permissions:
   contents: read
