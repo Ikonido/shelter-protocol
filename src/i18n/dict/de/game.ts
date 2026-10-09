@@ -1,6 +1,6 @@
 /** Экраны партии: игра, настольный режим, финал и игровые компоненты (HUD, доска, угрозы, хроника). */
 export default {
-  'Навыки': 'Fähigkeiten',
+  'Навыки': 'Skills',
   'Навыки и карты: {name}': 'Fähigkeiten und Karten: {name}',
   'Нажмите, чтобы применить': 'Zum Einsetzen antippen',
   'Применить действие': 'Aktion einsetzen',
