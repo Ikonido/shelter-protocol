@@ -46,7 +46,7 @@ export default {
   // screens/Online.tsx — общий игровой экран
   'Выйти': 'Verlassen',
   'Выйти из партии?': 'Partie verlassen?',
-  'Журнал партии': 'Partie-Protokoll',
+  'Журнал партии': 'Spielverlauf',
   '[Р{n}] {text}': '[R{n}] {text}',
   'В меню': 'Zum Menü',
   'Начать раунд': 'Runde starten',
@@ -115,5 +115,5 @@ export default {
   'Закрыть камеру': 'Kamera schließen',
   'QR-код': 'QR-Code',
   'Передайте устройство игроку': 'Gib das Gerät an den Spieler weiter',
-  'Это я — показать': 'Das bin ich — anzeigen',
+  'Это я — показать': 'Das bin ich – meine Karten anzeigen',
 };
