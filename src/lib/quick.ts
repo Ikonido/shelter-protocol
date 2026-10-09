@@ -62,6 +62,7 @@ export function parseLastSetup(raw: unknown): LastSetup | null {
  * Online keeps its previous default; tabletop disables automatic actions.
  */
 export function defaultAutoActions(mode: PlayMode, last: LastSetup | null): boolean {
+  if (mode === 'tabletop') return false;
   return last?.autoActionsExplicit ? last.autoActions : mode === 'pass-and-play';
 }
 
