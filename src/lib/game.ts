@@ -218,6 +218,12 @@ function resolveVoteCore(g: GameState): GameState {
   // Действия игроков: союзники, вето и неприкосновенность применяются к голосам перед подсчётом.
   const votes = effectiveVotes(g);
   const immune = new Set(fx?.immune ?? []);
+  // Связь адвоката: неприкосновенность на раунд защищает обоих. Иначе выгнанный партнёр увёл бы за собой защищённого.
+  // Расширяется только пара неприкосновенного (по исходному списку), цепочки связей защиту дальше не несут.
+  for (const b of g.bonds ?? []) {
+    if (fx?.immune.includes(b.a)) immune.add(b.b);
+    if (fx?.immune.includes(b.b)) immune.add(b.a);
+  }
   const quota = Math.min(quotaThisRound(g), living.length);
   const tally: Record<string, number> = Object.fromEntries(living.map((p) => [p.id, 0]));
   let abstained = 0;
@@ -249,7 +255,8 @@ function resolveVoteCore(g: GameState): GameState {
     const hitB = picked.includes(b.b);
     if (hitA === hitB) continue;
     const partner = hitA ? b.b : b.a;
-    const partnerLive = living.some((p) => p.id === partner) && !picked.includes(partner) && !extra.includes(partner);
+    // Защищённого (неприкосновенного или его пару) связь не выгоняет: защита раунда сильнее связи.
+    const partnerLive = living.some((p) => p.id === partner) && !picked.includes(partner) && !extra.includes(partner) && !immune.has(partner);
     if (partnerLive && living.length - picked.length - extra.length - 1 >= g.config.shelterSlots) extra.push(partner);
   }
   const eliminated = [...picked, ...extra];
