@@ -1,5 +1,5 @@
 /* Service worker: офлайн-оболочка приложения. Версию поднимайте при изменении логики кеширования. */
-const VERSION = 'v2'; // v2: version.json не кешируется; старые кеши (с накопленными запросами проверки версии) удаляются при активации
+const VERSION = 'v3'; // v2: version.json не кешируется; старые кеши (с накопленными запросами проверки версии) удаляются при активации
 const BUILD = '__BUILD__'; // подставляется при сборке (у каждой сборки свой кеш: хешированные файлы прошлых версий не копятся)
 // Собранные JS и CSS: список подставляется при сборке (vite.config.ts), иначе первый офлайн-запуск остался бы без кода приложения.
 const PRECACHE = /*__PRECACHE__*/[];
@@ -17,7 +17,8 @@ const SHELL = ['./', './index.html', './manifest.webmanifest', './favicon.svg', 
 self.addEventListener('install', (e) => {
   // Новая версия ждёт, пока закроются вкладки старой: иначе она удалила бы файлы, которые старая страница ещё может запросить.
   // Обновление по кнопке (applyUpdate) снимает worker и перезагружает страницу сразу.
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)));
+  // cache: 'reload' — в обход HTTP-кеша браузера: сразу после выкладки он мог бы отдать старый index.html рядом с новыми файлами.
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' })))));
 });
 
 self.addEventListener('activate', (e) => {
@@ -45,8 +46,13 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(
       fetch(req)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put('./index.html', copy));
+          // Оболочку обновляет только успешный ответ на сам адрес приложения: страница 404, редирект или ошибка сервера
+          // под тем же путём не должны заменить рабочую оболочку.
+          const own = url.pathname === SCOPE_PATH || url.pathname === `${SCOPE_PATH}index.html`;
+          if (own && res.ok && res.type === 'basic') {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put('./index.html', copy));
+          }
           return res;
         })
         .catch(() => caches.match('./index.html').then((r) => r || caches.match('./'))),

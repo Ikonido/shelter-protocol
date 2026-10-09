@@ -149,14 +149,14 @@ describe('audit round 4: regressions', () => {
     const key = (u: any) => new URL(typeof u === 'string' ? u : u.url, baseUrl).href;
     let claims = 0, skips = 0;
     const caches = {
-      open: async (name: string) => { let d = storage.get(name); if (!d) { d = new Map(); storage.set(name, d); } const cache = d; return { addAll: async (urls: string[]) => { for (const u of urls) cache.set(key(u), new Response('module ' + u)); }, put: async (u: any, r: Response) => { cache.set(key(u), r); } }; },
+      open: async (name: string) => { let d = storage.get(name); if (!d) { d = new Map(); storage.set(name, d); } const cache = d; return { addAll: async (urls: string[]) => { for (const u of urls) cache.set(key(u), new Response('module ' + (typeof u === 'string' ? u : (u as any).raw))); }, put: async (u: any, r: Response) => { cache.set(key(u), r); } }; },
       keys: async () => [...storage.keys()], delete: async (name: string) => storage.delete(name),
       match: async (u: any) => { for (const c of storage.values()) if (c.has(key(u))) return c.get(key(u)); return undefined; },
     };
     function worker(build: string, asset: string) {
       const handlers: Record<string, (e: any) => void> = {};
       const src = readFileSync('public/sw.js', 'utf8').replace('__BUILD__', build).replace('/*__PRECACHE__*/[]', JSON.stringify([asset]));
-      runInNewContext(src, { URL, self: { registration: { scope: baseUrl }, location: { origin: 'https://example.com', href: baseUrl + 'sw.js' }, addEventListener: (t: string, cb: any) => { handlers[t] = cb; }, skipWaiting: async () => { skips++; }, clients: { claim: async () => { claims++; } } }, caches, fetch: async () => new Response('gone', { status: 404 }) });
+      runInNewContext(src, { URL, Request: class { url: string; raw: string; constructor(u: string) { this.raw = u; this.url = new URL(u, baseUrl).href; } }, self: { registration: { scope: baseUrl }, location: { origin: 'https://example.com', href: baseUrl + 'sw.js' }, addEventListener: (t: string, cb: any) => { handlers[t] = cb; }, skipWaiting: async () => { skips++; }, clients: { claim: async () => { claims++; } } }, caches, fetch: async () => new Response('gone', { status: 404 }) });
       return handlers;
     }
     const fire = async (h: any) => { let p: Promise<any> = Promise.resolve(); h({ waitUntil: (v: Promise<any>) => { p = v; } }); await p; };

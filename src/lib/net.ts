@@ -1,3 +1,4 @@
+import { createAssembler, toPieces } from './chunk';
 import type { DataConnection, Peer as PeerT, PeerOptions } from 'peerjs';
 import type { Conn } from './online';
 import { randomCode } from './rng';
@@ -68,13 +69,27 @@ async function newPeer(mode: NetMode, id?: string): Promise<PeerT> {
   return id ? new Peer(id, peerOptions(mode)) : new Peer(peerOptions(mode));
 }
 
-function wrap<Out>(dc: DataConnection): Conn<Out> {
+/** Соединение с нарезкой больших сообщений (канал json отвергает сообщения от 16300 байт, см. chunk.ts). */
+export function wrap<Out>(dc: DataConnection): Conn<Out> {
+  let sent = 0;
+  const assemble = createAssembler();
   return {
-    send: (m) => dc.open && dc.send(m),
-    onMessage: (cb) => void dc.on('data', cb),
+    send: (m) => {
+      if (!dc.open) return;
+      const id = sent++;
+      for (const piece of toPieces(m, id)) dc.send(piece);
+    },
+    onMessage: (cb) =>
+      void dc.on('data', (raw) => {
+        const m = assemble(raw);
+        if (m !== undefined) cb(m);
+      }),
     onClose: (cb) => {
       dc.on('close', cb);
-      dc.on('error', cb);
+      // Ошибка отдельного сообщения (например, слишком большого) не должна считаться разрывом связи.
+      dc.on('error', (e) => {
+        if ((e as { type?: string }).type !== 'message-too-big') cb();
+      });
     },
     close: () => dc.close(),
   };
@@ -106,7 +121,12 @@ export async function createRoom(onConn: (c: Conn<unknown>) => void, mode: NetMo
       if ((e as { type?: string }).type === 'unavailable-id') continue; // код занят — берём другой
       throw new Error(t('Не удалось связаться с брокером соединений. Проверьте интернет.'));
     }
-    peer.on('connection', (dc) => dc.on('open', () => onConn(wrap(dc))));
+    peer.on('connection', (dc) => {
+      // Только json: бинарный канал собирает части в память без ограничений и не попадает под проверку скорости сообщений.
+      if (dc.serialization !== 'json') return dc.close();
+      dc.on('open', () => onConn(wrap(dc)));
+    });
+    peer.on('call', (call) => call.close()); // звонки не нужны: игра идёт только по каналу данных
     // Потеря связи с брокером не рвёт уже установленные P2P-каналы, но мешает входу новых игроков — переподключаемся.
     peer.on('disconnected', () => !peer.destroyed && peer.reconnect());
     return { code, destroy: () => peer.destroy() };
