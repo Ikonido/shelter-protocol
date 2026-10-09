@@ -58,6 +58,9 @@ export default function Game() {
   const { game, setGame, go } = useStore();
   const [showBrief, setShowBrief] = useState(false);
   const [privatePlayerId, setPrivatePlayerId] = useState<string | null>(null);
+  // Окно навыков игрока не должно само вернуться в одной из следующих фаз или раундов.
+  const privateAllowed = !!game && game.config.mode === 'pass-and-play' && ['reveal', 'speech', 'vote'].includes(game.phase);
+  useEffect(() => { if (!privateAllowed) setPrivatePlayerId(null); }, [privateAllowed]);
   // Снимок состояния до последнего вскрытия: нужен для кнопки «отменить».
   const prevRef = useRef<GameState | null>(null);
   const [undoSnap, setUndoSnap] = useState<{ before: GameState; after: GameState } | null>(null);
@@ -264,7 +267,8 @@ function SpeechPhase({ game, update, undo, onPrivate }: { game: GameState; updat
     <>
       <section className="panel hud flex flex-col gap-3">
         <h2 className="h-hud flex items-center gap-3"><Avatar id={speaker.id} name={speaker.name} size={36} ring /> <span><UserRound size={14} className="mr-1 inline" />{t('{name} объясняет пользу', { name: speaker.name })}</span></h2>
-        <CardFace card={speaker.slots[cat].card} showMod flip />
+        {/* Действие соседа (обмен багажом, соседей) может поставить на место открытой карты чужую закрытую: общий экран её не показывает. */}
+        <CardFace card={speaker.slots[cat].card} hidden={!speaker.slots[cat].isRevealed} showMod flip />
         <SpeechTimer endsAt={game.speechEndsAt} totalSec={game.config.speechSec} />
         <p className="text-center text-xs text-dim">
           {t('Почему именно вас нужно взять в убежище?')} {upNext ? t('Затем ходит: {name}.', { name: upNext.name }) : t('Это последняя речь вскрытия.')}

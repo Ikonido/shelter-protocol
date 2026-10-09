@@ -261,4 +261,5 @@ export default {
   'Вы защищены от исключения в этом раунде, но не голосуете.': 'Du bist in dieser Runde vor dem Ausscheiden geschützt, stimmst aber nicht ab.',
   'Тайный сговор': 'Geheime Verabredung',
   'Выберите игрока, его карта багажа считается потерянной.': 'Wähle einen Spieler: Seine Gepäckkarte gilt als verloren.',
+  '6 месяцев': '6 Monate',
 };

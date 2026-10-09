@@ -2,6 +2,9 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import { t, plural, packT, tPacked } from './i18n';
 import { updateSettings, type Lang } from './settings';
 import { DICTS, DICT_PARTS } from '../i18n';
+import { BUILTIN_PACKS } from '../data/classicPack';
+import { BASE_CHARACTER, BASE_PHYSIQUE } from '../data/baseCards';
+import { CATEGORIES } from '../types';
 
 const setLang = (lang: Lang) => updateSettings({ lang });
 const LANGS = Object.keys(DICTS) as Lang[];
@@ -139,5 +142,27 @@ describe('stored texts follow the language', () => {
     setLang('ru');
     expect(withEvent.event!.title).toBe(EVENTS.find((e) => e.kind === 'shrink')!.title);
     expect(withEvent.event!.outcome[0]).toContain('Мест в бункере');
+  });
+});
+
+describe('built-in content is translated', () => {
+  it('every Russian text of the built-in packs has a uk, en and de translation', () => {
+    const texts = new Set<string>();
+    const add = (v?: string) => { if (v?.trim()) texts.add(v); };
+    for (const p of BUILTIN_PACKS) {
+      add(p.name); add(p.description);
+      for (const sc of p.scenarios) {
+        add(sc.title); add(sc.description); add(sc.isolationDuration);
+        sc.requiredSkills.forEach(add); sc.threats.forEach(add);
+        for (const h of sc.hazards ?? []) { add(h.title); add(h.description); add(h.onSuccess); add(h.onFail); h.counters.forEach(add); }
+        for (const e of sc.events ?? []) { add(e.title); add(e.text); }
+      }
+      for (const c of CATEGORIES) for (const k of p.cards[c]) { add(k.description); add(k.title); k.tags?.forEach(add); }
+    }
+    for (const k of [...BASE_CHARACTER, ...BASE_PHYSIQUE]) { add(k.description); k.tags?.forEach(add); }
+    for (const lang of ['uk', 'en', 'de'] as const) {
+      const missing = [...texts].filter((s) => !Object.hasOwn(DICTS[lang], s));
+      expect(missing, `[${lang}] не переведено`).toEqual([]);
+    }
   });
 });

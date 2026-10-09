@@ -3,3 +3,6 @@ dist
 *.local
 .DS_Store
 *.log
+# Секреты развёртывания (пароль TURN и т.п.): копия .env.example
+.env
+deploy/.env

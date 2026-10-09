@@ -261,4 +261,5 @@ export default {
   'Вы защищены от исключения в этом раунде, но не голосуете.': 'You are protected from elimination this round, but you do not vote.',
   'Тайный сговор': 'Secret Collusion',
   'Выберите игрока, его карта багажа считается потерянной.': 'Choose a player: their luggage card counts as lost.',
+  '6 месяцев': '6 months',
 };
