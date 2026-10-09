@@ -53,6 +53,32 @@ describe('dictionaries', () => {
     }
   });
 
+  it('keeps the same dictionary sections and Russian keys in EN, DE and UK', () => {
+    const bySection = (lang: string) =>
+      Object.fromEntries(Object.entries(DICT_PARTS[lang]).map(([path, entries]) =>
+        [path.split('/').at(-1)!, Object.keys(entries).sort()]));
+    const expected = bySection('en');
+    for (const lang of ['de', 'uk']) {
+      expect(bySection(lang), `[${lang}] dictionary key parity`).toEqual(expected);
+    }
+  });
+
+  it('translates the core online and pass-and-play action controls in every language', () => {
+    const keys = [
+      'Навыки',
+      'Нажмите, чтобы применить',
+      'Отказаться от бонуса?',
+      'Это я — показать',
+      'Автоход за отключённых',
+      'Не удалось соединиться. Проверьте код — или сеть хоста/ваша блокирует прямые соединения (нужен TURN).',
+      'Сменить здоровье игрока на случайное',
+      '{who} связывает {a} и {b}: если одного выгонят, выйдет и второй',
+    ];
+    for (const lang of ['en', 'de', 'uk']) {
+      for (const key of keys) expect(Object.hasOwn(DICTS[lang], key), `[${lang}] ${key}`).toBe(true);
+    }
+  });
+
   it('a key repeated in several parts of one language must have the same translation', () => {
     for (const lang of LANGS) {
       const seen = new Map<string, { part: string; value: string }>();
