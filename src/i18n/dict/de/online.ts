@@ -46,7 +46,7 @@ export default {
   // screens/Online.tsx — общий игровой экран
   'Выйти': 'Verlassen',
   'Выйти из партии?': 'Partie verlassen?',
-  'Журнал партии': 'Partie-Protokoll',
+  'Журнал партии': 'Spielverlauf',
   '[Р{n}] {text}': '[R{n}] {text}',
   'В меню': 'Zum Menü',
   'Начать раунд': 'Runde starten',
@@ -65,8 +65,8 @@ export default {
   '✔ ваш выбор': '✔ Deine Wahl',
   'Воздержаться': 'Sich enthalten',
   'Итоги раунда {n}': 'Ergebnisse der Runde {n}',
-  'Добровольцы закрыли квоту раунда — голосования не будет.': 'Freiwillige haben die Quote der Runde erfüllt — es gibt keine Abstimmung.',
-  'Ничья на границе — решено жребием.': 'Gleichstand an der Grenze — durch Losentscheid entschieden.',
+  'Добровольцы закрыли квоту раунда — голосования не будет.': 'Genug Spieler haben sich freiwillig gemeldet – diese Runde wird nicht abgestimmt.',
+  'Ничья на границе — решено жребием.': 'Gleichstand an der Ausscheidungsgrenze – per Los entschieden.',
   'Большинство воздержалось ({abstained} из {total}) — никто не покидает игру. Пропущенное исключение перенесено в дополнительный раунд.': 'Die Mehrheit hat sich enthalten ({abstained} von {total}) — niemand scheidet aus der Partie aus. Die ausgefallene Ausscheidung wandert in eine zusätzliche Runde.',
   'Воздержались: {n}.': 'Enthalten: {n}.',
   'Дальше': 'Weiter',
@@ -82,9 +82,9 @@ export default {
   'Действие': 'Aktion',
   'Открыть всем: {cat}': 'Allen aufdecken: {cat}',
   'Применить действие': 'Aktion anwenden',
-  'Отключены: {names}': 'Getrennt: {names}',
+  'Отключены: {names}': 'Offline: {names}',
   'Они смогут вернуться по тому же коду. Чтобы не ждать — сделайте ход за них.': 'Sie können mit demselben Code zurückkehren. Um nicht zu warten, mach den Zug für sie.',
-  'Автоход за отключённых': 'Automatischer Zug für Getrennte',
+  'Автоход за отключённых': 'Automatische Züge für Spieler ohne Verbindung',
 
   // lib/online.ts — причины отказа и уведомления хоста
   'Хост исключил вас из комнаты': 'Der Host hat dich aus dem Raum entfernt',
@@ -115,5 +115,5 @@ export default {
   'Закрыть камеру': 'Kamera schließen',
   'QR-код': 'QR-Code',
   'Передайте устройство игроку': 'Gib das Gerät an den Spieler weiter',
-  'Это я — показать': 'Das bin ich — anzeigen',
+  'Это я — показать': 'Das bin ich – meine Karten anzeigen',
 };
