@@ -81,7 +81,7 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
   // Число мест подстраиваем под сценарий.
   useEffect(() => {
     if (scenario) setK(clampConfig(n, scenario.shelterSlots).k);
-  }, [scenario]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scenario]);
 
   const setPlayers = (v: number) => {
     const c = clampConfig(v, k);

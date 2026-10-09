@@ -1,20 +1,23 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { useStore } from './store';
 import Home from './screens/Home';
 import Setup from './screens/Setup';
 import Game from './screens/Game';
-import Packs from './screens/Packs';
-import Editor from './screens/Editor';
-import Rules from './screens/Rules';
-import Install from './screens/Install';
-import Builder from './screens/Builder';
-import { Join, Lobby } from './screens/Online';
-import Settings from './screens/Settings';
 import { Modal } from './ui/bits';
 import { useWakeLock } from './lib/wakelock';
 import { packStats } from './lib/packs';
 import { useSettings } from './lib/settings';
 import { plural, t } from './lib/i18n';
+
+// Второстепенные экраны подгружаются при первом открытии: основной бандл (главная, настройка партии, игра) остаётся лёгким.
+const Packs = lazy(() => import('./screens/Packs'));
+const Editor = lazy(() => import('./screens/Editor'));
+const Rules = lazy(() => import('./screens/Rules'));
+const Install = lazy(() => import('./screens/Install'));
+const Builder = lazy(() => import('./screens/Builder'));
+const Settings = lazy(() => import('./screens/Settings'));
+const Join = lazy(() => import('./screens/Online').then((m) => ({ default: m.Join })));
+const Lobby = lazy(() => import('./screens/Online').then((m) => ({ default: m.Lobby })));
 
 export default function App() {
   const { screen, toast, incoming, acceptIncoming, dismissIncoming } = useStore();
@@ -31,6 +34,7 @@ export default function App() {
   return (
     <main className="mx-auto min-h-dvh max-w-5xl px-4 pb-[env(safe-area-inset-bottom)]">
       <div key={screen.name} className="anim-rise">
+      <Suspense fallback={null}>
       {screen.name === 'home' && <Home />}
       {screen.name === 'setup' && <Setup initialMode={screen.mode} initialPacks={screen.packIds} initialScenario={screen.scenarioId} />}
       {screen.name === 'builder' && <Builder scenarioId={screen.scenarioId} />}
@@ -42,6 +46,7 @@ export default function App() {
       {screen.name === 'settings' && <Settings />}
       {screen.name === 'lobby' && <Lobby draft={screen.draft} resume={screen.resume} />}
       {screen.name === 'join' && <Join initialCode={screen.code} initialTicket={screen.ticket} />}
+      </Suspense>
       </div>
 
       {incoming && (

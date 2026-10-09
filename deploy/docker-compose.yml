@@ -3,7 +3,7 @@
 # TURN включается так: docker compose --profile turn up -d
 services:
   peerjs:
-    image: peerjs/peerjs-server:latest
+    image: peerjs/peerjs-server:1.0.2
     restart: unless-stopped
     # Только сводит игроков по коду комнаты; сами игровые данные через него не идут.
     command: ["--port", "9000", "--path", "/", "--proxied", "--concurrent_limit", "500", "--alive_timeout", "60000"]
@@ -29,7 +29,7 @@ services:
   # Через него идёт весь трафик таких игроков, поэтому квоты ограничены.
   turn:
     profiles: ["turn"]
-    image: coturn/coturn:latest
+    image: coturn/coturn:4.18.0
     restart: unless-stopped
     network_mode: host
     command:

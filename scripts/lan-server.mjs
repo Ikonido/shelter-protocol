@@ -34,6 +34,10 @@ app.disable('x-powered-by');
 app.use((_req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'no-referrer');
+  // Свой сервер умеет то, чего нет у GitHub Pages: запретить встраивание страницы во фрейм чужого сайта.
+  // Основная политика CSP задана в самой странице (meta), здесь только frame-ancestors: заголовки складываются.
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'none'");
+  res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Cache-Control', 'no-cache');
   next();
 });
