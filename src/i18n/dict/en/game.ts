@@ -3,7 +3,7 @@ export default {
   'Навыки': 'Skills',
   'Навыки и карты: {name}': 'Skills and cards: {name}',
   'Нажмите, чтобы применить': 'Tap to use',
-  'Применить действие': 'Use action',
+  'Применить действие': 'Apply action',
   // Подписи категорий (categoryLabel), сложности и эффектов карт действий (ACTION_EFFECTS)
   'Профессия': 'Profession',
   'Биология': 'Biology',
