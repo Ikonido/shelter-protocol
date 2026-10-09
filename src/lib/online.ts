@@ -242,8 +242,13 @@ export class OnlineHost {
     const m = this.members.find((x) => x.conn === conn);
     if (close) conn.close();
     if (m) {
-      m.connected = false;
-      m.conn = null;
+      // В лобби место за отключившимся не держим: иначе комнату можно заполнить «призраками». После старта партии место
+      // остаётся за игроком, чтобы он вернулся по тому же токену.
+      if (!this.game) this.members = this.members.filter((x) => x !== m);
+      else {
+        m.connected = false;
+        m.conn = null;
+      }
       this.changed();
     }
   }

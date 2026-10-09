@@ -374,7 +374,33 @@ describe('security', () => {
     const { host, clients } = await setup();
     for (let i = 0; i < 200; i++) clients[0].p.raw({ t: 'action' });
     await tick();
-    expect(host.members.find((m) => m.name === 'Гость1')!.connected).toBe(false);
+    // в лобби отброшенный участник место не занимает
+    expect(host.members.some((m) => m.name === 'Гость1')).toBe(false);
+  });
+
+  it('lobby: disconnected guests free their seat, so ghosts cannot fill the room; after the start the seat is kept', async () => {
+    const { host } = await setup(2);
+    for (let i = 0; i < 30; i++) {
+      const p = pair();
+      host.addConn(p.hostSide);
+      new OnlineClient(p.clientSide, `Призрак${i}`, `ghost${i}`);
+      await tick();
+      p.clientSide.close(); // гость исчез, не дожидаясь начала партии
+      await tick();
+    }
+    const real = pair();
+    host.addConn(real.hostSide);
+    const c = new OnlineClient(real.clientSide, 'Живой', 'real1');
+    await tick();
+    expect(c.state.status).not.toBe('rejected');
+    expect(host.members.length).toBeLessThanOrEqual(3);
+    host.start();
+    await tick();
+    const seated = host.members.length;
+    real.clientSide.close();
+    await tick();
+    expect(host.members).toHaveLength(seated); // после старта место остаётся за игроком
+    expect(host.members.find((m) => m.name === 'Живой')?.connected).toBe(false);
   });
 
   it('client rejects malformed or hostile host state without crashing', async () => {

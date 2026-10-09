@@ -384,6 +384,28 @@ describe('profession perks', () => {
     expect(canApplyPerk({ ...crowded, perks: [{ playerId: 'p1', kind: 'bond', level: 'novice' }] }, 'p1', { target: 'p2', target2: 'p3' }).ok).toBe(false);
   });
 
+  it('immunity covers both players of a bond: neither is expelled, the other candidates are', () => {
+    const fx = (immune: string[]) => ({ double: [], veto: [], immune, allies: [] as [string, string][] });
+    const base = (immune: string[]): GameState => ({ ...sixGame(2), round: 1, schedule: [1], bonds: [{ a: 'p2', b: 'p3', votes: 2 }], phase: 'vote', fx: fx(immune), votes: { p1: 'p2', p4: 'p2', p5: 'p2', p6: 'p2', p2: 'p3', p3: 'p4' } });
+    // p2 неприкосновенен: больше всего голосов у него, но уходит не он и не его пара p3
+    const a = resolveVote(base(['p2']));
+    expect(a.lastResult!.eliminated).toHaveLength(1);
+    expect(a.lastResult!.eliminated).not.toContain('p2');
+    expect(a.lastResult!.eliminated).not.toContain('p3');
+    // защищён один из пары — защищена и другая половина
+    const b = resolveVote({ ...base(['p3']), votes: { p1: 'p2', p4: 'p2', p5: 'p2', p6: 'p2', p2: 'p3', p3: 'p4' } });
+    expect(b.lastResult!.eliminated).not.toContain('p2');
+    expect(b.lastResult!.eliminated).not.toContain('p3');
+    // без неприкосновенности связь работает как раньше
+    const c = resolveVote(base([]));
+    expect(c.lastResult!.eliminated.sort()).toEqual(['p2', 'p3']);
+    // защита не растёт цепочкой (p4 связан с p3, но не с p2 — он не защищён), зато защищённого p3 связь с выгнанным p4 не уносит
+    const chain = resolveVote({ ...base(['p2']), bonds: [{ a: 'p2', b: 'p3', votes: 2 }, { a: 'p3', b: 'p4', votes: 2 }], votes: { p1: 'p4', p2: 'p4', p3: 'p4', p5: 'p4', p6: 'p4', p4: 'p5' } });
+    expect(chain.lastResult!.eliminated).toContain('p4');
+    expect(chain.lastResult!.eliminated).not.toContain('p3');
+    expect(chain.lastResult!.eliminated).not.toContain('p2');
+  });
+
   it('a bond ends after two votes', () => {
     let g: GameState = sixGame(2);
     g = { ...g, round: 1, schedule: [0, 0, 0], bonds: [{ a: 'p2', b: 'p3', votes: 1 }], phase: 'vote', votes: { p1: 'p4', p2: 'p4', p3: 'p4', p4: 'p5', p5: 'p5', p6: 'p5' } };

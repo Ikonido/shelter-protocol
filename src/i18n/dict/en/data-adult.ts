@@ -373,4 +373,6 @@ export default {
   'Мешок человеческих зубов': 'Sack of human teeth',
   'Морозильный контейнер с неизвестным содержимым': 'Freezer container with unknown contents',
   'Банка с анализами': 'Jar of lab samples',
+  '2 недели': '2 weeks',
+  '10 дней': '10 days',
 };

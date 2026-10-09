@@ -463,7 +463,7 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
               </p>
             )}
             {myRevealTurn && <p className="panel animate-pulse border-amber text-center text-sm font-bold uppercase tracking-widest text-amber" role="alert">{t('Ваш ход: откройте карту')}</p>}
-            <PerkPanel game={view} me={me} onApply={(_id, params) => send({ t: 'perk', ...(params.target ? { target: params.target } : {}), ...(params.category ? { category: params.category } : {}) })} onSkip={() => send({ t: 'perk', skip: true })} />
+            <PerkPanel game={view} me={me} onApply={(_id, params) => send({ t: 'perk', ...(params.target ? { target: params.target } : {}), ...(params.target2 ? { target2: params.target2 } : {}), ...(params.category ? { category: params.category } : {}) })} onSkip={() => send({ t: 'perk', skip: true })} />
             {lastAction && <p className="panel border-[#e879f9]/60 text-sm" role="status"><Zap size={14} className="mr-1 inline text-[#e879f9]" />{t(lastAction.text)}</p>}
             <section className="panel flex flex-col gap-2">
               <h2 className="h-hud flex items-center gap-2"><Avatar id={player.id} name={player.name} size={24} /> {player.name}{player.isEliminated ? t(' — вы наблюдатель') : t(' — ваши карты')}</h2>

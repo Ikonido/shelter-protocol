@@ -181,8 +181,9 @@ describe('audit round 3: regressions', () => {
     const key = (v: any) => new URL(typeof v === 'string' ? v : v.url, baseUrl).href;
     runInNewContext(src, {
       URL,
+      Request: class { url: string; raw: string; constructor(u: string) { this.raw = u; this.url = new URL(u, baseUrl).href; } },
       self: { registration: { scope: baseUrl }, location: { origin: 'https://example.com', href: `${baseUrl}sw.js` }, addEventListener: (type: string, cb: any) => { handlers[type] = cb; }, skipWaiting: async () => undefined, clients: { claim: async () => undefined } },
-      caches: { open: async () => ({ addAll: async (urls: string[]) => { for (const u of urls) cached.set(key(u), new Response(`body:${u}`)); }, put: async (u: any, r: Response) => { cached.set(key(u), r); } }), match: async (u: any) => cached.get(key(u)), keys: async () => ['shelter-v2'], delete: async () => true },
+      caches: { open: async () => ({ addAll: async (urls: string[]) => { for (const u of urls) cached.set(key(u), new Response(`body:${typeof u === 'string' ? u : (u as any).raw}`)); }, put: async (u: any, r: Response) => { cached.set(key(u), r); } }), match: async (u: any) => cached.get(key(u)), keys: async () => ['shelter-v2'], delete: async () => true },
       fetch: async () => { throw new Error('offline'); },
     });
     let install: Promise<any> = Promise.resolve(); handlers.install({ waitUntil: (p: Promise<any>) => { install = p; } }); await install;

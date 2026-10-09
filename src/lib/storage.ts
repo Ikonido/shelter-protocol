@@ -1,5 +1,6 @@
 import { ACTION_EFFECTS, CATEGORIES, type CardPack, type Category, type GameState } from '../types';
 import { emptyCard } from './generator';
+import { CLOCK_GAP_MS, shiftClock } from './game';
 import { sanitizePack } from './packs';
 import { MAX_ITEMS } from './inventory';
 import { validThreatSave } from './threat/storage';
@@ -7,6 +8,8 @@ import { migrateThreatLedger } from './threat/economy';
 
 const K_PACKS = 'shelter:customPacks';
 const K_GAME = 'shelter:game';
+/** Когда игра в последний раз была открыта и шла: по нему при загрузке сдвигаются часы партии. */
+const K_SEEN = 'shelter:seen';
 
 function read<T>(key: string): T | null {
   try {
@@ -66,13 +69,13 @@ const MODES = ['pass-and-play', 'tabletop', 'online'];
 const VOTINGS = ['secret', 'open'];
 const MODIFIERS = ['positive', 'neutral', 'negative'];
 const validCard = (c: unknown, nested = false): boolean =>
-  isObj(c) && isStr(c.description) && (c.tags === undefined || strList(c.tags)) && (c.modifier === undefined || MODIFIERS.includes(c.modifier as string)) && (c.title === undefined || isStr(c.title)) &&
+  isObj(c) && isStr(c.id) && isStr(c.description) && (c.tags === undefined || strList(c.tags)) && (c.modifier === undefined || MODIFIERS.includes(c.modifier as string)) && (c.title === undefined || isStr(c.title)) &&
   (c.effect === undefined || isStr(c.effect) && Object.hasOwn(ACTION_EFFECTS, c.effect)) &&
   (c.strictTags === undefined || typeof c.strictTags === 'boolean') &&
   (c.bonus === undefined || isStr(c.bonus)) &&
   // Составной багаж: предметы — тоже карты (один уровень вложенности, не больше MAX_ITEMS).
   (c.items === undefined || (!nested && Array.isArray(c.items) && c.items.length <= MAX_ITEMS && c.items.every((i) => validCard(i, true))));
-const validHazard = (h: unknown) => isObj(h) && isStr(h.id) && isStr(h.title) && (h.counters === undefined || strList(h.counters));
+const validHazard = (h: unknown) => isObj(h) && isStr(h.id) && isStr(h.title) && strList(h.counters);
 const validDeck = (d: unknown) => d === undefined || (isObj(d) && Object.values(d).every((list) => Array.isArray(list) && list.every((card) => validCard(card))));
 const validScenario = (s: unknown) =>
   isObj(s) && isStr(s.title) && (s.description === undefined || isStr(s.description)) && (s.isolationDuration === undefined || isStr(s.isolationDuration)) &&
@@ -145,6 +148,20 @@ export const loadGame = (): GameState | null => {
   if (!g) return null;
   // Сохранения старой версии: общая фаза дебатов упразднена (теперь у каждого своя речь) — идём сразу к голосованию.
   if ((g.phase as string) === 'debate') return withNewSlots({ ...g, phase: 'vote', votes: {} });
-  return withNewSlots(g);
+  return withNewSlots(resumeClock(g));
 };
+
+/** Метка «игра открыта»: ставится в такте часов партии, чтобы при возврате к сохранённой партии время простоя не списывалось. */
+export const markSeen = (now = Date.now()) => write(K_SEEN, now);
+
+/** Таймер сохранённой партии стоял, пока игру не видели: сдвигаем сроки и сразу сохраняем, чтобы повторная загрузка не сдвинула их ещё раз. */
+function resumeClock(g: GameState): GameState {
+  const seen = read<number>(K_SEEN);
+  const now = Date.now();
+  if (typeof seen !== 'number' || !Number.isFinite(seen) || now - seen < CLOCK_GAP_MS) return g;
+  const shifted = shiftClock(g, now - seen);
+  if (shifted !== g) saveGame(shifted);
+  markSeen(now);
+  return shifted;
+}
 export const saveGame = (g: GameState | null) => { if (!g || validThreatSave(g)) write(K_GAME, g); };
