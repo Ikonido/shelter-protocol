@@ -1,4 +1,4 @@
-import type { CardPack, Difficulty, GameState, SessionConfig, VotingMode } from '../types';
+import type { CardPack, Difficulty, GameState, PlayMode, SessionConfig, VotingMode } from '../types';
 import { DIFFICULTIES } from './difficulty';
 import { clampConfig, createGame } from './game';
 import { newSeed } from './rng';
@@ -18,6 +18,8 @@ export interface LastSetup {
   difficulty: Difficulty;
   roundEvents: boolean;
   autoActions: boolean;
+  /** Whether the player explicitly chose on/off after the pass-and-play default changed. */
+  autoActionsExplicit?: boolean;
   professionPerks: boolean;
   scenarioId: string;
 }
@@ -47,9 +49,20 @@ export function parseLastSetup(raw: unknown): LastSetup | null {
     difficulty: DIFFS.find((d) => d === r.difficulty) ?? 'normal',
     roundEvents: r.roundEvents === true,
     autoActions: r.autoActions === true,
+    autoActionsExplicit: r.autoActionsExplicit === true,
     professionPerks: r.professionPerks === true,
     scenarioId: typeof r.scenarioId === 'string' ? r.scenarioId.slice(0, 80) : 'random',
   };
+}
+
+/**
+ * Existing saves contain autoActions=false because it used to be the default.
+ * Treat that legacy value as unspecified, so returning pass-and-play players get
+ * the new behavior. Once the checkbox is changed explicitly, remember the choice.
+ * Online keeps its previous default; tabletop disables automatic actions.
+ */
+export function defaultAutoActions(mode: PlayMode, last: LastSetup | null): boolean {
+  return last?.autoActionsExplicit ? last.autoActions : mode === 'pass-and-play';
 }
 
 export function loadLastSetup(): LastSetup | null {
@@ -103,7 +116,7 @@ export function buildQuickGame(allPacks: CardPack[], last: LastSetup | null): Ga
     hazardCount: last?.hazardCount ?? rules.hazardCount,
     difficulty: last?.difficulty ?? 'normal',
     roundEvents: last?.roundEvents ?? false,
-    autoActions: last?.autoActions ?? false,
+    autoActions: defaultAutoActions('pass-and-play', last),
     professionPerks: last?.professionPerks ?? false,
     timeLimitMin: last?.timeLimitMin ?? rules.timeLimitMin,
     names: Array.from({ length: base.n }, (_, i) => last?.names[i]?.trim() || t('Игрок {n}', { n: i + 1 })),
