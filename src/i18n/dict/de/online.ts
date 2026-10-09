@@ -77,7 +77,7 @@ export default {
   ' — вы наблюдатель': ' — du bist Zuschauer',
   ' — ваши карты': ' — deine Karten',
   'использована': 'benutzt',
-  'открыта всем': 'für alle aufgedeckt',
+  'открыта всем': 'allen aufgedeckt',
   'Карту действия можно применить в любой момент вскрытия, речи или голосования: коснитесь её и нажмите «Применить». Все увидят объявление.': 'Du kannst eine Aktionskarte beim Aufdecken, während einer Rede oder bei der Abstimmung einsetzen. Tippe die Karte an und wähle „Anwenden“. Alle sehen die Ankündigung.',
   'Действие': 'Aktion',
   'Открыть всем: {cat}': 'Für alle aufdecken: {cat}',
