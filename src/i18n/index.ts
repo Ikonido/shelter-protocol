@@ -4,6 +4,7 @@
  * Ключи должны быть уникальны внутри языка; одинаковый ключ в разных частях — с одинаковым переводом (проверяет i18n.test.ts).
  */
 import { DICTS, type Dictionary } from './registry';
+import { applyRussianReference } from './russian';
 
 export type { Dictionary };
 
@@ -17,9 +18,9 @@ for (const [path, mod] of Object.entries(modules)) {
 }
 
 /**
- * Объединённый словарь языка. Русский словаря не имеет: исходные строки и есть перевод.
+ * Объединённый словарь языка. Русский текст берётся из исходных строк с редактурой в russian.ts.
  * Этот модуль загружает все языки сразу и заполняет общий реестр: он нужен тестам (setup) и проверкам словарей, приложение
  * подключает словари по одному через loadLang (registry.ts).
  */
-for (const [lang, parts] of Object.entries(DICT_PARTS)) DICTS[lang] = Object.assign({}, ...Object.values(parts));
+for (const [lang, parts] of Object.entries(DICT_PARTS)) DICTS[lang] = applyRussianReference(Object.assign({}, ...Object.values(parts)));
 export { DICTS };

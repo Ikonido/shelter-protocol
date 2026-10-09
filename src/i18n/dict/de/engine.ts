@@ -2,13 +2,13 @@
 export default {
   // Причины отказа (canApply) — их видит игрок
   'Игрок выбыл': 'Spieler ist ausgeschieden',
-  'Выберите другого живого игрока': 'Wähle einen anderen lebenden Spieler',
+  'Выберите другого живого игрока': "Wähle einen anderen Spieler, der noch im Spiel ist",
   'В колоде не осталось карт багажа': 'Im Stapel sind keine Gepäckkarten mehr',
   'В колоде не осталось карт хобби': 'Im Stapel sind keine Hobby-Karten mehr',
   'Нужен хотя бы один сосед': 'Mindestens ein Nachbar wird benötigt',
   'В колоде не осталось телосложений': 'Im Stapel sind keine Körperbau-Karten mehr',
   'В колоде не осталось карт биологии': 'Im Stapel sind keine Biologie-Karten mehr',
-  'Для обмена нужно хотя бы три живых игрока': 'Für einen Tausch werden mindestens drei lebende Spieler benötigt',
+  'Для обмена нужно хотя бы три живых игрока': "Für einen Tausch müssen noch mindestens drei Spieler im Spiel sein",
   'Выберите игрока': 'Wähle einen Spieler',
   'Выберите скрытую карту игрока': 'Wähle eine verdeckte Karte des Spielers',
   'У игрока всё уже открыто': 'Beim Spieler ist schon alles offen',

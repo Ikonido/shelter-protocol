@@ -1,7 +1,8 @@
 /**
- * Реестр словарей. Русского словаря нет: исходные строки и есть русский текст. Словарь языка подгружается отдельным чанком
+ * Реестр словарей. Русский текст берётся из исходных строк с редактурой в russian.ts. Словарь языка подгружается отдельным чанком
  * (loadLang), поэтому русскоязычный игрок не скачивает переводы вообще, а остальные — только свой язык.
  */
+import { applyRussianReference } from './russian';
 export type Dictionary = Record<string, string>;
 
 /** Загруженные словари по языкам. lib/i18n.ts читает отсюда в момент вызова t(). */
@@ -21,7 +22,7 @@ export function loadLang(lang: string): Promise<void> {
   if (!load || DICTS[lang]) return Promise.resolve();
   let p = pending.get(lang);
   if (!p) {
-    p = load().then((m) => { DICTS[lang] = m.default; }).finally(() => pending.delete(lang));
+    p = load().then((m) => { DICTS[lang] = applyRussianReference(m.default); }).finally(() => pending.delete(lang));
     pending.set(lang, p);
   }
   return p;
