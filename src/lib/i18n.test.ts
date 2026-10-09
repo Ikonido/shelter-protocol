@@ -53,6 +53,20 @@ describe('dictionaries', () => {
     }
   });
 
+  it('all languages have the same source keys in each dictionary part', () => {
+    const parts = (lang: string) => Object.fromEntries(
+      Object.entries(DICT_PARTS[lang]).map(([path, dict]) => [path.split('/').at(-1)!, Object.keys(dict).sort()]),
+    );
+    const reference = parts('en');
+    for (const lang of ['de', 'uk']) {
+      const actual = parts(lang);
+      expect(Object.keys(actual).sort(), `[${lang}] dictionary part names`).toEqual(Object.keys(reference).sort());
+      for (const [file, keys] of Object.entries(reference)) {
+        expect(actual[file], `[${lang}] missing or extra source keys in ${file}`).toEqual(keys);
+      }
+    }
+  });
+
   it('a key repeated in several parts of one language must have the same translation', () => {
     for (const lang of LANGS) {
       const seen = new Map<string, { part: string; value: string }>();
