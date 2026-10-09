@@ -8,7 +8,7 @@ import { newSeed } from '../lib/rng';
 import type { Difficulty, PlayMode, SessionConfig, VotingMode } from '../types';
 import { DIFFICULTIES, DIFFICULTY_ORDER } from '../lib/difficulty';
 import { MY_PACK_ID } from '../lib/builder';
-import { loadLastSetup, saveLastSetup } from '../lib/quick';
+import { defaultAutoActions, loadLastSetup, saveLastSetup } from '../lib/quick';
 import { t } from '../lib/i18n';
 
 const DIFF_STYLE = {
@@ -52,7 +52,11 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
   const [hazardCount, setHazardCount] = useState(last?.hazardCount ?? 2);
   const [difficulty, setDifficulty] = useState<Difficulty>(last?.difficulty ?? 'normal');
   const [roundEvents, setRoundEvents] = useState(last?.roundEvents ?? false);
-  const [autoActions, setAutoActions] = useState(last?.autoActions ?? false);
+  // null = use this mode's default; a deliberate checkbox change overrides it.
+  const [autoActionsChoice, setAutoActionsChoice] = useState<boolean | null>(
+    last?.autoActionsExplicit ? last.autoActions : null,
+  );
+  const autoActions = autoActionsChoice ?? defaultAutoActions(mode, last);
   const [professionPerks, setProfessionPerks] = useState(last?.professionPerks ?? false);
   const [variant, setVariant] = useState<'classic' | 'hidden-threat'>('classic');
   const [criminal, setCriminal] = useState<'maniac' | 'mafia'>('maniac');
@@ -97,7 +101,7 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
   const canStart = !threatError && scenarios.length > 0 && activePacks.some((p) => Object.values(p.cards).some((c) => c.length));
   const start = () => {
     const chosen = scenario ?? scenarios[Math.floor(Math.random() * scenarios.length)];
-    saveLastSetup({ packIds, n, k, names: Array.from({ length: n }, (_, i) => nameAt(i)), voting, revealsPerVote, timeLimitMin, speechSec, hazardCount, difficulty, roundEvents, autoActions, professionPerks, scenarioId });
+    saveLastSetup({ packIds, n, k, names: Array.from({ length: n }, (_, i) => nameAt(i)), voting, revealsPerVote, timeLimitMin, speechSec, hazardCount, difficulty, roundEvents, autoActions, autoActionsExplicit: autoActionsChoice !== null, professionPerks, scenarioId });
     if (mode === 'online') {
       go({ name: 'lobby', draft: { scenario: chosen, packs: activePacks, slots: k, voting, revealsPerVote, speechSec, hazardCount, difficulty, roundEvents, autoActions, professionPerks, timeLimitMin, adult: activePacks.some((p) => p.adult), ...(variant === 'hidden-threat' ? { variant, hiddenThreat: { criminal, report } } : {}) } });
       return;
@@ -279,7 +283,7 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
               <span className="text-sm"><b>{t('События раунда (необязательно)')}</b><br /><span className="text-xs text-dim">{t('Усложняют игру. Перед каждым раундом выпадает карта кризиса: сокращается число мест, вспыхивает болезнь, появляется новая угроза — или приходит помощь. Можно вызваться добровольцем.')}</span></span>
             </label>
             <label className="flex w-full max-w-md cursor-pointer items-start gap-3 rounded-md border border-edge p-3">
-              <input type="checkbox" className="mt-1 size-4 accent-amber" checked={autoActions} onChange={(e) => setAutoActions(e.target.checked)} />
+              <input type="checkbox" className="mt-1 size-4 accent-amber" checked={autoActions} onChange={(e) => setAutoActionsChoice(e.target.checked)} />
               <span className="text-sm"><b>{t('Карты действий исполняются сами (бета)')}</b><br /><span className="text-xs text-dim">{t('Кража и подмена багажа, смена телосложения соседей, вето, двойной голос, тайный союз и прочее выполняются в игре после выбора цели. Выключено: действие только объявляется, а выполняют его игроки.')}</span></span>
             </label>
             <label className="flex w-full max-w-md cursor-pointer items-start gap-3 rounded-md border border-edge p-3">
