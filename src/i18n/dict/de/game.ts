@@ -68,7 +68,7 @@ export default {
   'Новая игра': 'Neues Spiel',
   'Новая партия': 'Neue Partie',
   'Нет активной партии.': 'Keine aktive Partie.',
-  'Журнал партии': 'Partie-Protokoll',
+  'Журнал партии': 'Spielverlauf',
   'Изоляция: {duration}': 'Isolation: {duration}',
   'Нужны: {list}': 'Benötigt: {list}',
   'Угрозы: {list}': 'Bedrohungen: {list}',
