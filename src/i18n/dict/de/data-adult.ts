@@ -241,7 +241,7 @@ export default {
   'Ночные радиоперехваты': 'Nächtliches Abhören von Funksprüchen',
 
   // Багаж
-  'Дилдо внушительных размеров': 'Dildo in beeindruckender Größe: Waffe und Argument zugleich',
+  'Дилдо внушительных размеров': 'Dildo in beeindruckender Größe',
   'Блок сигарет: местная валюта': 'Stange Zigaretten: die lokale Währung',
   'Труп в мешке': 'Leiche im Sack: besser nicht fragen, wessen',
   'Отрубленная голова бывшего начальника': 'Abgetrennter Kopf des ehemaligen Chefs',
@@ -253,7 +253,7 @@ export default {
   'Мешок травки неизвестного происхождения': 'Sack Gras unbekannter Herkunft',
   'Бензопила, заправлена и готова': 'Kettensäge, betankt und startklar',
   'Резиновая женщина в рост человека': 'Gummifrau in Lebensgröße',
-  'Мешок использованных презервативов': 'Sack gebrauchter Kondome (wozu?)',
+  'Мешок использованных презервативов': 'Sack gebrauchter Kondome',
   'Протез ноги с гравировкой': 'Beinprothese mit Gravur',
   'Банка с ушами': 'Glas mit Ohren',
   'Самогонный аппарат на колёсиках': 'Schnapsbrennapparat auf Rollen',

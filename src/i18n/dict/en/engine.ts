@@ -69,7 +69,7 @@ export default {
   'Утечка из архива': 'Archive leak',
   'Кто-то выложил личные дела. Каждый обязан открыть ещё одну случайную карту.': 'Someone has posted personal files. Everyone must reveal one more random card.',
   'Радиомолчание': 'Radio silence',
-  'Эфир забит помехами, тянуть нельзя. Речи в этом раунде вдвое короче.': 'The airwaves are jammed, no drawing cards. Speeches are half as long this round.',
+  'Эфир забит помехами, тянуть нельзя. Речи в этом раунде вдвое короче.': 'The airwaves are jammed, no time to drag things out. Speeches are half as long this round.',
   'Новая беда': 'New trouble',
   'Не успели справиться с одним — случилось ещё: в игру входит дополнительный фактор угрозы.': 'Barely handled one problem when another hit: an extra threat factor enters the game.',
   'Подмога': 'Reinforcements',

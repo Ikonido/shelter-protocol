@@ -69,7 +69,7 @@ export default {
   'Утечка из архива': 'Datenleck im Archiv',
   'Кто-то выложил личные дела. Каждый обязан открыть ещё одну случайную карту.': 'Jemand hat persönliche Akten veröffentlicht. Jeder muss eine weitere zufällige Karte aufdecken.',
   'Радиомолчание': 'Funkstille',
-  'Эфир забит помехами, тянуть нельзя. Речи в этом раунде вдвое короче.': 'Der Funk ist durch Störungen blockiert, Karten dürfen nicht gezogen werden. Reden sind in dieser Runde halb so lang.',
+  'Эфир забит помехами, тянуть нельзя. Речи в этом раунде вдвое короче.': 'Der Funk ist durch Störungen blockiert, es darf nichts in die Länge gezogen werden. Die Reden sind in dieser Runde nur halb so lang.',
   'Новая беда': 'Neues Unglück',
   'Не успели справиться с одним — случилось ещё: в игру входит дополнительный фактор угрозы.': 'Kaum ist eines erledigt, kommt das nächste: Ein zusätzlicher Bedrohungsfaktor kommt ins Spiel.',
   'Подмога': 'Verstärkung',
