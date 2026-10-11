@@ -3,7 +3,7 @@ import { cardMatchesSkill, SKILL_CATEGORIES } from './evaluate';
 import { mergePools } from './generator';
 import { mulberry32, shuffle } from './rng';
 import { packT, t } from './i18n';
-import { addToBag, composeItems, isPlaceholder, itemsOf } from './inventory';
+import { addToBag, composeItems, isPlaceholder, itemsOf, MAX_ITEMS } from './inventory';
 
 /**
  * Автоисполнение карт действий. Модуль не зависит от game.ts (там он подключается), чтобы не было циклов.
@@ -119,7 +119,9 @@ export function canApply(g: GameState, actorId: string, effect: ActionEffect, pa
     }
     case 'stealLuggage':
       // В «виде» онлайн-клиента чужой багаж скрыт: проверку повторяет хост.
-      return full && target && itemsOf(target.slots.luggage.card).length === 0 ? fail(t('У игрока нет предметов')) : { ok: true };
+      if (full && target && itemsOf(target.slots.luggage.card).length === 0) return fail(t('У игрока нет предметов'));
+      // Украденное некуда класть: предмет пропал бы у жертвы и не достался вору.
+      return full && itemsOf(actor.slots.luggage.card).length >= MAX_ITEMS ? fail(t('У вас полный багаж: украденному предмету некуда лечь')) : { ok: true };
     case 'rerollHealth':
     case 'rerollCharacter':
       // Случайная карта выбранного игрока из колоды: себя не выбираем, колода должна быть не пуста.
@@ -169,7 +171,14 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
       const bag = addToBag(itemsOf(old.card), d.card);
       let next = withSlot(d.g, actorId, 'luggage', { card: composeItems(bag.items, stolenCard), isRevealed: old.isRevealed });
       if (bag.dropped) next = toDiscard(next, 'luggage', bag.dropped);
-      return say(next, t('{who} применяет «{title}»: берёт ещё один предмет в багаж', vars));
+      // Что вышло с полным багажом, видит только сам игрок: в общий журнал исход не попадает.
+      const text = !bag.dropped
+        ? packT('Вы взяли предмет: «{item}».', { item: d.card.description })
+        : bag.dropped.id === d.card.id
+          ? packT('Новый предмет «{item}» не поместился в полный багаж и выброшен.', { item: d.card.description })
+          : packT('Новый предмет «{item}» занял место «{old}»: прежний предмет выброшен.', { item: d.card.description, old: bag.dropped.description });
+      const said = say(next, t('{who} применяет «{title}»: берёт ещё один предмет в багаж', vars));
+      return { ...said, perkResult: { id: said.log.length, playerId: actorId, text } };
     }
     case 'stealLuggage': {
       const tg = target!;
@@ -184,7 +193,8 @@ export function runEffect(g: GameState, actorId: string, effect: ActionEffect, p
         next = withSlot(next, actorId, 'luggage', { card: composeItems(bag.items, stolenCard), isRevealed: actor.slots.luggage.isRevealed });
         if (bag.dropped) next = toDiscard(next, 'luggage', bag.dropped);
       }
-      return say(next, t('{who} применяет «{title}»: крадёт предмет у {victim}', { ...vars, victim: tg.name }));
+      const said = say(next, t('{who} применяет «{title}»: крадёт предмет у {victim}', { ...vars, victim: tg.name }));
+      return stolen ? { ...said, perkResult: { id: said.log.length, playerId: actorId, text: packT('Вы украли предмет: «{item}».', { item: stolen.description }) } } : said;
     }
     case 'giveLuggage': {
       const tg = target!;

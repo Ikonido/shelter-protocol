@@ -160,13 +160,29 @@ describe('profession perks', () => {
     const run = (level: 'novice' | 'experienced' | 'expert', seed: number, victimItems: number) => {
       let g = withProfession({ ...fresh(), seed }, 'p1', ['шпионаж']);
       const stock = Array.from({ length: victimItems }, (_, i) => ({ id: `v${i}`, category: 'luggage' as const, description: `Вещь ${i}` }));
-      g = { ...g, players: g.players.map((p) => (p.id === 'p2' ? { ...p, slots: { ...p.slots, luggage: { ...p.slots.luggage, card: composeItems(stock, () => p.slots.luggage.card) } } } : p.id === 'p1' ? { ...p, slots: { ...p.slots, luggage: { ...p.slots.luggage, card: p.slots.luggage.card } } } : p)), perks: [{ playerId: 'p1', kind: 'steal' as const, level }] };
+      g = { ...g, players: g.players.map((p) => (p.id === 'p2' ? { ...p, slots: { ...p.slots, luggage: { ...p.slots.luggage, card: composeItems(stock, () => p.slots.luggage.card) } } } : p.id === 'p1' ? { ...p, slots: { ...p.slots, luggage: { ...p.slots.luggage, card: itemsOf(p.slots.luggage.card)[0] ?? p.slots.luggage.card } } } : p)), perks: [{ playerId: 'p1', kind: 'steal' as const, level }] };
       const done = applyPerk(g, 'p1', { target: 'p2' });
       return victimItems - itemsOf(done.players[1].slots.luggage.card).length;
     };
     expect(new Set(Array.from({ length: 60 }, (_, i) => run('novice', i + 1, 4)))).toEqual(new Set([1]));
     expect([...new Set(Array.from({ length: 60 }, (_, i) => run('expert', i + 1, 4)))].sort()).toEqual([2, 3]);
     expect(run('expert', 5, 1)).toBe(1); // у жертвы всего один предмет
+  });
+
+  it('a theft with a full bag is refused and tells the thief what happened to a drawn item', () => {
+    const items = (n: number, p: string) => Array.from({ length: n }, (_, i) => ({ id: `${p}${i}`, category: 'luggage' as const, description: `${p} ${i}`, modifier: 'positive' as const }));
+    const bagOf = (g: GameState, id: string, list: ReturnType<typeof items>) => ({ ...g, players: g.players.map((p) => (p.id === id ? { ...p, slots: { ...p.slots, luggage: { ...p.slots.luggage, card: composeItems(list, () => p.slots.luggage.card) } } } : p)) });
+    let g = bagOf(bagOf({ ...fresh(), seed: 3 }, 'p1', items(4, 't')), 'p2', items(2, 'v'));
+    g = withProfession(g, 'p1', ['шпионаж']);
+    g = { ...g, perks: [{ playerId: 'p1', kind: 'steal' as const, level: 'novice' as const }] };
+    expect(canApplyPerk(g, 'p1', { target: 'p2' }).ok).toBe(false);
+    expect(applyPerk(g, 'p1', { target: 'p2' })).toBe(g); // ничего не меняется, бонус остаётся
+    // с местом в багаже кража работает, вор получает личное сообщение
+    const roomy = bagOf(g, 'p1', items(3, 't'));
+    const done = applyPerk(roomy, 'p1', { target: 'p2' });
+    expect(itemsOf(done.players[0].slots.luggage.card)).toHaveLength(4);
+    expect(done.players[1].slots.luggage.card).toBeDefined();
+    expect(done.perkResult?.playerId).toBe('p1');
   });
 
   it('a forced reveal of a profession still gives its owner the bonus', () => {
