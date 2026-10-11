@@ -327,7 +327,7 @@ export default {
   'Диета': 'Diet',
   'Поменяйте местами карты телосложения игроков до и после вас': 'Swap the build cards of the players before and after you',
   'Рокировка': 'Castling',
-  'Право вето: отмените один голос, поданный против вас в этом раунде.': 'Veto right: cancel one vote cast against you this round.',
+  'Право вето: отмените один голос, поданный против вас в этом раунде. От исключения не защищает: при равенстве голосов решает жребий.': 'Veto right: cancel one vote cast against you this round. It doesn\'t protect from elimination: a tie is settled by a draw.',
   'Вето': 'Veto',
   'Ваш голос в одном голосовании считается за два.': 'Your vote counts as two in one vote.',
   'Двойной голос': 'Double vote',

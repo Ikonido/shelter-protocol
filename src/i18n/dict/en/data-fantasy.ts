@@ -285,7 +285,7 @@ export default {
   'Подмена': 'Swap',
   'Поменяйтесь картой багажа с любым игроком.': 'Swap luggage cards with any player.',
   'Контрзаклинание': 'Counterspell',
-  'Отмените один голос, поданный против вас в этом раунде.': 'Cancel one vote cast against you this round.',
+  'Отмените один голос, поданный против вас в этом раунде. От исключения не защищает: при равенстве голосов решает жребий.': 'Cancel one vote cast against you this round. It doesn\'t protect from elimination: a tie is settled by a draw.',
   'Проклятие скупца': 'Miser’s Curse',
   'Карта багажа выбранного игрока считается потерянной.': 'The chosen player’s luggage card counts as lost.',
 };

@@ -254,7 +254,7 @@ export default {
   'Обвинение в ереси': 'Charge of Heresy',
   'Заставьте любого игрока немедленно открыть любую скрытую карту.': 'Force any player to reveal any hidden card at once.',
   'Поединок': 'Duel',
-  'Вызов на поединок: отмените один голос, поданный против вас в этом раунде.': 'Challenge to a duel: cancel one vote cast against you this round.',
+  'Вызов на поединок: отмените один голос, поданный против вас в этом раунде. От исключения не защищает: при равенстве голосов решает жребий.': 'Challenge to a duel: cancel one vote cast against you this round. It doesn\'t protect from elimination: a tie is settled by a draw.',
   'Подкуп стражи': 'Bribing the Guard',
   'Поменяйтесь картой багажа с любым игроком.': 'Swap luggage cards with any player.',
   'Святое убежище': 'Sacred Sanctuary',
