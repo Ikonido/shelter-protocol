@@ -179,4 +179,24 @@ describe('built-in content is translated', () => {
       expect(missing, `[${lang}] не переведено`).toEqual([]);
     }
   });
+
+  it('legacy keys (old wording kept only for old saves) are not used by the built-in content any more', async () => {
+    const texts = new Set<string>();
+    for (const p of BUILTIN_PACKS) {
+      texts.add(p.name); texts.add(p.description);
+      for (const sc of p.scenarios) {
+        texts.add(sc.title); texts.add(sc.description);
+        for (const h of sc.hazards ?? []) { texts.add(h.title); texts.add(h.description); if (h.onSuccess) texts.add(h.onSuccess); if (h.onFail) texts.add(h.onFail); }
+        for (const e of sc.events ?? []) { texts.add(e.title); texts.add(e.text); }
+      }
+      for (const c of CATEGORIES) for (const k of p.cards[c]) { texts.add(k.description); if (k.title) texts.add(k.title); }
+    }
+    for (const lang of ['uk', 'en', 'de'] as const) {
+      const legacy = (await import(`../i18n/dict/${lang}/legacy.ts`)).default as Record<string, string>;
+      expect(Object.keys(legacy).length, `[${lang}] legacy пуст`).toBeGreaterThan(0);
+      expect(Object.keys(legacy).filter((k) => texts.has(k)), `[${lang}] устаревший ключ снова используется`).toEqual([]);
+      // старая формулировка из сохранения переводится так же, как новая
+      for (const [old, tr] of Object.entries(legacy)) expect(DICTS[lang][old], `[${lang}] ${old}`).toBe(tr);
+    }
+  });
 });

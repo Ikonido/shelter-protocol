@@ -78,7 +78,7 @@ export default {
   ' — ваши карты': ' — your cards',
   'использована': 'used',
   'открыта всем': 'revealed to all',
-  'Карту действия можно применить в любой момент вскрытия, речи или голосования: коснитесь её и нажмите «Применить». Все увидят объявление.': 'You can play an action card during a reveal, a speech or a vote. Tap the card, then select Apply. Everyone will see the announcement.',
+  'Карту действия можно применить в любой момент вскрытия, речи или голосования: коснитесь её и нажмите «Применить». Все увидят объявление.': 'You can apply an action card during a reveal, a speech or a vote. Tap the card, then select Apply. Everyone will see the announcement.',
   'Действие': 'Action',
   'Открыть всем: {cat}': 'Reveal to all: {cat}',
   'Применить действие': 'Apply action',

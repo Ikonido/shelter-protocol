@@ -170,7 +170,7 @@ export default {
   'Отменить вскрытие ({name})': 'Aufdeckung abbrechen ({name})',
   'Начать раунд': 'Runde starten',
   'Карты действий и своё досье': 'Aktionskarten und dein Dossier',
-  '↑ применить карту действия (один раз за партию)': '↑ Aktionskarte einsetzen (einmal pro Partie)',
+  '↑ применить карту действия (один раз за партию)': '↑ Aktionskarte anwenden (einmal pro Partie)',
   'Открытое голосование': 'Offene Abstimmung',
   'выберите…': 'wählen…',
   '— воздержаться —': '— sich enthalten —',

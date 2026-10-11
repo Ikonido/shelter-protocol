@@ -18,7 +18,7 @@ export default {
   'Обет краткости': 'Vow of Brevity',
   'Настоятель велел говорить по делу: речи в этом раунде вдвое короче.': 'The abbot ordered everyone to speak to the point: speeches are half as long this round.',
   'Склад под зерно': 'Granary Storehouse',
-  'Пришлось отдать часть помещений под склад: мест на 1 меньше, и в этом раунде уйдёт на одного больше.': 'Part of the rooms had to be given over to storage: 1 fewer seat, and one more person is eliminated this round.',
+  'Пришлось отдать часть помещений под склад: мест на 1 меньше, и в этом раунде уйдёт на одного больше.': 'Part of the rooms had to be given over to storage: 1 fewer place, and one more person is eliminated this round.',
 
   // Сценарий «Чёрная смерть»
   'Чёрная смерть': 'The Black Death',
@@ -198,8 +198,8 @@ export default {
   'Ржавая подкова': 'Rusty horseshoe',
   'Глиняная свистулька': 'Clay whistle',
   'Банка с дохлой крысой': 'Jar with a dead rat',
-  'Бесплатный пирожок без начинки': 'Free pie with no filling',
-  'Священная щепка с настоящего креста (одна из сорока)': 'Sacred splinter from the true cross (one of forty)',
+  'Пирожок без начинки': 'Pie with no filling',
+  'Священная щепка с настоящего креста': 'Sacred splinter from the true cross',
 
   // Факты
   'Шрам через всё лицо': 'Scar across the whole face',
@@ -213,7 +213,7 @@ export default {
   'Бывшая знахарка': 'Former herbal healer',
   'Ловит крыс голыми руками': 'Catches rats with bare hands',
   'Пережил восемь королей и ни одного налога': 'Has outlived eight kings and not one tax',
-  'Помнит ещё первых королей (так говорит)': 'Remembers the first kings (so he says)',
+  'Утверждает, что помнит первых королей': 'Claims to remember the first kings',
   'Незаконный сын графа': 'Illegitimate son of a count',
   'Умеет читать и писать': 'Can read and write',
   'Знает тайный ход в замок': 'Knows a secret passage into the castle',
@@ -231,10 +231,10 @@ export default {
   'Знает все слухи за сто вёрст': 'Knows every rumour for a hundred versts',
   'Может подражать голосам птиц': 'Can imitate bird calls',
   'С рождения немой': 'Unable to speak since birth',
-  'Верит, что земля плоская, и спорит об этом с каждым': 'Believes the earth is flat and argues about it with everyone',
+  'Спорит с каждым встречным о том, как устроен мир': 'Argues with every passer-by about how the world works',
   'Очень громко храпит': 'Snores very loudly',
   'Боится собственных овец': 'Afraid of their own sheep',
-  'Его постоянно путают с графом, и он не возражает': 'Constantly mistaken for the count, and he doesn’t object',
+  'Его постоянно путают с графом': 'Constantly mistaken for the count',
 
   // Действия
   'Трофей': 'Trophy',

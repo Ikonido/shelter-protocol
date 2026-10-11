@@ -222,7 +222,7 @@ export default {
   'Колба с призраком бабушки': 'Kolben mit Omas Geist',
   'Волшебная палочка, которая умеет только искрить': 'Zauberstab, der nur funkeln kann',
   'Карманный дракончик: поджигает свечи и штаны': 'Taschendrache: zündet Kerzen und Hosen an',
-  'Говорящий сапог гоблина с дурными манерами': 'Sprechender Goblin-Stiefel mit schlechten Manieren',
+  'Говорящий сапог гоблина': 'Sprechender Goblin-Stiefel',
   'Ложка, которой ел ещё прадедушка огра': 'Löffel, mit dem schon der Urgroßvater des Ogers gegessen hat',
 
   // Факты
@@ -239,7 +239,7 @@ export default {
   'Говорит всего одно слово в сутки': 'Spricht nur ein Wort am Tag',
   'Ходит в халате и пьёт чай даже в бою': 'Trägt einen Morgenmantel und trinkt sogar im Kampf Tee',
   'Невыносимо шумный': 'Unerträglich laut',
-  'Отзывается на имя «Гена», что бы это ни значило': 'Hört auf den Namen «Gena», was auch immer das heißt',
+  'Отзывается на имя «Гена»': 'Hört auf den Namen «Gena»',
   'Всё ещё не определился с профессией': 'Hat sich noch nicht für einen Beruf entschieden',
   'Потомок древнего короля': 'Nachfahre eines uralten Königs',
   'Знает язык драконов': 'Spricht die Drachensprache',
@@ -257,7 +257,7 @@ export default {
   'Слышит в темноте, как растёт трава': 'Hört im Dunkeln das Gras wachsen',
   'Однажды вежливо поспорил с гидрой и выжил': 'Hat einmal höflich mit einer Hydra gestritten und überlebt',
   'Знает только одно заклинание: «Огонёк»': 'Kennt nur einen Zauber: «Flämmchen»',
-  'Понимает язык мышей, но им нечего сказать': 'Versteht Mäusesprache, aber die Mäuse haben nichts zu sagen',
+  'Понимает язык мышей': 'Versteht Mäusesprache',
   'Его заклинания всегда срабатывают, но не те': 'Seine Zauber wirken immer, nur nie die richtigen',
   'Носит шляпу, которая дала обет молчания': 'Trägt einen Hut, der ein Schweigegelübde abgelegt hat',
   'Собственная тень его побаивается': 'Sein eigener Schatten fürchtet sich vor ihm',

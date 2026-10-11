@@ -47,7 +47,7 @@ export default {
   'Тише, соседи!': 'Keep It Down, Neighbours!',
   'Соседи стучат по батарее, тянуть нельзя: речи в этом раунде вдвое короче.': 'The neighbours are banging on the radiator, you can’t drag it out: speeches are half as long this round.',
   'Родня набилась': 'Relatives Crashed the Party',
-  'В помещение набилась вся родня: мест на 1 меньше, а в этом раунде вылетит на одного больше.': 'The whole family has crammed into the room: 1 fewer seat, and one more person gets kicked out this round.',
+  'В помещение набилась вся родня: мест на 1 меньше, а в этом раунде вылетит на одного больше.': 'The whole family has crammed into the room: 1 fewer place, and one more person gets kicked out this round.',
   'Кто выйдет на разведку?': 'Who Goes Out to Scout?',
   'Нужно проверить, что творится снаружи, и вернётся ли оттуда тот, кто пойдёт, неизвестно. Герой может вызваться сам.': 'Someone has to check what’s going on outside, and nobody knows whether the one who goes will come back. A hero may volunteer.',
 
@@ -72,7 +72,7 @@ export default {
   'Крысы сожрали последнюю колбасу, и это уже личное.': 'The rats wolfed down the last sausage, and now it’s personal.',
   'Засорился туалет': 'Toilet Clogged',
   'Единственный сортир забит, и пахнет апокалипсисом.': 'The only toilet is clogged, and it smells like the apocalypse.',
-  '{who} лезет с вантузом и героически возвращает цивилизацию.': '{who} wades in with a plunger and heroically restores civilization.',
+  '{who} лезет с вантузом и прочищает засор.': '{who} wades in with a plunger and clears the blockage.',
   'Туалет засорился нахрен, и запах добивает остальных.': 'The toilet is fucking clogged, and the stench finishes off the rest.',
 
   // Сценарий «Новогодний пиздец»
@@ -81,7 +81,7 @@ export default {
   'Тёща с претензиями': 'Mother-in-Law With Grievances',
   'Оливье кончился': 'Olivier Salad Is Gone',
   'Пожар от гирлянды': 'Fire From the Garland',
-  'Тёща в третий раз говорит, что «в наше время было иначе».': 'For the third time the mother-in-law says «back in our day it was different».',
+  'Тёща недовольна праздником и говорит об этом всем.': 'The mother-in-law is unhappy with the holiday and tells everyone.',
   '{who} выслушивает тёщу, кивает и льёт ей ещё — мир сохранён.': '{who} listens to the mother-in-law, nods and pours her another — peace is preserved.',
   'Тёща громит всех, скандал разворачивается на весь дом.': 'The mother-in-law tears into everyone, and the scandal spreads through the whole house.',
   'Тазик пуст, а гости всё ещё голодные.': 'The bowl is empty, and the guests are still hungry.',
@@ -101,7 +101,7 @@ export default {
 
   // Сценарий «Бункер для элиты»
   'Бункер для элиты': 'Elite Bunker',
-  'Бункер на год рассчитан на «лучших людей»: блогеров, чиновников и олигархов. Ремонтировать фильтры вместо них, как водится, придётся кому-то ещё.': 'The bunker is built to last a year for the «best people»: bloggers, officials and oligarchs. As usual, someone else will have to fix the filters for them.',
+  'Бункер на год рассчитан на «лучших людей»: блогеров, чиновников и олигархов. Чинить фильтры придётся кому-то другому.': 'The bunker is built to last a year for the «best people»: bloggers, officials and oligarchs. Someone else will have to fix the filters.',
   'Бунт обслуги': 'Staff Revolt',
   'Адюльтер и склоки': 'Adultery and Squabbles',
   'Поломка фильтров': 'Filter Failure',
@@ -112,12 +112,12 @@ export default {
   '{who} мирит всех и разруливает любовные треугольники.': '{who} makes peace between everyone and untangles the love triangles.',
   'Любовные интриги превращаются в побоище.': 'The love affairs turn into a bloodbath.',
   'Закончилось шампанское': 'Champagne Ran Out',
-  'Элита без шампанского звереет быстрее зомби.': 'Without champagne the elite go feral faster than the zombies.',
+  'Без шампанского элита звереет.': 'Without champagne the elite go feral.',
   '{who} находит в вентиляции ящик «Дом Периньон» — шум стих.': '{who} finds a case of «Dom Pérignon» in the ventilation shaft — the noise dies down.',
   'Без шампанского эти люди начинают кусаться.': 'Without champagne these people start biting.',
   'Воздух становится спёртым, а в вентиляции что-то трещит.': 'The air grows stale, and something crackles in the ventilation.',
   '{who} разбирает фильтры и собирает заново — воздух снова чистый.': '{who} takes the filters apart and puts them back together — the air is clean again.',
-  'Фильтры встали, и бункер душит всех поровну.': 'The filters have stopped, and the bunker is choking everyone equally.',
+  'Фильтры встали, и дышать в бункере нечем.': 'The filters have stopped, and there is no air to breathe in the bunker.',
   'Скука смертная': 'Deadly Boredom',
   'Делать нечего, соцсетей нет, и люди лезут на стены.': 'Nothing to do, no social media, and people are climbing the walls.',
   '{who} затевает викторину и караоке — тоска отступает.': '{who} starts a quiz and karaoke — the gloom recedes.',
