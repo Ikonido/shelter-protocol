@@ -78,7 +78,7 @@ export default {
   ' — ваши карты': ' — deine Karten',
   'использована': 'benutzt',
   'открыта всем': 'allen aufgedeckt',
-  'Карту действия можно применить в любой момент вскрытия, речи или голосования: коснитесь её и нажмите «Применить». Все увидят объявление.': 'Du kannst eine Aktionskarte beim Aufdecken, während einer Rede oder bei der Abstimmung einsetzen. Tippe die Karte an und wähle „Anwenden“. Alle sehen die Ankündigung.',
+  'Карту действия можно применить в любой момент вскрытия, речи или голосования: коснитесь её и нажмите «Применить». Все увидят объявление.': 'Du kannst eine Aktionskarte beim Aufdecken, während einer Rede oder bei der Abstimmung anwenden. Tippe die Karte an und wähle „Anwenden“. Alle sehen die Ankündigung.',
   'Действие': 'Aktion',
   'Открыть всем: {cat}': 'Für alle aufdecken: {cat}',
   'Применить действие': 'Aktion anwenden',
@@ -95,7 +95,7 @@ export default {
   'Вход только по QR-коду хоста': 'Beitritt nur über den QR-Code des Hosts',
   'Комната заполнена': 'Der Raum ist voll',
   'Сейчас действие применить нельзя': 'Diese Aktion kann gerade nicht angewendet werden',
-  'Действие уже использовано': 'Aktionskarte bereits eingesetzt',
+  'Действие уже использовано': 'Aktion bereits genutzt',
   'Действие не сработало': 'Die Aktion hat nicht funktioniert',
   'Отказано': 'Abgelehnt',
 

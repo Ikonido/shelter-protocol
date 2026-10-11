@@ -40,7 +40,7 @@ export default {
 
   // Журнал партии: вскрытия, ручное применение, голосование
   '{who} открывает «{cat}»: {desc}': '{who} deckt «{cat}» auf: {desc}',
-  '{who} применяет карту действия «{title}»: {desc}': '{who} spielt die Aktionskarte «{title}» aus: {desc}',
+  '{who} применяет карту действия «{title}»: {desc}': '{who} wendet die Aktionskarte «{title}» an: {desc}',
   'Добровольцы закрыли квоту — голосования нет': 'Die Freiwilligen haben die Quote erfüllt — keine Abstimmung',
   'Большинство воздержалось ({abstained} из {total}) — никто не покидает игру': 'Die Mehrheit hat sich enthalten ({abstained} von {total}) — niemand scheidet aus',
   'Исключён(ы): {names}{tie}{abs}': 'Ausgeschieden: {names}{tie}{abs}',

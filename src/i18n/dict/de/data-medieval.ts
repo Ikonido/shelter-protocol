@@ -198,8 +198,8 @@ export default {
   'Ржавая подкова': 'Rostiges Hufeisen',
   'Глиняная свистулька': 'Tönerne Pfeife',
   'Банка с дохлой крысой': 'Glas mit einer toten Ratte',
-  'Бесплатный пирожок без начинки': 'Gratis-Pastete ohne Füllung',
-  'Священная щепка с настоящего креста (одна из сорока)': 'Heiliger Splitter vom echten Kreuz (einer von vierzig)',
+  'Пирожок без начинки': 'Pastete ohne Füllung',
+  'Священная щепка с настоящего креста': 'Heiliger Splitter vom echten Kreuz',
 
   // Факты
   'Шрам через всё лицо': 'Narbe über das ganze Gesicht',
@@ -213,7 +213,7 @@ export default {
   'Бывшая знахарка': 'Ehemalige Kräuterheilerin',
   'Ловит крыс голыми руками': 'Fängt Ratten mit bloßen Händen',
   'Пережил восемь королей и ни одного налога': 'Hat acht Könige überlebt und keine einzige Steuer',
-  'Помнит ещё первых королей (так говорит)': 'Erinnert sich noch an die ersten Könige (so sagt er)',
+  'Утверждает, что помнит первых королей': 'Behauptet, sich an die ersten Könige zu erinnern',
   'Незаконный сын графа': 'Unehelicher Sohn eines Grafen',
   'Умеет читать и писать': 'Kann lesen und schreiben',
   'Знает тайный ход в замок': 'Kennt einen geheimen Gang in die Burg',
@@ -231,10 +231,10 @@ export default {
   'Знает все слухи за сто вёрст': 'Kennt jedes Gerücht im weiten Umkreis',
   'Может подражать голосам птиц': 'Kann Vogelstimmen nachahmen',
   'С рождения немой': 'Seit Geburt stumm',
-  'Верит, что земля плоская, и спорит об этом с каждым': 'Glaubt, die Erde sei flach, und streitet darüber mit jedem',
+  'Спорит с каждым встречным о том, как устроен мир': 'Streitet mit jedem Vorbeigehenden darüber, wie die Welt funktioniert',
   'Очень громко храпит': 'Schnarcht sehr laut',
   'Боится собственных овец': 'Hat Angst vor den eigenen Schafen',
-  'Его постоянно путают с графом, и он не возражает': 'Wird ständig mit dem Grafen verwechselt, und er widerspricht nicht',
+  'Его постоянно путают с графом': 'Wird ständig mit dem Grafen verwechselt',
 
   // Действия
   'Трофей': 'Trophäe',

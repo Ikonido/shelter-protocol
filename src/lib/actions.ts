@@ -126,7 +126,7 @@ export function canApply(g: GameState, actorId: string, effect: ActionEffect, pa
       return hasDeck(effect === 'rerollHealth' ? 'health' : 'character') ? { ok: true } : fail(t('Колода пуста'));
     case 'doubleVote':
       // Голос менеджера считается за два, только когда кто-то уже выгнан.
-      return params.perk && !g.players.some((p) => p.isEliminated) ? fail(t('Пока никого не выгнали')) : { ok: true };
+      return params.perk && !g.players.some((p) => p.isEliminated) ? fail(t('Пока никого не исключили')) : { ok: true };
     case 'healOther':
       // Лечить можно любого: меню не должно выдавать, кто болен. Что получилось, знает только врач.
       // Себя врач перебрасывает на случайное состояние из колоды здоровья: без колоды делать нечего.

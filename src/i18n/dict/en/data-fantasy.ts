@@ -18,7 +18,7 @@ export default {
   'Хрустальный шар проболтался': 'The Crystal Ball Blabbed',
   'Прорицатель показал чужие тайны: каждый открывает ещё одну случайную карту.': 'The seer revealed other folks’ secrets: everyone reveals one more random card.',
   'Обвал в пещерах': 'Cave-In',
-  'Часть залов завалило: мест на 1 меньше, и в этом раунде уйдёт на одного больше.': 'Part of the halls has caved in: 1 fewer seat, and one more person is eliminated this round.',
+  'Часть залов завалило: мест на 1 меньше, и в этом раунде уйдёт на одного больше.': 'Part of the halls has caved in: 1 fewer place, and one more person is eliminated this round.',
 
   // Сценарий «Дракон над долиной»
   'Дракон над долиной': 'Dragon over the Valley',
@@ -222,7 +222,7 @@ export default {
   'Колба с призраком бабушки': 'Flask with Grandma’s ghost',
   'Волшебная палочка, которая умеет только искрить': 'Magic wand that can only sparkle',
   'Карманный дракончик: поджигает свечи и штаны': 'Pocket dragon: sets candles and trousers on fire',
-  'Говорящий сапог гоблина с дурными манерами': 'Talking goblin boot with bad manners',
+  'Говорящий сапог гоблина': 'Talking goblin boot',
   'Ложка, которой ел ещё прадедушка огра': 'The spoon the ogre’s great-grandpa ate with',
 
   // Факты
@@ -239,7 +239,7 @@ export default {
   'Говорит всего одно слово в сутки': 'Speaks just one word a day',
   'Ходит в халате и пьёт чай даже в бою': 'Wears a dressing gown and drinks tea even in battle',
   'Невыносимо шумный': 'Unbearably loud',
-  'Отзывается на имя «Гена», что бы это ни значило': 'Answers to the name «Gena», whatever that means',
+  'Отзывается на имя «Гена»': 'Answers to the name «Gena»',
   'Всё ещё не определился с профессией': 'Still hasn’t decided on a profession',
   'Потомок древнего короля': 'Descendant of an ancient king',
   'Знает язык драконов': 'Knows the dragon tongue',
@@ -257,7 +257,7 @@ export default {
   'Слышит в темноте, как растёт трава': 'Hears grass growing in the dark',
   'Однажды вежливо поспорил с гидрой и выжил': 'Once politely argued with a hydra and survived',
   'Знает только одно заклинание: «Огонёк»': 'Knows only one spell: «Little Flame»',
-  'Понимает язык мышей, но им нечего сказать': 'Understands mouse language, but the mice have nothing to say',
+  'Понимает язык мышей': 'Understands mouse language',
   'Его заклинания всегда срабатывают, но не те': 'His spells always work, just never the right ones',
   'Носит шляпу, которая дала обет молчания': 'Wears a hat that took a vow of silence',
   'Собственная тень его побаивается': 'His own shadow is afraid of him',
