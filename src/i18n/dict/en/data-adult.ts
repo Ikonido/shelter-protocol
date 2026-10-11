@@ -349,7 +349,7 @@ export default {
   'Колись': 'Spill It',
   'Поменяйтесь картой багажа с любым игроком.': 'Swap luggage cards with any player.',
   'Обмен заначками': 'Stash Swap',
-  'Отмените один голос, поданный против вас в этом раунде.': 'Cancel one vote cast against you this round.',
+  'Отмените один голос, поданный против вас в этом раунде. От исключения не защищает: при равенстве голосов решает жребий.': 'Cancel one vote cast against you this round. It doesn\'t protect from elimination: a tie is settled by a draw.',
   'Отмазка': 'Excuse',
   'Вы защищены от исключения в этом раунде, но не голосуете.': 'You are protected from elimination this round, but you do not vote.',
   'Похер': 'Fuck It',

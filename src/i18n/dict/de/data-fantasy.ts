@@ -285,7 +285,7 @@ export default {
   'Подмена': 'Tausch',
   'Поменяйтесь картой багажа с любым игроком.': 'Tausche deine Gepäckkarte mit einem beliebigen Spieler.',
   'Контрзаклинание': 'Gegenzauber',
-  'Отмените один голос, поданный против вас в этом раунде.': 'Hebe eine Stimme auf, die in dieser Runde gegen dich abgegeben wurde.',
+  'Отмените один голос, поданный против вас в этом раунде. От исключения не защищает: при равенстве голосов решает жребий.': 'Hebe eine Stimme auf, die in dieser Runde gegen dich abgegeben wurde. Das schützt nicht vor dem Ausschluss: Bei Gleichstand entscheidet das Los.',
   'Проклятие скупца': 'Fluch des Geizhalses',
   'Карта багажа выбранного игрока считается потерянной.': 'Die Gepäckkarte des gewählten Spielers gilt als verloren.',
 };

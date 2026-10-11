@@ -327,7 +327,7 @@ export default {
   'Диета': 'Diät',
   'Поменяйте местами карты телосложения игроков до и после вас': 'Tausche die Körperbau-Karten der Spieler vor und nach dir',
   'Рокировка': 'Rochade',
-  'Право вето: отмените один голос, поданный против вас в этом раунде.': 'Vetorecht: Hebe eine Stimme auf, die in dieser Runde gegen dich abgegeben wurde.',
+  'Право вето: отмените один голос, поданный против вас в этом раунде. От исключения не защищает: при равенстве голосов решает жребий.': 'Vetorecht: Hebe eine Stimme auf, die in dieser Runde gegen dich abgegeben wurde. Das schützt nicht vor dem Ausschluss: Bei Gleichstand entscheidet das Los.',
   'Вето': 'Veto',
   'Ваш голос в одном голосовании считается за два.': 'Deine Stimme zählt bei einer Abstimmung doppelt.',
   'Двойной голос': 'Doppelte Stimme',

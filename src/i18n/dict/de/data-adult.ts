@@ -349,7 +349,7 @@ export default {
   'Колись': 'Gestehen',
   'Поменяйтесь картой багажа с любым игроком.': 'Tausche deine Gepäckkarte mit einem beliebigen Spieler.',
   'Обмен заначками': 'Tausch der Verstecke',
-  'Отмените один голос, поданный против вас в этом раунде.': 'Hebe eine Stimme auf, die in dieser Runde gegen dich abgegeben wurde.',
+  'Отмените один голос, поданный против вас в этом раунде. От исключения не защищает: при равенстве голосов решает жребий.': 'Hebe eine Stimme auf, die in dieser Runde gegen dich abgegeben wurde. Das schützt nicht vor dem Ausschluss: Bei Gleichstand entscheidet das Los.',
   'Отмазка': 'Ausrede',
   'Вы защищены от исключения в этом раунде, но не голосуете.': 'Du bist in dieser Runde vor dem Ausscheiden geschützt, stimmst aber nicht ab.',
   'Похер': 'Scheißegal',

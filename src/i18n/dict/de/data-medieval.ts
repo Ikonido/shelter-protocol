@@ -254,7 +254,7 @@ export default {
   'Обвинение в ереси': 'Anklage wegen Ketzerei',
   'Заставьте любого игрока немедленно открыть любую скрытую карту.': 'Zwinge einen beliebigen Spieler, sofort eine beliebige verdeckte Karte aufzudecken.',
   'Поединок': 'Duell',
-  'Вызов на поединок: отмените один голос, поданный против вас в этом раунде.': 'Herausforderung zum Duell: Hebe eine Stimme auf, die in dieser Runde gegen dich abgegeben wurde.',
+  'Вызов на поединок: отмените один голос, поданный против вас в этом раунде. От исключения не защищает: при равенстве голосов решает жребий.': 'Herausforderung zum Duell: Hebe eine Stimme auf, die in dieser Runde gegen dich abgegeben wurde. Das schützt nicht vor dem Ausschluss: Bei Gleichstand entscheidet das Los.',
   'Подкуп стражи': 'Bestechung der Wache',
   'Поменяйтесь картой багажа с любым игроком.': 'Tausche deine Gepäckkarte mit einem beliebigen Spieler.',
   'Святое убежище': 'Heiliges Asyl',
