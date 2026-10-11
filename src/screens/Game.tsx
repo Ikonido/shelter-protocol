@@ -180,7 +180,7 @@ export function Dossier({
       <h3 className="h-hud">{t('Досье: {name}', { name: player.name })}</h3>
       {mode === 'reveal' && (
         <p className="text-xs text-dim">
-          {game.round === 1 ? t('В первом раунде открывается пол и возраст (биология), дальше — по желанию.') : t('Выберите карту, которую откроете всем.')}
+          {game.round === 1 ? t('Первой открывается биология. Остальные характеристики вы выбираете сами.') : t('Выберите карту, которую откроете всем.')}
         </p>
       )}
       {(onAction ? (['action', ...CATEGORIES.filter((c) => c !== 'action')] as Category[]) : CATEGORIES).map((c) => {
@@ -467,10 +467,10 @@ function ResultPhase({ game, update }: { game: GameState; update: Update }) {
   return (
     <section className="panel flex flex-col gap-3">
       <h2 className="h-hud">{t('Итоги раунда {n}', { n: game.round })}</h2>
-      {r.noVote ? <p className="text-sm text-amber">{t('Добровольцы закрыли квоту раунда — голосования не будет.')}</p> : <Tally players={game.players} result={r} />}
+      {r.noVote ? <p className="text-sm text-amber">{t('Нужное число кандидатов уже вышло добровольно — голосование в этом раунде не требуется.')}</p> : <Tally players={game.players} result={r} />}
       {r.skipped && <p className="text-sm text-amber">{t('Большинство воздержалось ({n} из {total}) — никто не покидает игру. Пропущенное исключение перенесено в дополнительный раунд.', { n: r.abstained ?? 0, total: alive(game).length })}</p>}
       {!r.skipped && !!r.abstained && <p className="text-xs text-dim">{t('Воздержались: {n}.', { n: r.abstained })}</p>}
-      {r.tieBreak && <p className="text-xs text-amber">{t('Ничья на границе — решено жребием.')}</p>}
+      {r.tieBreak && <p className="text-xs text-amber">{t('На границе исключения — равенство голосов. Результат определён жребием.')}</p>}
       <button className="btn btn-primary" onClick={() => update(nextRound)}>
         {finishing ? t('К финалу') : t('Следующий раунд')}
       </button>

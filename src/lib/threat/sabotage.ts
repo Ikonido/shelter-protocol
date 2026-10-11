@@ -10,7 +10,7 @@ export function applySabotage(g: GameState, actor: string, op: Extract<SecretOpe
   const s = g.hiddenThreat!, p = s.players[actor];
   if (!p || !isCriminal(p.role) || !g.players.some(p => p.id === op.target && !p.isEliminated && p.id !== actor)) return g;
   if (s.sabotageRound === g.round || s.sabotageUses >= 2 || (s.sabotageUses > 0 && p.points < 3)) {
-    return { ...g, hiddenThreat: { ...s, players: { ...s.players, [actor]: { ...p, notices: [...p.notices, 'Командная квота саботажа уже использована. Ресурсы сохранены.'] } } } };
+    return { ...g, hiddenThreat: { ...s, players: { ...s.players, [actor]: { ...p, notices: [...p.notices, 'Лимит саботажа на этот раунд уже использован. Ваши очки не потрачены.'] } } } };
   }
   const evidence = { id: `evidence-${g.round}`, actor, target: op.target, round: g.round, kind: op.evidence, forged: op.kind === 'forge' };
   return { ...g, hiddenThreat: {

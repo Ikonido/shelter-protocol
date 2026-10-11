@@ -2,13 +2,13 @@
 export default {
   // Причины отказа (canApply) — их видит игрок
   'Игрок выбыл': 'Player is eliminated',
-  'Выберите другого живого игрока': 'Choose another living player',
+  'Выберите другого игрока, который ещё в игре': 'Choose another player who is still in the game',
   'В колоде не осталось карт багажа': 'No luggage cards left in the deck',
   'В колоде не осталось карт хобби': 'No hobby cards left in the deck',
   'Нужен хотя бы один сосед': 'At least one neighbor is needed',
   'В колоде не осталось телосложений': 'No build cards left in the deck',
   'В колоде не осталось карт биологии': 'No biology cards left in the deck',
-  'Для обмена нужно хотя бы три живых игрока': 'An exchange needs at least three living players',
+  'Для обмена нужны хотя бы три игрока, которые ещё в игре': 'An exchange requires at least three players who are still in the game',
   'Выберите игрока': 'Choose a player',
   'Выберите скрытую карту игрока': 'Choose a hidden card of the player',
   'У игрока всё уже открыто': 'The player has everything revealed already',
@@ -40,7 +40,7 @@ export default {
 
   // Журнал партии: вскрытия, ручное применение, голосование
   '{who} открывает «{cat}»: {desc}': '{who} reveals «{cat}»: {desc}',
-  '{who} применяет карту действия «{title}»: {desc}': '{who} applies action card «{title}»: {desc}',
+  '{who} применяет карту действия «{title}»: {desc}': '{who} plays action card «{title}»: {desc}',
   'Добровольцы закрыли квоту — голосования нет': 'Volunteers filled the quota — no vote',
   'Большинство воздержалось ({abstained} из {total}) — никто не покидает игру': 'Majority abstained ({abstained} of {total}) — nobody leaves the game',
   'Исключён(ы): {names}{tie}{abs}': 'Eliminated: {names}{tie}{abs}',

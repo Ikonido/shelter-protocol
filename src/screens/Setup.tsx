@@ -141,7 +141,7 @@ export default function Setup({ initialMode, initialPacks, initialScenario }: { 
           <p className="text-sm">{t('4–5: маньяк; 6–7: один преступник на выбор; 8–9: два мафиози; 10–12: три мафиози. Всегда один полицейский. Остальные мирные.')}</p>
           <p className="text-xs text-dim">{t('Роли независимы от профессий. Исключённые не раскрывают роль. Все роли раскрываются только в финале.')}</p>
           <label className="label">{t('Преступник для 6–7 игроков')}<select className="input mt-1" value={criminal} onChange={e => setCriminal(e.target.value as 'maniac' | 'mafia')}><option value="maniac">{t('Маньяк')}</option><option value="mafia">{t('Мафия')}</option></select></label>
-          <label className="label">{t('Отчёт в конце круга')}<select className="input mt-1" value={report} onChange={e => setReport(e.target.value as 'hidden' | 'detailed')}><option value="hidden">{t('Скрытые уведомления')}</option><option value="detailed">{t('Подробный отчёт без имён и целей')}</option></select></label>
+          <label className="label">{t('Отчёт в конце раунда')}<select className="input mt-1" value={report} onChange={e => setReport(e.target.value as 'hidden' | 'detailed')}><option value="hidden">{t('Скрытые уведомления')}</option><option value="detailed">{t('Подробный отчёт без имён и целей')}</option></select></label>
           <p className="text-xs text-dim">{t('На общем устройстве секретность обеспечивается шторкой передачи. В настольном режиме устройство ведёт раунды и выдаёт роли лично. В онлайне хост хранит все секреты и технически может их прочитать.')}</p>
           {threatError && <p className="text-sm text-danger" role="alert">{t(threatError)}</p>}
         </>}

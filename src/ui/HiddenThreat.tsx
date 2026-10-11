@@ -17,7 +17,7 @@ import { auditLabel } from '../lib/threat/chronicle';
 
 const GOALS: Record<SecretRole, string> = {
   civilian: 'Не допустить преступников в убежище и сохранить полезных специалистов.',
-  officer: 'Расследуйте скрытно. Находки не исключают людей: решение принимает голосование.',
+  officer: 'Расследуйте тайно. Результаты проверки не исключают кандидатов автоматически: решение принимают игроки на голосовании.',
   maniac: 'Ваша цель — лично попасть в убежище. Убийств нет.',
   mafia: 'Ваша цель — провести хотя бы одного союзника в убежище. Убийств нет.',
 };
@@ -30,7 +30,7 @@ export function ThreatPublic({ game }: { game: GameState }) {
   if (game.config.variant !== 'hidden-threat') return null;
   return <section className="panel flex flex-col gap-2">
     <h2 className="h-hud"><Shield size={16} className="mr-2 inline" />{t('Скрытая угроза')}</h2>
-    <p className="text-xs text-dim">{t('Находки не доказывают виновность. Исключение — только голосованием.')}</p>
+    <p className="text-xs text-dim">{t('Сама по себе улика не доказывает виновность кандидата. Кого исключить, решают игроки на голосовании.')}</p>
     {reports.filter(r => r.round === game.round && r.active).map(r => <p key={r.round} className="text-sm" role="status">{r.checks === undefined ? t('Зафиксирована активность в системе безопасности. Подробности засекречены.') : t('Активность безопасности: проверки — {checks}, саботажи — {sabotages}. Подробности засекречены.', { checks: r.checks, sabotages: r.sabotages ?? 0 })}</p>)}
     {publications.map((p, i) => <article key={i} className="rounded border border-edge p-3 text-sm">
       <p className="label">{t('Системная находка · анонимная публикация')} · {game.players.find(x => x.id === p.target)?.name}</p>
@@ -58,26 +58,26 @@ export function ThreatPrivate({ view, me, submit, auxiliary, close }: { view: Ga
   const checkAllowed = view.phase === 'secret' && own.role === 'officer' && own.checks < 2 && own.lastCheckRound !== view.round && (own.checks === 0 || own.points >= 3);
   const sabotageAllowed = view.phase === 'secret' && crime && (own.sabotageUses ?? 2) < 2 && own.sabotageRound !== view.round && (own.sabotageUses === 0 || own.points >= 3);
   const findings = own.results.filter(r => r.evidenceId && !r.analyzed);
-  const chooseTarget = <label className="label">{t('Живой кандидат')}<select className="input mt-1" value={target} onChange={e => setTarget(e.target.value)}><option value="">{t('выберите…')}</option>{view.players.filter(p => p.id !== me && !p.isEliminated).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>;
+  const chooseTarget = <label className="label">{t('Кандидат в игре')}<select className="input mt-1" value={target} onChange={e => setTarget(e.target.value)}><option value="">{t('выберите…')}</option>{view.players.filter(p => p.id !== me && !p.isEliminated).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>;
   const confirm = () => {
     const op: SecretOperation = operation === 'investigate' ? { kind: operation, target, direction } : operation === 'plant' || operation === 'forge' ? { kind: operation, target, evidence } : operation === 'analyze' ? { kind: operation, findingId } : { kind: 'skip' };
     submit({ id: randomToken(), round: view.round, operation: op, ...(publish.length ? { publish } : {}) });
     close();
   };
   return <div className="no-print flex flex-col gap-3">
-    <h2 className="h-hud">{player.name} · {t('Личный кабинет')}</h2>
+    <h2 className="h-hud">{player.name} · {t('Личный экран')}</h2>
     <p className="text-xl font-bold text-amber">{t(ROLE_LABELS[own.role])}</p><p className="text-sm">{t(GOALS[own.role])}</p>
     {own.role !== 'civilian' && <p>{t('Личные очки: {n}', { n: own.points })}</p>}
-    {own.role === 'officer' && <p className="text-xs text-dim">{t('Проверок использовано: {n}/2. Первая бесплатна, следующая стоит 3 очка. Не более одной за круг.', { n: own.checks })}</p>}
-    {crime && <p className="text-xs text-dim">{t('Саботажей команды: {n}/2. Первый бесплатен, следующий стоит 3 очка исполнителя. Один на команду за круг.', { n: own.sabotageUses ?? 0 })}</p>}
+    {own.role === 'officer' && <p className="text-xs text-dim">{t('Проверок использовано: {n}/2. Первая бесплатна, вторая стоит 3 очка. Не более одной за раунд.', { n: own.checks })}</p>}
+    {crime && <p className="text-xs text-dim">{t('Применений саботажа: {n}/2. Первое бесплатно, второе стоит исполнителю 3 очка. Не более одного за раунд; у мафии лимит общий.', { n: own.sabotageUses ?? 0 })}</p>}
     {own.allies.length > 0 && <p>{t('Союзники мафии: {names}', { names: own.allies.map(id => view.players.find(p => p.id === id)?.name).join(', ') })}</p>}
     {own.notices.map((text, i) => <p key={i} className="rounded border border-amber p-2 text-sm" role="status">{t(text)}</p>)}
     {own.results.map(r => <article key={r.id} className="rounded border border-edge p-3 text-sm"><p className="label">{t(DIRECTIONS[r.direction])} · {view.players.find(p => p.id === r.target)?.name} · {t('раунд {n}', { n: r.round })}</p><p>{tPacked(r.text)}</p>{r.analysis && <p className="mt-2 text-amber">{t(r.analysis)}</p>}
-      {secret && view.phase === 'secret-review' && !view.threatView?.publications.some(p => p.target === r.target && p.direction === r.direction && p.text === r.text && p.analysis === r.analysis) && <label className="mt-2 flex gap-2"><input type="checkbox" checked={publish.includes(r.id)} onChange={e => setPublish(ids => e.target.checked ? [...ids, r.id] : ids.filter(id => id !== r.id))} />{t('Опубликовать анонимно в конце круга')}</label>}
+      {secret && view.phase === 'secret-review' && !view.threatView?.publications.some(p => p.target === r.target && p.direction === r.direction && p.text === r.text && p.analysis === r.analysis) && <label className="mt-2 flex gap-2"><input type="checkbox" checked={publish.includes(r.id)} onChange={e => setPublish(ids => e.target.checked ? [...ids, r.id] : ids.filter(id => id !== r.id))} />{t('Опубликовать анонимно в конце раунда')}</label>}
     </article>)}
     {active && ['reveal', 'speech'].includes(view.phase) && !own.auxiliaryUsed && <section className="flex flex-col gap-2 rounded border border-edge p-3">
       <h3 className="label">{t('Общие вспомогательные действия')}</h3>
-      <p className="text-xs text-dim">{t('Один раз за круг, до трёх за партию. Поддержка и конфликт меняют характер кандидата один раз за партию. Передача перемещает настоящий предмет. Очки начисляются только за реальный результат.')}</p>
+      <p className="text-xs text-dim">{t('Не более одного вспомогательного действия за раунд и трёх за партию. Поддержка улучшает характер кандидата, конфликт ухудшает его; одного кандидата можно затронуть только один раз. Если характер уже соответствует эффекту, поддержка добавляет комплект помощи в багаж, а конфликт отнимает полезный предмет. Передача перемещает предмет из вашего багажа в чужой. Очки начисляются только за фактическое изменение.')}</p>
       {chooseTarget}
       <div className="grid gap-2 sm:grid-cols-2"><button className="btn btn-sm" disabled={!target} onClick={() => auxiliary('assist', target)}>{t('Поддержать кандидата')}</button><button className="btn btn-sm" disabled={!target} onClick={() => auxiliary('obstruct', target)}>{t('Спровоцировать конфликт')}</button></div>
       <select className="input" aria-label={t('Передать предмет')} value={item} onChange={e => setItem(e.target.value)}><option value="">{t('выберите…')}</option>{itemsOf(player.slots.luggage.card).map((i, index) => <option key={index} value={i.id}>{tPacked(i.description)}</option>)}</select>
@@ -109,7 +109,7 @@ export function ThreatLocal({ game, update }: { game: GameState; update: (f: (g:
   const ready = game.hiddenThreat?.pending.map(p => p.actor) ?? [];
   return <>
     <ThreatPublic game={game} />
-    <section className="panel flex flex-col gap-2 no-print"><h2 className="label">{t('Личные кабинеты · передавайте устройство')}</h2><p className="text-xs text-dim">{t('Откройте только свой кабинет. Перед передачей нажмите «Скрыть».')}</p>
+    <section className="panel flex flex-col gap-2 no-print"><h2 className="label">{t('Личные экраны · передавайте устройство')}</h2><p className="text-xs text-dim">{t('Открывайте только свой личный экран. Перед передачей устройства нажмите «Скрыть».')}</p>
       {['secret', 'secret-review'].includes(game.phase) && <p className="text-xs">{t('Готовы: {n}/{total}', { n: ready.length, total: game.players.filter(p => !p.isEliminated).length })}</p>}
       <div className="flex flex-wrap gap-2">{game.players.map(p => <button className="btn btn-sm" key={p.id} onClick={() => setOwner(p.id)}><Lock size={14} />{p.name}{ready.includes(p.id) ? ' ✓' : ''}</button>)}</div>
     </section>
