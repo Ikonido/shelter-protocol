@@ -158,7 +158,7 @@ export const perkLabel = (kind: PerkKind, level?: PerkLevel) => {
     reroll_character: 'Сменить характер игрока',
     swap_bag: 'Обменяться багажом',
   };
-  plain.double = 'Голос за два (если кто-то выгнан)';
+  plain.double = 'Голос за два (если кто-то исключён)';
   plain.bond = 'Связать двух игроков';
   if (plain[kind]) return t(plain[kind]!);
   if (!level) return t(kind === 'heal' ? 'Вылечить игрока' : kind === 'steal' ? 'Украсть багаж' : 'Допросить игрока');
@@ -284,7 +284,7 @@ function canBond(g: GameState, playerId: string, params: ActionParams): { ok: tr
   const b = g.players.find((p) => p.id === params.target2 && !p.isEliminated && p.id !== playerId);
   if (!a || !b || a.id === b.id) return { ok: false, reason: t('Выберите двух других живых игроков') };
   const living = g.players.filter((p) => !p.isEliminated).length;
-  if (living - 2 < g.config.shelterSlots) return { ok: false, reason: t('Связь нельзя: после выгнания двоих в убежище не останется мест') };
+  if (living - 2 < g.config.shelterSlots) return { ok: false, reason: t('Связь нельзя: если исключат обоих, игроков станет меньше, чем мест в убежище') };
   return { ok: true };
 }
 
@@ -306,7 +306,7 @@ export function applyPerk(g: GameState, playerId: string, params: ActionParams =
     const p = g.players.find((x) => x.id === playerId)!;
     const a = g.players.find((x) => x.id === pair.a)!.name;
     const b = g.players.find((x) => x.id === pair.b)!.name;
-    return withoutPerk({ ...g, bonds: [...(g.bonds ?? []), pair], log: [...g.log, { round: g.round, text: t('{who} связывает {a} и {b}: если одного выгонят, выйдет и второй', { who: p.name, a, b }) }] }, playerId);
+    return withoutPerk({ ...g, bonds: [...(g.bonds ?? []), pair], log: [...g.log, { round: g.round, text: t('{who} связывает {a} и {b}: если исключат одного, второй выбудет тоже', { who: p.name, a, b }) }] }, playerId);
   }
   if (!effect) return g;
   if (perk.kind === 'heal') {

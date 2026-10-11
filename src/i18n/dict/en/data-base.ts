@@ -54,7 +54,7 @@ export default {
   'Циник': 'Cynic',
   'Ворчун': 'Grumbler',
   'Склонен к драматизации': 'Prone to dramatizing',
-  'Паникёр': 'Panic-monger',
+  'Паникёр': 'Alarmist',
   'Трус': 'Coward',
   'Эгоист': 'Egoist',
   'Вспыльчивый': 'Hot-tempered',

@@ -40,7 +40,7 @@ export default {
 
   // Журнал партии: вскрытия, ручное применение, голосование
   '{who} открывает «{cat}»: {desc}': '{who} reveals «{cat}»: {desc}',
-  '{who} применяет карту действия «{title}»: {desc}': '{who} plays action card «{title}»: {desc}',
+  '{who} применяет карту действия «{title}»: {desc}': '{who} applies action card «{title}»: {desc}',
   'Добровольцы закрыли квоту — голосования нет': 'Volunteers filled the quota — no vote',
   'Большинство воздержалось ({abstained} из {total}) — никто не покидает игру': 'Majority abstained ({abstained} of {total}) — nobody leaves the game',
   'Исключён(ы): {names}{tie}{abs}': 'Eliminated: {names}{tie}{abs}',
@@ -69,7 +69,7 @@ export default {
   'Утечка из архива': 'Archive leak',
   'Кто-то выложил личные дела. Каждый обязан открыть ещё одну случайную карту.': 'Someone has posted personal files. Everyone must reveal one more random card.',
   'Радиомолчание': 'Radio silence',
-  'Эфир забит помехами, тянуть нельзя. Речи в этом раунде вдвое короче.': 'The airwaves are jammed, no drawing cards. Speeches are half as long this round.',
+  'Эфир забит помехами, тянуть нельзя. Речи в этом раунде вдвое короче.': 'The airwaves are jammed, no time to drag things out. Speeches are half as long this round.',
   'Новая беда': 'New trouble',
   'Не успели справиться с одним — случилось ещё: в игру входит дополнительный фактор угрозы.': 'Barely handled one problem when another hit: an extra threat factor enters the game.',
   'Подмога': 'Reinforcements',
@@ -81,7 +81,7 @@ export default {
   'Придётся думать, кого оставлять': 'You will have to think about who to keep',
   'Выжить смогут единицы': 'Only a few will survive',
   '1 фактор угрозы': '1 threat factor',
-  'Одна неснятая смертельная угроза ещё не гибель': 'One unlifted lethal threat is not doom yet',
+  'Одна неснятая смертельная угроза ещё не гибель': 'One unresolved lethal threat is not doom yet',
   'Победа от 65 очков': 'Victory from 65 points',
   'Речь 60 с, партия 60 мин': 'Speech 60 s, game 60 min',
   '2 фактора угрозы': '2 threat factors',

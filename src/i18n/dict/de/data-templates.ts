@@ -73,7 +73,7 @@ export default {
   'Отказ реактора': 'Reaktorausfall',
   'Сбой курса': 'Kursfehler',
   'Метеорит пробил обшивку жилого отсека.': 'Ein Meteorit hat die Hülle des Wohnmoduls durchschlagen.',
-  '{who} заваривает пробоину в скафандре за минуты.': '{who} schweißt das Leck in Minuten zu, im Raumanzug.',
+  '{who} заваривает пробоину в скафандре за минуты.': '{who} schweißt das Leck im Raumanzug in wenigen Minuten zu.',
   'Воздух уходит в космос, а заделать пробоину некому.': 'Luft entweicht ins All, und niemand kann das Leck schließen.',
   'Охлаждение реактора не справляется.': 'Die Reaktorkühlung kommt nicht mehr mit.',
   '{who} перезапускает охлаждение — реактор стабилен.': '{who} startet die Kühlung neu — der Reaktor ist stabil.',

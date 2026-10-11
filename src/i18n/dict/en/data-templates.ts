@@ -73,7 +73,7 @@ export default {
   'Отказ реактора': 'Reactor failure',
   'Сбой курса': 'Course failure',
   'Метеорит пробил обшивку жилого отсека.': 'A meteorite has pierced the hull of the living module.',
-  '{who} заваривает пробоину в скафандре за минуты.': '{who} seals the breach in minutes, suit and all.',
+  '{who} заваривает пробоину в скафандре за минуты.': '{who} welds the breach shut in a spacesuit within minutes.',
   'Воздух уходит в космос, а заделать пробоину некому.': 'Air is venting into space, and no one can seal the breach.',
   'Охлаждение реактора не справляется.': 'The reactor cooling cannot keep up.',
   '{who} перезапускает охлаждение — реактор стабилен.': '{who} restarts the cooling — the reactor is stable.',
