@@ -41,7 +41,7 @@ export default {
   'Нашлась нычка': 'Das Versteck ist aufgetaucht',
   'Кто-то откопал заначку, и все приободрились: самая лёгкая из угроз снята.': 'Jemand hat den Vorrat ausgebuddelt, und alle kommen wieder auf die Beine: Die leichteste der Bedrohungen ist aufgehoben.',
   'Грипп косит народ': 'Die Grippe haut alle um',
-  'В помещении кашляют все. Все, у кого плохое здоровье, обязаны открыть эту карту.': 'Im Raum hustet alles. Wer eine schlechte Gesundheit hat, muss diese Karte aufdecken.',
+  'В помещении кашляют все. Все, у кого плохое здоровье, обязаны открыть эту карту.': 'Im Raum hustet jeder. Wer eine schlechte Gesundheit hat, muss diese Karte aufdecken.',
   'Слив переписки': 'Geleakter Chatverlauf',
   'Кто-то выложил чужие переписки: каждый выбалтывает ещё одну тайну (открывает случайную карту).': 'Jemand hat fremde Chats ins Netz gestellt: Jeder plaudert ein weiteres Geheimnis aus (deckt eine zufällige Karte auf).',
   'Тише, соседи!': 'Ruhe, Nachbarn!',
@@ -243,7 +243,7 @@ export default {
   // Багаж
   'Дилдо внушительных размеров': 'Dildo in beeindruckender Größe',
   'Блок сигарет: местная валюта': 'Stange Zigaretten: die lokale Währung',
-  'Труп в мешке': 'Leiche im Sack: besser nicht fragen, wessen',
+  'Труп в мешке': 'Leiche im Sack',
   'Отрубленная голова бывшего начальника': 'Abgetrennter Kopf des ehemaligen Chefs',
   'Человеческий череп вместо кружки': 'Menschlicher Schädel als Becher',
   'Бочка пива на 50 литров': 'Fass Bier mit 50 Litern',

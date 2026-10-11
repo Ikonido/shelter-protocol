@@ -223,12 +223,12 @@ export default {
   'Волшебная палочка, которая умеет только искрить': 'Zauberstab, der nur funkeln kann',
   'Карманный дракончик: поджигает свечи и штаны': 'Taschendrache: zündet Kerzen und Hosen an',
   'Говорящий сапог гоблина с дурными манерами': 'Sprechender Goblin-Stiefel mit schlechten Manieren',
-  'Ложка, которой ел ещё прадедушка огра': 'Löffel, mit dem schon der Urgroßvater des Oger gegessen hat',
+  'Ложка, которой ел ещё прадедушка огра': 'Löffel, mit dem schon der Urgroßvater des Ogers gegessen hat',
 
   // Факты
   'Лучший повар долины': 'Bester Koch im Tal',
   'Борода до пояса': 'Bart bis zur Taille',
-  'Кулаки как кувалды': 'Fäuste wie Vorschlaghammer',
+  'Кулаки как кувалды': 'Fäuste wie Vorschlaghämmer',
   'Зрение как у ястреба': 'Augen wie ein Falke',
   'Рожки и хвост, прячет под плащом': 'Hörner und Schwanz, versteckt sie unter dem Umhang',
   'Прячется от солнца': 'Versteckt sich vor der Sonne',

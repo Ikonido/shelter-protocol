@@ -108,7 +108,7 @@ export default {
 
   // Пак «Мои сценарии», пустая карта и импорт/копирование паков (lib/builder.ts, generator.ts, packs.ts)
   'Мои сценарии': 'Meine Szenarien',
-  'Сценарии, карты и способности, созданные в конструкторе.': 'Im Konstruktor erstellte Szenarien, Karten und Fähigkeiten.',
+  'Сценарии, карты и способности, созданные в конструкторе.': 'Im Baukasten erstellte Szenarien, Karten und Fähigkeiten.',
   '— нет карт в выбранных паках —': '— keine Karten in den gewählten Paketen —',
   'Новый пак': 'Neues Paket',
   '{name} (копия)': '{name} (Kopie)',

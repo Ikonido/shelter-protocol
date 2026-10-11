@@ -34,7 +34,7 @@ export default {
   'навигация': 'navigation',
   'чистота': 'cleanliness',
   'вирусология': 'virology',
-  'кулинария': 'cuisine',
+  'кулинария': 'culinary arts',
   'энергетика': 'energy',
   'расследование': 'investigation',
 };

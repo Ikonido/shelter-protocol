@@ -52,7 +52,7 @@ export default {
   'Начать раунд': 'Runde starten',
   'Раунд начнёт хост, когда все прочитают.': 'Der Host startet die Runde, sobald alle die Karte gelesen haben.',
   'Вскрытие {step} из {total}.': 'Karte aufdecken: {step} von {total}.',
-  'Ваш ход: выберите карту ниже и откройте её всем, затем объясните, чем вы полезны.': 'Du bist am Zug: Wähle unten eine Karte, decke sie für alle auf und erkläre dann, warum du in den Schutzraum gehörst.',
+  'Ваш ход: выберите карту ниже и откройте её всем, затем объясните, чем вы полезны.': 'Du bist am Zug: Wähle unten eine Karte, decke sie für alle auf und erkläre dann, wie du dem Schutzraum nützt.',
   'Ходит:': 'Am Zug:',
   'Объясните, чем вы полезны убежищу': 'Erkläre, warum du für den Schutzraum wichtig bist',
   '{name} объясняет пользу': '{name} erklärt den Beitrag zum Überleben',

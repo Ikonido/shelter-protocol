@@ -81,7 +81,7 @@ export default {
   'Придётся думать, кого оставлять': 'You will have to think about who to keep',
   'Выжить смогут единицы': 'Only a few will survive',
   '1 фактор угрозы': '1 threat factor',
-  'Одна неснятая смертельная угроза ещё не гибель': 'One unlifted lethal threat is not doom yet',
+  'Одна неснятая смертельная угроза ещё не гибель': 'One unresolved lethal threat is not doom yet',
   'Победа от 65 очков': 'Victory from 65 points',
   'Речь 60 с, партия 60 мин': 'Speech 60 s, game 60 min',
   '2 фактора угрозы': '2 threat factors',

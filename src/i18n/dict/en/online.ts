@@ -52,7 +52,7 @@ export default {
   'Начать раунд': 'Start round',
   'Раунд начнёт хост, когда все прочитают.': 'The host will start the round once everyone has read the card.',
   'Вскрытие {step} из {total}.': 'Reveal {step} of {total}.',
-  'Ваш ход: выберите карту ниже и откройте её всем, затем объясните, чем вы полезны.': 'Your turn: choose a card below, reveal it to everyone, then explain why you belong in the shelter.',
+  'Ваш ход: выберите карту ниже и откройте её всем, затем объясните, чем вы полезны.': 'Your turn: choose a card below, reveal it to everyone, then explain how you are useful.',
   'Ходит:': 'Playing:',
   'Объясните, чем вы полезны убежищу': 'Explain what you can contribute to the shelter',
   '{name} объясняет пользу': '{name} explains what they can contribute',

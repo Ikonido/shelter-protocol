@@ -48,7 +48,7 @@ export default {
   'Что случилось': 'What happened',
   'Опишите катастрофу и положение убежища.': 'Describe the disaster and the state of the shelter.',
   'Срок изоляции': 'Isolation period',
-  'От срока зависит шкала времени в хронике («через 3 года и 4 месяца…»). Пишите «N лет», «N года» или «N месяцев».':'The period sets the timeline in the chronicle (“after 3 years and 4 months…”). The chronicle reads only Russian units, so write it as “N лет”, “N года” or “N месяцев”.',
+  'От срока зависит шкала времени в хронике («через 3 года и 4 месяца…»). Пишите «N лет», «N года» или «N месяцев».': 'The term sets the timeline in the chronicle (“after 3 years and 4 months…”). Write “N years” or “N months”.',
   'Мест в бункере по умолчанию': 'Default spots in the shelter',
   'Мест по умолчанию': 'Default spots',
   'Срок: {dur} · мест: {slots} · навыков: {skills} · угроз: {threats}': 'Period: {dur} · spots: {slots} · skills: {skills} · threats: {threats}',
