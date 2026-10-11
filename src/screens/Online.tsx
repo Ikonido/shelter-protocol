@@ -375,7 +375,7 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
           <div className="anim-rise flex min-w-0 flex-col gap-4" key={`${view.round}-${stepOf(view)}-${view.phase}-${speaker?.id ?? ''}`}>
             {view.threatView && <>
               <ThreatPublic game={view} />
-              <button className="btn" onClick={() => setPrivateOpen(true)}><Lock size={16} />{t('Личный кабинет')}</button>
+              <button className="btn" onClick={() => setPrivateOpen(true)}><Lock size={16} />{t('Личный экран')}</button>
               {['secret', 'secret-review'].includes(view.phase) && <p className="panel text-sm">{t('Готовы: {n}/{total}', { n: view.threatView.ready.length, total: living.length })}</p>}
               {privateOpen && <Modal><Gate key={`${view.round}-${view.phase}-${me}`} name={player.name}><ThreatPrivate key={`${view.round}-${view.phase}-${me}`} view={view} me={me} close={() => setPrivateOpen(false)} submit={command => send({ t: 'secret', command })} auxiliary={(kind, target, itemId) => send({ t: 'auxiliary', round: view.round, kind, target, ...(itemId ? { itemId } : {}) })} /></Gate></Modal>}
             </>}
@@ -449,8 +449,8 @@ function OnlineGame({ view, me, send, host, onExit, offline = [], notice }: { vi
             {view.phase === 'result' && view.lastResult && (
               <section className="panel hud flex flex-col gap-3">
                 <h2 className="h-hud">{t('Итоги раунда {n}', { n: view.round })}</h2>
-                {view.lastResult.noVote ? <p className="text-sm text-amber">{t('Добровольцы закрыли квоту раунда — голосования не будет.')}</p> : <Tally players={view.players} result={view.lastResult} />}
-                {view.lastResult.tieBreak && <p className="text-xs text-amber">{t('Ничья на границе — решено жребием.')}</p>}
+                {view.lastResult.noVote ? <p className="text-sm text-amber">{t('Нужное число кандидатов уже вышло добровольно — голосование в этом раунде не требуется.')}</p> : <Tally players={view.players} result={view.lastResult} />}
+                {view.lastResult.tieBreak && <p className="text-xs text-amber">{t('На границе исключения — равенство голосов. Результат определён жребием.')}</p>}
                 {view.lastResult.skipped && <p className="text-sm text-amber">{t('Большинство воздержалось ({abstained} из {total}) — никто не покидает игру. Пропущенное исключение перенесено в дополнительный раунд.', { abstained: view.lastResult.abstained ?? 0, total: alive(view).length })}</p>}
                 {!view.lastResult.skipped && !!view.lastResult.abstained && <p className="text-xs text-dim">{t('Воздержались: {n}.', { n: view.lastResult.abstained })}</p>}
                 {host ? <button className="btn btn-primary" onClick={() => host.next()}>{t('Дальше')}</button> : <p className="text-xs text-dim">{t('Следующий шаг запускает хост.')}</p>}

@@ -1,6 +1,6 @@
 import { getSettings } from './settings';
 import { DICTS } from '../i18n/registry';
-import { russianText } from '../i18n/russian';
+import { canonicalKey } from '../i18n/aliases';
 
 /**
  * Перевод интерфейса. Ключ — русский исходный текст, так что непереведённая строка просто остаётся русской.
@@ -10,12 +10,14 @@ import { russianText } from '../i18n/russian';
 export function t(text: string, vars?: Record<string, string | number>): string {
   const lang = getSettings().lang;
   const dict = lang === 'ru' ? undefined : DICTS[lang];
-  const reviewed = russianText(text);
-  const key = dict && Object.hasOwn(dict, reviewed) ? reviewed : text;
+  // Прежняя формулировка (старое сохранение, копия пака) читается как текущая: см. i18n/aliases.ts.
+  const key = canonicalKey(text);
   const translated = !!dict && Object.hasOwn(dict, key);
-  let out = translated ? dict[key] : reviewed;
+  let out = translated ? dict[key] : key;
   // Составной текст «багаж + предмет» (бонус профессии): переводим части по отдельности.
-  if (dict && !translated && text.includes(' + ')) out = text.split(' + ').map((part) => Object.hasOwn(dict, part) ? dict[part] : part).join(' + ');
+  if (!translated && key.includes(' + ')) {
+    out = key.split(' + ').map((part) => { const k = canonicalKey(part); return dict && Object.hasOwn(dict, k) ? dict[k] : k; }).join(' + ');
+  }
   return vars ? out.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m)) : out;
 }
 

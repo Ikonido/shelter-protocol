@@ -15,7 +15,7 @@ export function investigate(g: GameState, actor: string, target: string, directi
     evidenceId = found?.id;
   } else {
     const action = s.audit.find(a => a.actor === target && a.target && (a.kind.startsWith('aux:') || a.kind.startsWith('action:') || a.kind.startsWith('perk:')));
-    text = action ? 'Зафиксировано вредоносное действие. Оно не устанавливает тайную роль.' : 'Зафиксированных подозрительных поступков не обнаружено. Это не гарантирует невиновность.';
+    text = action ? 'Зафиксировано вредоносное действие. Оно не раскрывает тайную роль игрока.' : 'Зафиксированных подозрительных поступков не обнаружено. Это не гарантирует невиновность.';
   }
   const previous = evidenceId ? s.players[actor].results.find(r => r.evidenceId === evidenceId && r.analyzed) : undefined;
   return { id: `finding-${g.round}-${actor}`, target, round: g.round, direction, text, ...(evidenceId ? { evidenceId } : {}), analyzed: !!previous, ...(previous?.analysis ? { analysis: previous.analysis } : {}) };

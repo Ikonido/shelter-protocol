@@ -85,7 +85,7 @@ export function canApply(g: GameState, actorId: string, effect: ActionEffect, pa
   if (needsTarget(effect)) {
     // Врач может лечить и себя; остальным действиям нужна другая цель.
     const self = effect === 'healOther' && target?.id === actorId;
-    if (!target || target.isEliminated || (target.id === actorId && !self)) return fail(t('Выберите другого живого игрока'));
+    if (!target || target.isEliminated || (target.id === actorId && !self)) return fail(t('Выберите другого игрока, который ещё в игре'));
   }
   // В «виде» онлайн-клиента нет ни колоды, ни чужих карт: такие проверки пропускаем, их повторяет хост.
   const full = g.deck !== undefined;
@@ -105,7 +105,7 @@ export function canApply(g: GameState, actorId: string, effect: ActionEffect, pa
       return hasDeck('biology') ? { ok: true } : fail(t('В колоде не осталось карт биологии'));
     case 'swapNeighborsPhysique':
     case 'swapNeighborsBiology':
-      return living(g).length >= 3 ? { ok: true } : fail(t('Для обмена нужно хотя бы три живых игрока'));
+      return living(g).length >= 3 ? { ok: true } : fail(t('Для обмена нужны хотя бы три игрока, которые ещё в игре'));
     case 'forceReveal': {
       if (!target) return fail(t('Выберите игрока'));
       const hidden = CATEGORIES.filter((c) => c !== 'action' && !target.slots[c].isRevealed);

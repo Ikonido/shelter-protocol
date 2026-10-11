@@ -49,7 +49,7 @@ export function rewardTransition(before: GameState, after: GameState, actor: str
       const key = `trait:${old.id}:${category}`;
       const improved = value(b) > value(a);
       const amount = improved ? role === 'officer' ? 2 : 0 : isCriminal(role) ? 2 : 0;
-      cur = reward(cur, actor, key, amount, improved ? category === 'health' && a.modifier === 'negative' ? 'Лечение отрицательного здоровья' : 'Улучшение чужой характеристики' : 'Ухудшение чужой характеристики', old.id);
+      cur = reward(cur, actor, key, amount, improved ? category === 'health' && a.modifier === 'negative' ? 'Улучшение здоровья' : 'Улучшение чужой характеристики' : 'Ухудшение чужой характеристики', old.id);
     }
     const oldItems = itemsOf(old.slots.luggage.card), newItems = itemsOf(next.slots.luggage.card);
     const removed = difference(oldItems, newItems), received = difference(newItems, oldItems);

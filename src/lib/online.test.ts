@@ -202,6 +202,8 @@ describe('online', () => {
   });
 
   it('the classic view is an allowlist: host-only fields and any field added later never reach a client', async () => {
+    // Уникальная метка: обычное русское слово («секрет») могло бы случайно оказаться в тексте карты или события партии.
+    const HOST_ONLY_MARKER = 'ZZ_HOST_ONLY_FIELD_9F3A';
     const { host } = await setup();
     host.start();
     const g = host.game!;
@@ -210,12 +212,12 @@ describe('online', () => {
       bonds: [{ a: 'p1', b: 'p2', votes: 2 }],
       fx: { double: ['p1'], veto: [], immune: ['p2'], allies: [['p1', 'p2']] as [string, string][] },
       perks: [{ playerId: 'p2', kind: 'heal' as const, charges: 2 }],
-      newHostOnlyField: 'секрет',
+      newHostOnlyField: HOST_ONLY_MARKER,
     };
     const view = viewFor(loaded as never, 'p2') as unknown as Record<string, unknown>;
     for (const key of ['deck', 'discard', 'fx', 'bonds', 'hiddenThreat', 'newHostOnlyField']) expect(view, key).not.toHaveProperty(key);
     expect(view.seed).toBe(0);
-    expect(JSON.stringify(view)).not.toContain('секрет');
+    expect(JSON.stringify(view)).not.toContain(HOST_ONLY_MARKER);
     // клиенту доходят только поля из таблицы (публичные и вычисляемые)
     const allowed = new Set(Object.entries(WIRE_FIELDS).filter(([, kind]) => kind !== 'host').map(([k]) => k));
     for (const key of Object.keys(view)) expect(allowed.has(key), `лишнее поле «${key}» в виде клиента`).toBe(true);
