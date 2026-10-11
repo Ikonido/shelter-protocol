@@ -77,7 +77,7 @@ export default {
   'Тысячи всадников идут по снегу к монастырю.': 'Tausende Reiter ziehen durch den Schnee auf das Kloster zu.',
   '{who} ставит частокол и рвы — орда ломается о стены.': '{who} errichtet Palisaden und Gräben — die Horde zerschellt an den Mauern.',
   'Орда сметает ворота и режет всех.': 'Die Horde fegt das Tor hinweg und metzelt alle nieder.',
-  'Искра от факела, и сухая солома занялась.': 'Ein Funke vom Fackel, und das trockene Stroh fängt Feuer.',
+  'Искра от факела, и сухая солома занялась.': 'Ein Funke von der Fackel, und das trockene Stroh fängt Feuer.',
   '{who} бьёт тревогу и гасит огонь, запасы спасены.': '{who} schlägt Alarm und löscht das Feuer — die Vorräte sind gerettet.',
   'Амбар сгорает вместе с зерном.': 'Die Scheune brennt samt Getreide nieder.',
   'Мёрзлые поля не дали зерна.': 'Die gefrorenen Felder haben kein Korn gebracht.',

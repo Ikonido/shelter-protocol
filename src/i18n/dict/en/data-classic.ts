@@ -188,10 +188,10 @@ export default {
   'Мужчина, 24 года': 'Man, 24 years old',
   'Мужчина, 67 лет': 'Man, 67 years old',
   'Женщина, 58 лет, менопауза': 'Woman, 58 years old, post-menopausal',
-  'Подросток, 16 лет': 'Youth, 16 years',
+  'Подросток, 16 лет': 'Teenager, 16 years',
   'Мужчина, 42 года, бесплоден': 'Man, 42 years old, infertile',
   'Женщина, 45 лет': 'Woman, 45 years old',
-  'Мужчина, 38 лет': 'Man, 38 years',
+  'Мужчина, 38 лет': 'Man, 38 years old',
   'Женщина, 30 лет': 'Woman, 30 years old',
   'Мужчина, 52 года': 'Man, 52 years old',
 

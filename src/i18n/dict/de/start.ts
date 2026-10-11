@@ -75,7 +75,7 @@ export default {
   'Войти в комнату': 'Raum beitreten',
   'по коду или QR от друга': 'per Code oder QR von einem Freund',
   'Свой сценарий': 'Eigenes Szenario',
-  'конструктор: угрозы и способности карт': 'Editor: Bedrohungen und Kartenfähigkeiten',
+  'конструктор: угрозы и способности карт': 'Baukasten: Bedrohungen und Kartenfähigkeiten',
   'Паки': 'Pakete',
   'файлы, ссылки, расширенный редактор': 'Dateien, Links, erweiterter Editor',
   'На телефон': 'Aufs Handy',

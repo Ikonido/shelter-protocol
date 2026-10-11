@@ -67,7 +67,7 @@ export default {
   'Сменить характер игрока': 'Change a player’s personality card',
   'Украсть предмет и подбросить статуэтку': 'Steal an item and leave a figurine in its place',
   '{who} применяет «{title}»: меняет здоровье {victim}': '{who} uses “{title}”: changes {victim}’s health',
-  '{who} применяет «{title}»: меняет характер {victim}': '{who} uses “{title}”: changes {victim}’s character',
+  '{who} применяет «{title}»: меняет характер {victim}': '{who} uses “{title}”: changes {victim}’s personality',
   'Колода пуста': 'The deck is empty',
   '{who} получает бонус профессии: {items}': '{who} gets a profession bonus: {items}',
   'Связать двух игроков': 'Link two players',

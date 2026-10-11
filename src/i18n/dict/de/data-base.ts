@@ -59,7 +59,7 @@ export default {
   'Эгоист': 'Egoist',
   'Вспыльчивый': 'Jähzornig',
   'Агрессивный': 'Aggressiv',
-  'Обидчивый': 'Nachtragend',
+  'Обидчивый': 'Leicht gekränkt',
   'Нытик': 'Jammerlappen',
   'Зануда': 'Langweiler',
   'Излишне педантичный': 'Übermäßig pedantisch',
