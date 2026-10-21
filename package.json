@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "jsqr": "^1.4.0",
-    "lucide-react": "^1.52.0",
+    "lucide-react": "^1.59.0",
     "lz-string": "^1.5.0",
     "peerjs": "^1.5.5",
     "qrcode-generator": "^2.0.4",
