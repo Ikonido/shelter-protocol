@@ -29,7 +29,7 @@
     "peer": "^1.0.2",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
-    "vite": "^8.3.3",
+    "vite": "^8.3.5",
     "vitest": "^5.0.3"
   },
   "engines": {
